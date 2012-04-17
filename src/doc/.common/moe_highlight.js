@@ -41,7 +41,6 @@ var PASS = lexer.PASS
 var EXCLAM = lexer.EXCLAM
 var WAIT = lexer.WAIT
 var USING = lexer.USING
-var LET = lexer.LET
 var WHERE = lexer.WHERE
 var DEF = lexer.DEF
 var RESEND = lexer.RESEND

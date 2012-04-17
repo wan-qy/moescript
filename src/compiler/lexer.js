@@ -48,7 +48,6 @@ var PASS = exports.PASS = TokenType('Pass')
 var EXCLAM = exports.EXCLAM = TokenType('Exclamation symbol')
 var WAIT = exports.WAIT = TokenType('Wait')
 var USING = exports.USING = TokenType('Using')
-var LET = exports.LET = TokenType('Let')
 var WHERE = exports.WHERE = TokenType('Where')
 var DEF = exports.DEF = TokenType('Def')
 var RESEND = exports.RESEND = TokenType('Resend')
@@ -144,7 +143,6 @@ var nameTypes = {
 //	'try': TRY,
 //	'catch': CATCH,
 //	'finally': FINALLY,
-	'let': LET,
 	'where': WHERE,
 	'pass': PASS,
 	'wait': WAIT,
@@ -384,7 +382,10 @@ var LexerBackend = function(input, cfgMap){
 	return {
 		comment: function(){},
 		opt: function(opt, match, n){return option(opt)},
-		nme: function(type, match, n){make(type, match, n, true)},
+		nme: function(type, match, n){
+			make(type, match, n, true);
+			ignoreComingNewline = type === OPERATOR
+		},
 		str: function(type, match, n){stringliteral(match, n)},
 		number: function(type, match, n){make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n)},
 		symbol: function(type, match, n){p_symbol(type, match, n)},
@@ -411,7 +412,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	});
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
-	var rIgnore = /[+\-*\/<>&|\.,)\]}]|[=!][=~]|::/
+	var rIgnore = /[+\-*\/<>&|\.,)\]}]|[=!][=~]|::|(?:and|or|is|as)(?![\w$])/
 	var rNewline = composeRex(/\n(?!\s*(?:#ignore))(?:[ \t]*\n)*[ \t]*/, {ignore: rIgnore});
 	var rToken = composeRex(/(#comment)|(?:#option)|(#identifier)|(#string)|(#number)|(#symbol)|(#newline)/gm, {
 		comment: rComment,
