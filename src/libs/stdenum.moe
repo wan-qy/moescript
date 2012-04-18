@@ -1,7 +1,11 @@
 def enum = enumeration;
+def export(n)(x) = 
+	exports[n] = x
+	x
+
 -- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
 -- takeWhile(I <- Enumerable, condition(x) <- Boolean) <- Enumerable
-def takeWhile = exports.takeWhile = Enumerable function(I, condition):
+def export("takeWhile") Enumerable takeWhile(I, condition):
 	for(var *a in I)
 		if(not condition.apply null, a)
 			return undefined;
@@ -9,7 +13,22 @@ def takeWhile = exports.takeWhile = Enumerable function(I, condition):
 
 -- function select: Wraps an enumerable object, only emits terms satisifying the condition
 -- select(I <- Enumerable, condition(x) <- Boolean) <- Enumerable
-def select = exports.select = Enumerable function(I, condition):
+def export("select") Enumerable select(I, condition):
 	for(var *a in I)
 		if(condition.apply null, a)
 			() <- a
+
+-- function table: Creates lists using list comprehension monad.
+
+
+def export("table") table(G) = (G.build schemata).apply(this, arguments)()
+where 
+	fReturn(x) = case(x)
+		when(undefined) [ ]
+		otherwise       [x]
+	fYield(x) = x
+	fBind(list, callback) =
+		var ans = []
+		for(var t in list) ans = ans.concat callback t
+		ans
+	schemata = [yield: fYield, return: fReturn, bind: fBind]

@@ -554,16 +554,16 @@ You can get it from \githubProject.
 					for(var y in callback x)
 						enumeration.yield! y
 
-		var table(G) =
+		var mktable(G) =
 			var f = G.build ecSchemata
 			f.apply(this, arguments)()
 
 		// simple usage
-		for(var item in table {var x <- (1..100); x * 2 + 1}) trace item
+		for(var item in mktable {var x <- (1..100); x * 2 + 1}) trace item
 		
 		// complicated usage
-		var t = table {var x <- (1...9); var y <- (x...9); x + ' * ' + y + ' = ' + x * y }
-		// t = table [build: fBuild]
+		var t = mktable {var x <- (1...9); var y <- (x...9); x + ' * ' + y + ' = ' + x * y }
+		// t = mktable [build: fBuild]
 		// where fBuild(schemata)()() =
 		//     schemata.bind (1...9), (x) =>
 		//         schemata.bind (x...9), (y) =>

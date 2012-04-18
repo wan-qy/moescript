@@ -141,8 +141,9 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 		for (var each in scope.usedVariables) if (scope.usedVariables[each] === true) {
 			if(!(scope.variables[each] > 0)){
 				if(!explicitQ) {
-					cWarn(PW('Undeclared variable "' + each + '"',
-						(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
+					if(!/^[a-z][\d_$]?$/.test(each))
+						cWarn(PW('Undeclared variable "' + each + '"',
+							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
 					scope.newVar(each);
 					trees[scope.variables[each] - 1].locals.push(each);
 				} else {

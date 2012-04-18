@@ -410,11 +410,11 @@ exports.parse = function (input, source, config) {
 							}),
 							thenPart: new Node(nt.RETURN, {
 								expression: new Node(nt.FUNCTION, {
-									parameters: new Node(nt.PARAMETERS, {names: [{name: 'y'}]}),
+									parameters: new Node(nt.PARAMETERS, {names: [{name: 'z'}]}),
 									code: new Node(nt.RETURN, {
 										expression: new Node(opType, {
-											left: new Node(nt.VARIABLE, {name: 'x'}),
-											right: new Node(nt.VARIABLE, {name: 'y'})
+											left: new Node(nt.VARIABLE, {name: 'z'}),
+											right: new Node(nt.VARIABLE, {name: 'x'})
 										})
 									})
 								})
@@ -716,10 +716,10 @@ exports.parse = function (input, source, config) {
 		} else if(node.args.length === 1 && !node.names[0]) {
 			return new Node(nt.CALL, {
 				func: new Node(nt.FUNCTION, {
-					parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}]}),
+					parameters: new Node(nt.PARAMETERS, {names: [{name: 'y'}]}),
 					code: new Node(nt.RETURN, {
 						expression: new Node(nt.FUNCTION, {
-							parameters: new Node(nt.PARAMETERS, {names: [{name: 'y'}]}),
+							parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}]}),
 							code: new Node(nt.RETURN, {
 								expression: new Node(node.func.operatorType, {
 									left: new Node(nt.VARIABLE, {name: 'x'}),
@@ -908,7 +908,7 @@ exports.parse = function (input, source, config) {
 		// when affix
 		if(tokenIs(WHEN)){
 			advance(); advance(OPEN, RDSTART);
-			c = new Node(nt.CONDITIONAL, {
+			var c = new Node(nt.CONDITIONAL, {
 				condition: expression(),
 				thenPart: node
 			});
@@ -949,11 +949,11 @@ exports.parse = function (input, source, config) {
 				if(tokenIs(INDENT)) stmts = stmts.concat(whereClauses())
 			};
 			stmts.push(new Node(nt.RETURN, { expression: node }));
-			return new Node(nt.CALLBLOCK, {
+			return whereClausize(new Node(nt.CALLBLOCK, {
 				func: new Node(nt.FUNCTION, {
 						parameters: new Node(nt.PARAMETERS, {names: []}),
 						code: new Node(nt.SCRIPT, {content: stmts}),
-						rebind: true })})
+						rebind: true })}))
 		} else {
 			return node;
 		}
@@ -1041,6 +1041,7 @@ exports.parse = function (input, source, config) {
 		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE || next.type === OUTDENT);
 	};
 	var aStatementEnded = false;
+	var currentlyInlineQ = false;
 
 	var statement =  function(){
 		aStatementEnded = false;
@@ -1068,6 +1069,8 @@ exports.parse = function (input, source, config) {
 			advance(OUTDENT);
 			return r;
 		} else {
+			ensure(!currentlyInlineQ, "Unable to use multiple-line statements here.")
+
 			var script = new Node(nt.SCRIPT, {content: []});
 			var s;
 			do {
@@ -1080,6 +1083,9 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	var onelineStatements = function(){
+		var _t = currentlyInlineQ;
+		currentlyInlineQ = true;
+
 		var script = new Node(nt.SCRIPT, {content: []});
 		var s;
 		do {
@@ -1088,6 +1094,8 @@ exports.parse = function (input, source, config) {
 			script.content.push(statement());
 		} while(aStatementEnded && token);
 		aStatementEnded = false;
+
+		currentlyInlineQ = _t;
 		return script;
 	};
 
@@ -1214,52 +1222,59 @@ exports.parse = function (input, source, config) {
 		else if(tokenIs(COLON)) return DEF_FUNCTIONAL;
 		else return parlistQ();
 	};
-	var varDefinition = function(constantQ){
-		var v = member();
-		var defType;
-		if (defType = defPartQ()){
-			if (defType === DEF_ASSIGNMENT) { // assigned variable
-				advance();
+	var varDefinition = function(){
+		var dp = function(constantQ){
+			var v = member();
+			var defType;
+			if (defType = defPartQ()){
+				if (defType === DEF_ASSIGNMENT) { // assigned variable
+					advance();
+					return new Node(nt.ASSIGN, {
+						left: v,
+						right: expression(),
+						constantQ: constantQ,
+						declareVariable: v.name
+					});
+				} else if (defType === DEF_FUNCTIONAL){
+					return new Node(nt.ASSIGN, {
+						left: v,
+						right: functionLiteral(true),
+						constantQ: constantQ,
+						declareVariable: v.name
+					});
+				} else if (defType === DEF_BIND){
+					advance();
+					return new Node(nt.ASSIGN, {
+						left: v,
+						right: new Node(nt.CALL, {
+							func: new Node(nt.BINDPOINT),
+							args: [expression()],
+							names: [null]
+						}),
+						declareVariable: v.name
+					});
+				}
+			} else {
+				v = completeCallExpression(v);
+				var rhs = dp(constantQ);
 				return new Node(nt.ASSIGN, {
-					left: v,
-					right: assignmentExpression(),
-					constantQ: constantQ,
-					declareVariable: v.name
-				});
-			} else if (defType === DEF_FUNCTIONAL){
-				return new Node(nt.ASSIGN, {
-					left: v,
-					right: functionLiteral(true),
-					constantQ: constantQ,
-					declareVariable: v.name
-				});
-			} else if (defType === DEF_BIND){
-				advance();
-				return new Node(nt.ASSIGN, {
-					left: v,
+					left: rhs.left,
 					right: new Node(nt.CALL, {
-						func: new Node(nt.BINDPOINT),
-						args: [assignmentExpression()],
-						names: [null]
+						func: v,
+						args: [rhs.right],
+						names: [null],
 					}),
-					declareVariable: v.name
+					constantQ: rhs.constantQ,
+					declareVariable: rhs.declareVariable
 				});
 			}
-		} else {
-			v = completeCallExpression(v);
-			var rhs = varDefinition(constantQ);
-			return new Node(nt.ASSIGN, {
-				left: rhs.left,
-				right: new Node(nt.CALL, {
-					func: v,
-					args: [rhs.right],
-					names: [null],
-				}),
-				constantQ: rhs.constantQ,
-				declareVariable: rhs.declareVariable
-			});
+		};
+		return function(constantQ){
+			var r = dp(constantQ);
+			r.right = whereClausize(r.right);
+			return r;
 		}
-	};
+	}();
 
 
 	var contExpression = function(){
@@ -1269,7 +1284,9 @@ exports.parse = function (input, source, config) {
 		return r;
 	};
 	var stripSemicolons = function () {
-		while (tokenIs(SEMICOLON)) advance();
+		var hasLinebreaks = false
+		while (tokenIs(SEMICOLON)) hasLinebreaks = (advance().value == "Implicit") || hasLinebreaks;
+		return hasLinebreaks;
 	};
 
 	var ifstmt = function () {
@@ -1277,8 +1294,9 @@ exports.parse = function (input, source, config) {
 		var n = new Node(nt.IF);
 		n.condition = contExpression();
 		n.thenPart = block();
-		stripSemicolons();
+		var lineSkipped = stripSemicolons();
 		if(tokenIs(ELSE)){
+			ensure(!(currentlyInlineQ && lineSkipped), "Unable to use multiple-line statements here.")
 			advance(ELSE);
 			if(tokenIs(IF)){
 				n.elsePart = blocky(ifstmt());
