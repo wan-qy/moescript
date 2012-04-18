@@ -71,6 +71,7 @@ var NodeType = exports.NodeType = function () {
 		'or', '||',
 		'..', '...',
 		'as', 
+		'then',
 		// Conditional
 		'CONDITIONAL',
 		// Assignment

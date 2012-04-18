@@ -253,12 +253,14 @@ exports.Generator = function(g_envs, g_config){
 	// vmSchemata: Transformation schemata for non-bindPoint parts
 	var vmSchemata = [];
 	var vmSchemataDef = function (tf, trans) {
+		if(!tf) throw "Unexpected schemata name"
 		vmSchemata[tf] = trans;
 	};
 	// epSchemata: Transformation schemata for both non- and bindPoint nodes.
 	// Used for expressions only.
 	var epSchemata = [];
 	var eSchemataDef = function(type, f){
+		if(!type) throw "Unexpected schemata name"
 		epSchemata[type] = f;
 	};
 
@@ -735,7 +737,10 @@ exports.Generator = function(g_envs, g_config){
 		};
 		var mSchemataDef = function(){
 			var func = arguments[arguments.length - 1];
-			for(var i = arguments.length - 2; i >= 0; i--) mSchemata[arguments[i]] = func;
+			for(var i = arguments.length - 2; i >= 0; i--) {
+				if(!arguments[i]) throw "Unexpected schemata name"
+				mSchemata[arguments[i]] = func;
+			}
 		};
 
 		// Labels
