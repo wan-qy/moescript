@@ -68,13 +68,18 @@ You can get it from \githubProject.
 		Newlines are **always** "semicolons", expect appearances **around** some symbols will be ignored so that you could write long expressions or complex literals.
 	
 	|smoe
-		// Wrong example: newline inside parentheses
-		--	(trace  -- here
-		--		x,
-		--		y,
-		--		z)
+		// Newlines inside brackets will be ignored.
+		(trace  -- here
+			x,
+			y,
+			z)
+		var actions = { if(true) trace "OK"
+		              ; else trace "Panic"
+		              ; while(false) do { trace "What"
+		                                ; trace "Happened?"}
+		              }
 	:comm
-		Unlike python, line breaks **inside** parentheses, which often causes syntax errors, will not be ignored.
+		Like python, line breaks **inside** parentheses **will** be ignored. 
 
 		As what you seen, `//` and `--` leads comments.
 
@@ -139,7 +144,7 @@ You can get it from \githubProject.
 		(where clause)
 		(assignments)
 
-	Most opeators are left-associative, except assignments are right-associative and boolean operators are non-associative. There are **no** unary opeators. Use `not` and `negate` functions.
+	Most opeators are left-associative, except assignments are right-associative and boolean operators are non-associative.
 
 	`==` and `===` has the same meaning in Moe, which is strict equality test. The mignt-be-harmful non-strict equal(`==`) in JavaScript is `=~` in Moe.
 
@@ -147,7 +152,7 @@ You can get it from \githubProject.
 
 	Operators could be **wrapped** into functions directly by using `(op)`. `(+)(x, y)` means `x + y` while `(+)(x)` means `(y) => x + y`.
 
-	Two of the arguments, `(+)` and `(-)` could be used as "unary operators" in the form `(- x)`, stands for `(0 - x)`.
+	Two of the arguments, `(+)` and `(-)` could be used as "unary operators" in the form `(- x)`. Though `!` is not an operator, `(! x)` actually works as `(not x)` where `not` is a keyword function.
 
 :section{Flow control}
 	|smoe
@@ -479,7 +484,12 @@ You can get it from \githubProject.
 		:comm
 			`resend`, followed with a function call, is used to call methods with `this` bound to `this` of current scope. `resend method(args)` stands for `method.call(this, args)`.
 
-			`do` acts like `resend`. The only difference between `do` and `resend` is that `do f` means `f.apply(this, arguments)`, while `resend f` throws a syntax error. `resend` accepts function calls only.
+		|smoe
+			def composite(f, g)() = f(do(g))
+
+			def x2m1p = composite (+)(1), (*)(2)		
+		:comm
+			`(do f)` means `(f.apply(this, arguments))`. It is usually used in metaprogramming.
 		
 		|smoe
 			def f() = process wait loadResource(something)

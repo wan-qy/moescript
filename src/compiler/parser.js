@@ -393,53 +393,71 @@ exports.parse = function (input, source, config) {
 		advance(CLOSE, SQEND);
 		return node;
 	};
-
+	var groupOperatorForm = function(){
+		var opType = nt[advance(OPERATOR).value];
+		if(tokenIs(CLOSE, RDEND)) {
+			advance();
+			return new Node(nt.FUNCTION, {
+				parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}, {name: 'y'}]}),
+				code: new Node(nt.SCRIPT, {content: [
+					new Node(nt.IF, { 
+						condition: new Node(nt['<'], {
+							left: MemberNode(new Node(nt.ARGUMENTS), 'length'),
+							right: new Node(nt.LITERAL, {value: 2})
+						}),
+						thenPart: new Node(nt.RETURN, {
+							expression: new Node(nt.FUNCTION, {
+								parameters: new Node(nt.PARAMETERS, {names: [{name: 'z'}]}),
+								code: new Node(nt.RETURN, {
+									expression: new Node(opType, {
+										left: new Node(nt.VARIABLE, {name: 'z'}),
+										right: new Node(nt.VARIABLE, {name: 'x'})
+									})
+								})
+							})
+						}),
+						elsePart: new Node(nt.RETURN, {
+							expression: new Node(opType, {
+								left: new Node(nt.VARIABLE, {name: 'x'}),
+								right: new Node(nt.VARIABLE, {name: 'y'})
+							})
+						})
+					})
+				]}),
+				operatorType: opType
+			})
+		} else if(opType === nt['-']) {
+			var r = new Node(nt['-'], {
+				left: new Node(nt.LITERAL, {value: 0}),
+				right: unary()
+			});
+			advance(CLOSE, RDEND);
+			return r;
+		} else if(opType === nt['+']) {
+			var r = new Node(nt['-'], {
+				left: unary(),
+				right: new Node(nt.LITERAL, {value: 0})
+			});
+			advance(CLOSE, RDEND);
+			return r;
+		} else {
+			throw new PE('Unexpected Operator.')
+		}
+	}
 	var groupLike = function(){
 		if(nextIs(OPERATOR)){
 			advance(OPEN, RDSTART);
-			var opType = nt[advance(OPERATOR).value];
-			if(tokenIs(CLOSE, RDEND)) {
-				advance();
-				return new Node(nt.FUNCTION, {
-					parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}, {name: 'y'}]}),
-					code: new Node(nt.SCRIPT, {content: [
-						new Node(nt.IF, { 
-							condition: new Node(nt['<'], {
-								left: MemberNode(new Node(nt.ARGUMENTS), 'length'),
-								right: new Node(nt.LITERAL, {value: 2})
-							}),
-							thenPart: new Node(nt.RETURN, {
-								expression: new Node(nt.FUNCTION, {
-									parameters: new Node(nt.PARAMETERS, {names: [{name: 'z'}]}),
-									code: new Node(nt.RETURN, {
-										expression: new Node(opType, {
-											left: new Node(nt.VARIABLE, {name: 'z'}),
-											right: new Node(nt.VARIABLE, {name: 'x'})
-										})
-									})
-								})
-							}),
-							elsePart: new Node(nt.RETURN, {
-								expression: new Node(opType, {
-									left: new Node(nt.VARIABLE, {name: 'x'}),
-									right: new Node(nt.VARIABLE, {name: 'y'})
-								})
-							})
-						})
-					]}),
-					operatorType: opType
-				})
-			} else if(opType === nt['-'] || opType === nt['+']){
-				var r = new Node(opType, {
-					left: new Node(nt.LITERAL, {value: 0}),
-					right: unary()
-				});
-				advance(CLOSE, RDEND);
-				return r;
-			} else {
-				throw new PE('Unexpected Operator.')
-			}
+			return groupOperatorForm();
+		} else if(nextIs(EXCLAM)){
+			advance();
+			advance();
+			var r = new Node(nt.NOT, {
+				operand: unary()
+			});
+			advance(CLOSE, RDEND);
+			return r;
 		};
+		
 		if(nextIs(CLOSE, RDEND) && shiftIs(2, LAMBDA)
 			|| nextIs(ID) && (shiftIs(2, CLOSE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))) {
 			return lambdaExpression();

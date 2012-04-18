@@ -66,6 +66,7 @@ var TRY = exports.TRY = TokenType('Try')
 var CATCH = exports.CATCH = TokenType('Catch')
 var FINALLY = exports.FINALLY = TokenType('Finally')
 
+var NEWLINE = TokenType('Newline')
 
 
 var Token = exports.Token = function (t, v, p, s, i) {
@@ -275,9 +276,6 @@ var LexerBackend = function(input, cfgMap){
 			case PIPE:
 			case DOT:
 			case PROTOMEMBER:
-				make(t, s, n);
-				ignoreComingNewline = true;
-				break;
 			case SHARP:
 			case MY:
 			case EXCLAM:
@@ -288,9 +286,6 @@ var LexerBackend = function(input, cfgMap){
 				make(t, s, n);
 				break;
 			case OPEN:
-				make(t, s.charAt(0), n);
-				ignoreComingNewline = true;
-				break;
 			case CLOSE:
 				make(t, s.charAt(0), n);
 				break;
@@ -298,7 +293,6 @@ var LexerBackend = function(input, cfgMap){
 				make(t, "Explicit", n);
 				break;
 			case BACKSLASH:
-				ignoreComingNewline = true;
 				break;
 			default:
 				throw token_err("Unexpected symbol" + s, n)
@@ -317,7 +311,7 @@ var LexerBackend = function(input, cfgMap){
 			return make(STRING, lfUnescape(match.slice(1, -1)), n);
 		}
 	};
-	var icomp = function(start){
+	var LayoutComputer = function(start, make){
 		var compare = function(a, b, p){
 			if(a === b) return 0;
 			else if (a.length < b.length && b.slice(0, a.length) === a) return 1
@@ -327,22 +321,17 @@ var LexerBackend = function(input, cfgMap){
 		var stack = [''], top = 0;
 		var process = function(b, p){
 			var c = compare(stack[top], b, p);
-			if(ignoreComingNewline){
-				ignoreComingNewline = false;
-				return;
+			if(c === 1){
+				// indent
+				stack[++top] = b;
+				make(INDENT, 0, p);
+			} else if(c === -1) {
+				// outdent
+				dump(b, p);
 			} else {
-				if(c === 1){
-					// indent
-					stack[++top] = b;
-					make(INDENT, 0, p);
-				} else if(c === -1) {
-					// outdent
-					dump(b, p);
-				} else {
-					make(SEMICOLON, "Implicit", p);
-				};
-				ignoreComingNewline = false;
-			}
+				// a semicolon
+				make(SEMICOLON, "Implicit", p);
+			};
 		};
 		var dump = function(b, p){
 			var n = b.length;
@@ -377,7 +366,51 @@ var LexerBackend = function(input, cfgMap){
 			dump: dump,
 			desemi: desemi
 		}
-	}(input.match(/^[ \t]*/)[0]);
+	};
+
+	var ignoresIncomingNewline = function(token){
+		return token &&  ( token.type === OPERATOR 
+						|| token.type === DOT
+						|| token.type === OPEN
+						|| token.type === COMMA
+						|| token.type === PIPE
+						|| token.type === PROTOMEMBER)
+	}
+	var ignoresPreviousNewline = function(token){
+		return token &&  ( token.type === OPERATOR 
+						|| token.type === DOT
+						|| token.type === CLOSE
+						|| token.type === COMMA
+						|| token.type === PIPE
+						|| token.type === PROTOMEMBER)
+	}
+
+	var layout = function(tokens){
+		var ans = []
+		var fmake = function(t, s, n){
+			ans.push(new Token(t, s, n, false, false))
+		};
+		var icomp = LayoutComputer(input.match(/^[ \t]*/)[0], fmake);
+		var nBrackets = 0;
+		for(var i = 0; i < tokens.length; i++){
+			var token = tokens[i];
+			if(token.type === NEWLINE) {
+				if(ignoresIncomingNewline(tokens[i - 1]) || ignoresPreviousNewline(tokens[i + 1]) || nBrackets) {
+					// Ignore this line break
+				} else {
+					icomp.process(token.value, token.position)
+				}
+			} else {
+				if(token.type === OPEN)
+					nBrackets += 1
+				else if(token.type === CLOSE)
+					nBrackets -= 1
+
+				ans.push(token);
+			}
+		}
+		return ans;
+	}
 
 	return {
 		comment: function(){},
@@ -389,14 +422,13 @@ var LexerBackend = function(input, cfgMap){
 		str: function(type, match, n){stringliteral(match, n)},
 		number: function(type, match, n){make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n)},
 		symbol: function(type, match, n){p_symbol(type, match, n)},
-		newline: function(type, match, n){icomp.process(match.slice(match.lastIndexOf('\n') + 1), n)},
+		newline: function(type, match, n){make(NEWLINE, match.slice(match.lastIndexOf('\n') + 1), n)},
 		mismatch: function(m, pos){
 			if(m.trim())
 				throw token_err("Unexpected character", pos);
 		},
 		output: function(){
-			icomp.process('')
-			output.tokens = tokens;
+			output.tokens = layout(tokens);
 			output.options = options;
 			return output;
 		}
@@ -412,8 +444,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	});
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
-	var rIgnore = /[+\-*\/<>&|\.,)\]}]|[=!][=~]|::|(?:and|or|is|as)(?![\w$])/
-	var rNewline = composeRex(/\n(?!\s*(?:#ignore))(?:[ \t]*\n)*[ \t]*/, {ignore: rIgnore});
+	var rNewline = /\n(?:[ \t]*\n)*[ \t]*/;
 	var rToken = composeRex(/(#comment)|(?:#option)|(#identifier)|(#string)|(#number)|(#symbol)|(#newline)/gm, {
 		comment: rComment,
 		option: rOption,
