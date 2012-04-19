@@ -24,6 +24,7 @@ var THROW = moe.runtime.THROW;
 var TRY = moe.runtime.TRY;
 var UNIQ = moe.runtime.UNIQ;
 var YIELDVALUE = moe.runtime.YIELDVALUE;
+var MOE_GET_ENUM = moe.runtime.GET_ENUM;
 
 
 var reg = function(name, value){
@@ -197,6 +198,15 @@ reg('Enumerable', function(M){
 		}}
 	}
 });
+reg('getEnumeratorOf', MOE_GET_ENUM);
+reg('rangeFor', function(range, f){
+	var e = MOE_GET_ENUM(range);
+	if(e.enumerate) return e.enumerate(f)
+	else {
+		var t = null
+		while((t = e())) f.apply(null, t)
+	}
+})
 
 reg('debugger', function(){debugger});
 

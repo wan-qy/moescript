@@ -580,7 +580,9 @@ You can get it from \githubProject.
 		//             schemata.return (x + ' * ' + y + ' = ' + x * y)
 		for(var item in t) trace item
 	:comm
-		Even more interesting things could be implemented by monadic primitives, due to it is actually an abstraction of flow control. In some situation, callbacks are not called only once, produces "strange" behaviors, for example, enumerator comprehension:
+		Even more interesting things could be implemented by monadic primitives, due to it is actually an abstraction of flow control. In some situation, callbacks are not called only once, produces "strange" behaviors, for example, enumerator comprehension.
+
+		Actually there is a builtin function named `table` in `moe/libs/std`, generates arrays.
 
 :section{Links}
 	 - Moescript: \githubProject

@@ -21,14 +21,15 @@ def export("select") Enumerable select(I, condition):
 -- function table: Creates lists using list comprehension monad.
 
 
-def export("table") table(G) = (G.build schemata).apply(this, arguments)()
-where 
-	fReturn(x) = case(x)
-		when(undefined) [ ]
-		otherwise       [x]
-	fYield(x) = x
-	fBind(list, callback) =
-		var ans = []
-		for(var t in list) ans = ans.concat callback t
-		ans
-	schemata = [yield: fYield, return: fReturn, bind: fBind]
+def export("table") table(G) =
+	var ans = []
+	def fReturn(x) = case(x)
+		when(undefined) pass
+		otherwise       ans.push x
+	def fYield(x) = x
+	def fBind(list, callback) =	rangeFor list, callback
+	def schemata = [yield: fYield, return: fReturn, bind: fBind]
+
+	(G.build schemata).apply(this, arguments)()
+
+	ans

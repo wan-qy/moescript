@@ -166,7 +166,7 @@ var MOE_GET_ENUM = function(obj){
 		var high = t.length;
 		var i = low;
 		var r = [];
-		return function(){
+		var f = function(){
 			if(i >= high) {
 				return;
 			} else {
@@ -174,6 +174,11 @@ var MOE_GET_ENUM = function(obj){
 //				return [t[i], i++]
 			}
 		};
+		f.enumerate = function(g){
+			for(var i = low; i < high; i++)
+				g(t[i], i)
+		};
+		return f;
 	} else {
 		throw new Error("Unable to get enumerator of " + obj)
 	}
@@ -406,14 +411,19 @@ ExclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	return function(){
+	var f = function(){
 		if(i >= high) {
 			return;
 		} else {
 			return [i++];
 		}
 	}
+	f.enumerate = function(g){
+		for(var i = low, k = high; i < k; i++) g(i)
+	}
+	return f
 };
+
 var InclusiveAscRange = function(left, right){
 	this.left = left;
 	this.right = right;
@@ -422,13 +432,17 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	return function(){
+	var f = function(){
 		if(i > high) {
 			return;
 		} else {
-			return [i++]
+			return [i++];
 		}
 	}
+	f.enumerate = function(g){
+		for(var i = low, k = high; i <= k; i++) g(i)
+	}
+	return f
 };
 
 //: moe-master
