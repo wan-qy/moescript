@@ -1,4 +1,4 @@
-::document{Moe Standard Library Reference}
+::document{Moe Standard Library}
 
 Things listed here are defined in `moe/libs/std` or the runtime.
 
@@ -47,3 +47,16 @@ Things listed here are defined in `moe/libs/std` or the runtime.
 
 	:section{`throw`(oException)}
 		Throws an exception. It will be catched by `try`.
+
+:section{`moe/libs/stdenum` functions}
+	This module provides functions on enumerators and the list comprehension function `table`.
+	:section{`table`(GComprehension)}
+		Forms tables. `table` defines a monad schemata with a special `bind` action, which enumerates the value given and loops the continuing flow, causes table formation. A common call schemata is:
+		|smoe
+			def unicodeCodepoints = table { i <- 0..0x10000; String.fromCharCode i }
+		You can bind more than one variables. `table` never generates nested tables.
+		|smoe
+			def multipleTable = table =>
+				x <- 1...9
+				y <- x...9
+				x + ' * ' + y + ' = ' + x * y

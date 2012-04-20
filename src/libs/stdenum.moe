@@ -4,7 +4,7 @@ def export(n)(x) =
 	x
 
 -- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
--- takeWhile(I <- Enumerable, condition(x) <- Boolean) <- Enumerable
+-- takeWhile: (Enumerable(T), T -> Boolean) -> Enumerable(T)
 def export("takeWhile") Enumerable takeWhile(I, condition):
 	for(var *a in I)
 		if(not condition.apply null, a)
@@ -12,15 +12,14 @@ def export("takeWhile") Enumerable takeWhile(I, condition):
 		() <- a
 
 -- function select: Wraps an enumerable object, only emits terms satisifying the condition
--- select(I <- Enumerable, condition(x) <- Boolean) <- Enumerable
+-- select: (Enumerable(T), T -> Boolean) -> Enumerable(T)
 def export("select") Enumerable select(I, condition):
 	for(var *a in I)
 		if(condition.apply null, a)
 			() <- a
 
 -- function table: Creates lists using list comprehension monad.
-
-
+-- table: MonadicPrimitive(* -> T) -> [T]
 def export("table") table(G) =
 	var ans = []
 	def fReturn(x) = case(x)
