@@ -1,0 +1,43 @@
+-- usage:
+-- moei markov <corpusFile> <length>
+
+def fs = require "fs"
+def corpusName = process.argv[3]
+def generateLength = (+ process.argv[4]) or 200
+def corpus = fs.readFileSync corpusName, "utf-8" |.replace ('\s' as RegExp.g), ''
+
+def chainLength = 3
+
+def markovHash = [:]
+def allCN = '^[\u4e00-\u9fff]+$' as RegExp
+for(var i in 0..(corpus.length - chainLength))
+	var couple = corpus.slice i, (i + chainLength)
+	if(allCN.test couple)
+		var follow = corpus.charAt (i + chainLength)
+		if(not markovHash[couple])
+			markovHash[couple] = [follow]
+		else
+			markovHash[couple].push follow
+
+def randomFetch(a) =
+	var i = Math.floor(Math.random() * a.length)
+	a[i]
+
+def couples = Object.keys markovHash
+
+def chain(head, length) = piecewise
+	when(markovHash[head]) -- Generate next term
+		def hashTerm = markovHash[head]
+		def nextChar = randomFetch hashTerm
+		nextChar + chain(head.slice(1) + nextChar, length - 1)
+	when(length < 1) ""
+	otherwise -- Not in hash
+		def newhead = randomFetch couples
+		newhead + chain(newhead, length - 2)
+
+def head = randomFetch couples
+def generated = (head + chain head, generateLength)
+def symbol = '[^\u4e00-\u9fff]+' as RegExp.g
+
+console.log (generated.replace symbol, (=> randomFetch ["。", "，"]) 
+                     |.replace ('，$' as RegExp.g), "。")
