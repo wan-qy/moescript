@@ -7,4 +7,4 @@
 	\setPart{\pageMeta}{page_info}{\getPart{\pageMeta}{page_info}\info · }
 :defun{belongsTo}{pageid}
 	::voidize
-	\appendPageInfo{Up: \page{\pageid}}
+	\appendPageInfo{Up: \page{\pageid}{\span{class="icon-arrow-left up-button"}{\pageid}}}

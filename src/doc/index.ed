@@ -1,6 +1,6 @@
 ::document{moescript}
 
-**Moe is a new, not-very-little Javascript-targeted language written in JavaScript.** Its features are inspired by Python, Haskell and Coffee. It is aimed to deal with common troubles in JavaScript development. Moe has neatly crafted grammar so that most JavaScript development will be simplified.
+**Moe is a new, not-very-little Javascript-targeted language written in JavaScript.** Its features are inspired by Haskell, Python and Coffee. It is aimed to deal with common troubles in JavaScript development. Moe has neatly crafted grammar so that most JavaScript development will be simplified.
 
 This document is an introduction of Moescript in examples. You can try Moescript online \@{webtest/index.html}{Here}.
 

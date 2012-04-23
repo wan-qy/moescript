@@ -423,7 +423,7 @@ var LexerBackend = function(input, cfgMap){
 		str: function(type, match, n){stringliteral(match, n)},
 		number: function(type, match, n){make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n)},
 		symbol: function(type, match, n){p_symbol(type, match, n)},
-		newline: function(type, match, n){make(NEWLINE, match.slice(match.lastIndexOf('\n') + 1), n)},
+		newline: function(type, match, n){make(NEWLINE, match.slice(1), n)},
 		mismatch: function(m, pos){
 			if(m.trim())
 				throw token_err("Unexpected character", pos);
@@ -445,7 +445,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	});
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
-	var rNewline = /\n(?:[ \t]*\n)*[ \t]*/;
+	var rNewline = /\n[ \t]*/;
 	var rToken = composeRex(/(#comment)|(?:#option)|(#identifier)|(#string)|(#number)|(#symbol)|(#newline)/gm, {
 		comment: rComment,
 		option: rOption,

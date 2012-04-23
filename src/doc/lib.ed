@@ -1,5 +1,5 @@
-::document{Moe Standard Library}
-
+::document{Moe Standard Library Reference}
+:belongsTo{index}
 Things listed here are defined in `moe/libs/std` or the runtime.
 
 :section{Object system}

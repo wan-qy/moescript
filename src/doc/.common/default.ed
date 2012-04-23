@@ -11,7 +11,7 @@
 	:def{buildDir}{\normalizePath{\cwd/../../doc}}
 	:defun{pageId2Path}{id}{\buildDir/\id.html}
 	:def{outputPath}{\normalizePath{\pageId2Path{\pathNoExt{\getRelativePath{\cwd}{\inputPath}}}}}
-	:def{stylePath}{\urlPath{\getRelativePath{\dirName{\outputPath}}{\buildDir/rc/style.css}}}
+	:def{stylePath}{\urlPath{\getRelativePath{\dirName{\outputPath}}{\buildDir/rc/css/style.css}}}
 	:input{\cwd/.common/links.ed}
 	:input{\cwd/.common/pagemeta.ed}
 	:input{\cwd/.common/grammar.ed}
@@ -25,11 +25,11 @@
 			:style
 				:"{@import url(\stylePath);}
 		::body
+		:div{id="headarea"}
+			:_h{\mTitle}
+			:div{class="pageinfo"}
+				\part{\pageMeta}{page_info} Last update: \getDateFormat{yyyy-MM-dd} · \shareLink
 		:div{id="contents"}
-			:div{id="headarea"}
-				:_h{\mTitle}
-				:div{class="pageinfo"}
-					\part{\pageMeta}{page_info} Last update: \getDateFormat{yyyy-MM-dd} · \shareLink
 			:pageBody
 	:consoleOut
 		Build complete. File generated at \"{\outputPath}
