@@ -60,3 +60,12 @@ Things listed here are defined in `moe/libs/std` or the runtime.
 				x <- 1...9
 				y <- x...9
 				x + ' * ' + y + ' = ' + x * y
+	:section{`takeWhile`(oEnumerable, fCondition)}
+		Returns an enumerable object which emits terms while `fCondition` satisfies. Stops when `fCondition` returns `false`. For example:
+		|smoe
+			def lessthan42 = (1..9999) |takeWhile (<) 42
+	:section{`select`(oEnumerable, fCondition)}
+		Returns an enumerable object, emits terms satisfies `fCondition` emitted fom `oEnumerable`. For example:
+		|smoe
+			def oddQ(x) = x % 2 == 1
+			def odds = (1..100) |select oddQ

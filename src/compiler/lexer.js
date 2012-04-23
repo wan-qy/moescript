@@ -382,7 +382,8 @@ var LexerBackend = function(input, cfgMap){
 						|| token.type === CLOSE
 						|| token.type === COMMA
 						|| token.type === PIPE
-						|| token.type === PROTOMEMBER)
+						|| token.type === PROTOMEMBER
+						|| token.type === NEWLINE)
 	}
 
 	var layout = function(tokens){
