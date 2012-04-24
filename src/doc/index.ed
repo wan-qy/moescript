@@ -128,21 +128,24 @@ You can get it from \githubProject.
 
 :section{Operators}
 	Operators in Moescript are **all** binary, with the priority listed below:
-	|pre
-		(omissioned calls)
-		*   /   %
-		+   -
-		<   >   <=  >=
-		is
-		==  !=  =~  !~  === !==
-		and &&
-		or  ||
-		..  ...
-		as
-		(pipe calls)
-		(when clauses)
-		(where clause)
-		(assignments)
+
+	:table{id="tbl-operators"}
+		:defColClasses{numerial indexing}{}{}
+		:thr{Priority}{Operation}{Associativity}
+		:tr{14}{Omissioned calls}{----}
+		:tr{13}{`*   /   %`}{Left}
+		:tr{12}{`+   -`}{Left}
+		:tr{11}{`<   >   <=  >=`}{Non-associative}
+		:tr{10}{`is`}{Left}
+		:tr{9}{`==  !=  =~  !~  === !==`}{Non-associative}
+		:tr{8}{`and &&`}{Left}
+		:tr{7}{`or  ||`}{Left}
+		:tr{6}{`..  ...`}{Left}
+		:tr{5}{`as`}{Left}
+		:tr{4}{Pipe calls}{----}
+		:tr{3}{`when` clauses}{----}
+		:tr{2}{`where` clauses}{----}
+		:tr{1}{Assignments}{----}
 
 	Most opeators are left-associative, except assignments are right-associative and boolean operators are non-associative.
 
