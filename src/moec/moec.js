@@ -25,7 +25,8 @@ var setTarget = function(v){
 	target = require('moe/compiler/targets/' + v);
 	target.addInits(rm);
 };
-setTarget('node')
+setTarget('node');
+var runtimeBind = '';
 
 var fWrite = console.log;
 
@@ -39,7 +40,9 @@ opts.parse([
 	{short: 'o', long: 'output', value: true, description: "Set output .js path",
 		callback: function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} }},
 	{short: 'g', long: 'global', value: true, description: "Declare a global variable",
-		callback: function(varName){ rm.addDirectMap(varName, varName) }}
+		callback: function(varName){ rm.addDirectMap(varName, varName) }},
+	{long: 'rtbind', value: true, 
+		callback: function(expr){ runtimeBind = expr }}
 ], [{name: 'source_path', required: true, callback: function(value){
 	path.exists(value, function(existQ){
 		if(existQ){
@@ -51,7 +54,8 @@ opts.parse([
 			fWrite(target.composite(
 				script,
 				rm.wrappedLibRequirements(),
-				rm.fInits))
+				rm.fInits,
+				{runtimeBind: runtimeBind}))
 		} else {
 			util.debug('File ' + value + ' does not exist.')
 		}

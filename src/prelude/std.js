@@ -3,28 +3,27 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
 
-//-! with moe/runtime
+//-! with moert/runtime
 
-var moe = require('moe/runtime');
-var derive = moe.derive;
-var Nai = moe.Nai;
+var derive = moert.derive;
+var Nai = moert.Nai;
 
-var CNARG = moe.runtime.CNARG;
-var CREATERULE = moe.runtime.CREATERULE;
-var IINVOKE = moe.runtime.IINVOKE;
-var M_TOP = moe.runtime.M_TOP;
-var NamedArguments = moe.runtime.NamedArguments;
-var OBSTRUCTIVE = moe.runtime.OBSTRUCTIVE;
-var OBSTRUCTIVE_SCHEMATA_M = moe.runtime.OBSTRUCTIVE_SCHEMATA_M;
-var OWNS = moe.runtime.OWNS;
-var RETURNVALUE = moe.runtime.RETURNVALUE;
-var RMETHOD = moe.runtime.RMETHOD;
-var SLICE = moe.runtime.SLICE;
-var THROW = moe.runtime.THROW;
-var TRY = moe.runtime.TRY;
-var UNIQ = moe.runtime.UNIQ;
-var YIELDVALUE = moe.runtime.YIELDVALUE;
-var MOE_GET_ENUM = moe.runtime.GET_ENUM;
+var CNARG = moert.runtime.CNARG;
+var CREATERULE = moert.runtime.CREATERULE;
+var IINVOKE = moert.runtime.IINVOKE;
+var M_TOP = moert.runtime.M_TOP;
+var NamedArguments = moert.runtime.NamedArguments;
+var OBSTRUCTIVE = moert.runtime.OBSTRUCTIVE;
+var OBSTRUCTIVE_SCHEMATA_M = moert.runtime.OBSTRUCTIVE_SCHEMATA_M;
+var OWNS = moert.runtime.OWNS;
+var RETURNVALUE = moert.runtime.RETURNVALUE;
+var RMETHOD = moert.runtime.RMETHOD;
+var SLICE = moert.runtime.SLICE;
+var THROW = moert.runtime.THROW;
+var TRY = moert.runtime.TRY;
+var UNIQ = moert.runtime.UNIQ;
+var YIELDVALUE = moert.runtime.YIELDVALUE;
+var MOE_GET_ENUM = moert.runtime.GET_ENUM;
 
 
 var reg = function(name, value){

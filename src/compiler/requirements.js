@@ -22,25 +22,34 @@ exports.RequirementsManager = function(_require){
 		};
 	}();
 
+	var actions = [];
 
 	var addLibImport = function(libName){
-		initModules.push(libName);
-		var lib = _require(libName);
-		for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
-			globalVars[item] = YES;
-			variableMaps[item] = 'require(' + STRIZE(libName) + ')[' + STRIZE(item) + ']';
-		}
+		actions.push(function(){
+			initModules.push(libName);
+			var lib = _require(libName);
+			for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
+				globalVars[item] = YES;
+				variableMaps[item] = 'require(' + STRIZE(libName) + ')[' + STRIZE(item) + ']';
+			}
+		})
 	};
 	var addLibName = function(name, id){
-		initModules.push(id)
-		globalVars[name] = YES;
-		variableMaps[name] = 'require(' + STRIZE(id) + ')'
+		actions.push(function(){
+			initModules.push(id)
+			globalVars[name] = YES;
+			variableMaps[name] = 'require(' + STRIZE(id) + ')'
+		})
 	};
 	var addDirectMap = function(name, map){
-		globalVars[name] = YES;
-		variableMaps[name] = map;
+		actions.push(function(){
+			globalVars[name] = YES;
+			variableMaps[name] = map;
+		})
 	};
 	var fInits = function(f){
+		if(actions.length) for(var i = 0; i < actions.length; i++) actions[i]()
+		actions = []
 		for(var item in globalVars) 
 			if(globalVars[item] === YES){
 				f(variableMaps[item], item);

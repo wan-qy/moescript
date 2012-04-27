@@ -1,4 +1,4 @@
-everything: webtest
+everything: __all
 
 DIST = dist
 NODEMODDIR = dist/node_modules
@@ -8,19 +8,18 @@ dirs:
 	-@mkdir -p $(DIST)
 	-@mkdir -p $(MOD)
 	-@mkdir -p $(MOD)/bin
-	-@mkdir -p $(MOD)/libs
-	-@mkdir -p $(MOD)/cli
+	-@mkdir -p $(MOD)/prelude
 	-@mkdir -p $(MOEC)
 	-@mkdir -p $(MOEC)/targets
 
 moeRTMods = $(MOD)/runtime.js $(MOD)/dummy.js
 $(moeRTMods): $(MOD)/%.js: src/%.js
 	cp $< $@
-moeLibMods = $(MOD)/libs/std.js $(MOD)/libs/async.js
-$(moeLibMods): $(MOD)/libs/%.js: src/libs/%.js
+moePreludeMods = $(MOD)/prelude/std.js $(MOD)/prelude/async.js
+$(moePreludeMods): $(MOD)/prelude/%.js: src/prelude/%.js
 	cp $< $@
 
-moert: dirs $(moeRTMods) $(moeLibMods)
+moert: dirs $(moeRTMods) $(moePreludeMods)
 
 moecMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js \
 			$(MOEC)/resolve.js $(MOEC)/requirements.js
@@ -43,13 +42,14 @@ moecTargets: $(moecTargets)
 moecMain: moecLib moecNodeLib moecTargets
 moec: moert moecMain moecPackageMeta
 
-moecEXE = node $(MOD)/bin/moec -t least
+moecEXE = node $(MOD)/bin/moec --rtbind moert.runtime
 
-moeFullLibMods = $(MOD)/libs/stdenum.js
-$(moeFullLibMods): $(MOD)/%.js: src/%.moe
-	$(moecEXE) $< -o $@
+moeFullPreludeMods = $(MOD)/prelude/stdenum.js
+$(moeFullPreludeMods): $(MOD)/%.js: src/%.moe
+	$(moecEXE) -t least -o $@ $<
 
-moeFullLib: $(moeFullLibMods)
+moePrelude: $(moeFullPreludeMods)
+	node tools/preludesquash $(MOD)/prelude.js $(moePreludeMods) $(moeFullPreludeMods)
 
 
 ### Web test environment
@@ -60,13 +60,12 @@ webtestDir:
 	-@mkdir -p doc
 	-@mkdir -p $(WEBTEST)
 	-@mkdir -p $(WEBMOD)
-	-@mkdir -p $(WEBMOD)/libs
+	-@mkdir -p $(WEBMOD)/prelude
 	-@mkdir -p $(WEBMOD)/compiler
 
-nessat = src/webrt/nessat.js
-nessatEXE = node $(nessat)
+nessatEXE = node tools/nessat
 
-webMods = $(subst $(MOD)/,$(WEBMOD)/,$(moeRTMods) $(moeLibMods) $(moecMods) $(moeFullLibMods))
+webMods = $(subst $(MOD)/,$(WEBMOD)/,$(moeRTMods) $(moecMods) $(MOD)/prelude.js)
 $(webMods): $(WEBMOD)/%.js: $(MOD)/%.js
 	$(nessatEXE) $< $@ $(NODEMODDIR)/
 webMods: $(webMods)
@@ -79,8 +78,11 @@ $(WEBTEST)/inputbox.js: webtest_env/inputbox.js
 $(WEBTEST)/mod.rt.js:   src/webrt/mod.rt.js
 webtestENV: $(webtestENV)
 
-webtest: moec moeFullLib webtestDir webMods webtestENV
+webtest: moec moePrelude webtestDir webMods webtestENV
 
 clean:
 	rm -rf dist
 	rm -rf doc/webtest
+
+__all: webtest
+	rm -rf $(MOD)/prelude

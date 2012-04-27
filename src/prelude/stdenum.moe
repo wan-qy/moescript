@@ -1,4 +1,7 @@
-def enum = enumeration;
+def enumeration = exports.enumeration
+def Enumerable = exports.Enumerable
+def rangeFor = exports.rangeFor
+
 def export(n)(x) = 
 	exports[n] = x
 	x

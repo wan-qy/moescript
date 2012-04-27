@@ -727,10 +727,26 @@ exports.parse = function (input, source, config) {
 			&& (node.args.length === 1 && !node.names[0])) {
 			return new Node(node.func.operatorType, { operand: node.args[0] });
 		} else if(node.args.length === 2 && !node.names[0] && !node.names[1]) {
-			return new Node(node.func.operatorType, {
-				left: node.args[0],
-				right: node.args[1]
-			});
+			if(node.func.operatorType === nt['and'] || node.func.operatorType === nt['or']
+				|| node.func.operatorType === nt['&&'] || node.func.operatorType === nt['||'])
+				return new Node(nt.CALL, {
+					func: new Node(nt.FUNCTION, {
+							parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}, {name: 'y'}]}),
+							code: new Node(nt.RETURN, {
+								expression: new Node(node.func.operatorType, {
+									left: new Node(nt.VARIABLE, {name: 'x'}),
+									right: new Node(nt.VARIABLE, {name: 'y'})
+								})
+							})
+						}),
+					args: node.args,
+					names: node.names
+				})
+			else
+				return new Node(node.func.operatorType, {
+					left: node.args[0],
+					right: node.args[1]
+				});
 		} else if(node.args.length === 1 && !node.names[0]) {
 			return new Node(nt.CALL, {
 				func: new Node(nt.FUNCTION, {
@@ -1297,6 +1313,16 @@ exports.parse = function (input, source, config) {
 
 	var contExpression = function(){
 		advance(OPEN, RDSTART);
+		if(tokenIs(OPERATOR))
+			return groupOperatorForm();
+		if(tokenIs(EXCLAM)){
+			advance();
+			var r = new Node(nt.NOT, {
+				operand: unary()
+			});
+			advance(CLOSE, RDEND);
+			return r;
+		};
 		var r = expression();
 		advance(CLOSE, RDEND);
 		return r;

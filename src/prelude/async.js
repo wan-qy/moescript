@@ -1,12 +1,13 @@
 ﻿//:module: lib/async
 //	:author:		infinte (aka. be5invis)
 //	:info:			perform essential asynchronous support with YIELD
-var derive = require('moe/libs/std').derive;
-var composing = require('moe/libs/std').composing;
-var schemata_m = require('moe/runtime').runtime.OBSTRUCTIVE_SCHEMATA_M;
-var OWNS = require('moe/runtime').runtime.OWNS;
+var derive = exports.derive;
+var OBSTRUCTIVE_SCHEMATA_M = moert.runtime.OBSTRUCTIVE_SCHEMATA_M;
+var OWNS = moert.runtime.OWNS;
 
-var asyncSchemata = derive(schemata_m);
+"Definition Start"
+
+var asyncSchemata = derive(OBSTRUCTIVE_SCHEMATA_M);
 
 var async = exports.async = function(M){
 	if(M.build){
