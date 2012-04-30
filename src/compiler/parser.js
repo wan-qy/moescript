@@ -690,22 +690,11 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	callWrappers[DO] = function(n){
-		if(n.type === nt.CALL){
-			return new Node(nt.CALL, {
-				func: new Node(nt.MEMBER, {
-					left: n.func,
-					right: 'call'
-				}),
-				args: [new Node(nt.THIS, {})].concat(n.args),
-				names:[null].concat(n.names)
-			});
-		} else {
-			return new Node(nt.CALL, {
-				func: MemberNode(n, 'apply'),
-				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
-				names:[null, null]
-			});
-		}
+		return new Node(nt.CALL, {
+			func: MemberNode(n, 'apply'),
+			args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
+			names:[null, null]
+		});
 	};
 	callWrappers[NEW] = function(n){
 		if(n.type === nt.CALL){
@@ -970,6 +959,7 @@ exports.parse = function (input, source, config) {
 			stripSemicolons();
 			advance(INDENT);
 			var r = whereClausize(node);
+			stripSemicolons();
 			advance(OUTDENT);
 			return r;
 		} else if(shiftIs(shift, WHERE)) {

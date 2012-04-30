@@ -1,0 +1,138 @@
+// Moe Standard Prelude
+// Copyright(c) 2012 Belleve Invis
+
+def derive = exports.derive
+def Object = exports.Object
+def object = exports.object
+def global_ = exports.global_
+
+def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
+def OWNS = moert.runtime.OWNS
+def YIELDVALUE = moert.runtime.YIELDVALUE
+def RETURNVALUE = moert.runtime.RETURNVALUE
+
+def export(n)(x) = (exports[n] = x)
+
+
+
+// Enumeration functions
+
+// Enumeration monad schemata
+def ENUM_SCHEMATA = object MONAD_SCHEMATA_M, :>
+	def @return(v)        = new RETURNVALUE v
+	def @bind(g, restart) = new YIELDVALUE g, restart
+	def @yield(j)         = j
+
+// Emitter generator
+def generateEmitter(g) = 
+	var emitRestart = g
+	return =>
+		def v = emitRestart()
+		if(v.restart and v.values)
+			emitRestart = v.restart
+			return v.values
+
+-- function enumeration: Generates emitters, used for adding methods.
+def export('enumeration') enumeration = do =>
+	def f(G)      = (=> generateEmitter do enumFunction)
+	                where enumFunction = G.build ENUM_SCHEMATA
+	def f.bypass  = ENUM_SCHEMATA.bind
+	def f.yield() = new YIELDVALUE arguments.slice(0, (-1)), arguments[arguments.length - 1]
+
+	f
+
+-- function Enumerable: creates objects containing "getEnumerator" method.
+def export('Enumerable') Enumerable(G) = 
+	def enumFunction = G.build ENUM_SCHEMATA
+	return (=> [getEnumerator: => generateEmitter enumFunction.apply t, a])
+	       where t = this
+	             a = arguments
+
+def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GET_ENUM
+
+def export('rangeForEach') rangeForEach(range, f) = 
+	def e = getEnumeratorOf range
+	if(e.enumerate) e.enumerate f
+	else
+		var t = null
+		while((t = e())) f.apply null, t
+
+-- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
+-- takeWhile: (Enumerable(T), T -> Boolean) -> Enumerable(T)
+def export("takeWhile") Enumerable takeWhile(I, condition):
+	for(var *a in I)
+		if(not condition.apply null, a)
+			return undefined;
+		() <- a
+
+-- function select: Wraps an enumerable object, only emits terms satisifying the condition
+-- select: (Enumerable(T), T -> Boolean) -> Enumerable(T)
+def export("select") Enumerable select(I, condition):
+	for(var *a in I)
+		if(condition.apply null, a)
+			() <- a
+
+-- function table: Creates lists using list comprehension monad.
+-- table: MonadicPrimitive(* -> T) -> [T]
+def export("table") table(G) =
+	var ans = []
+	def schemata = object MONAD_SCHEMATA_M, =>
+		def @return(x) = case(x)
+			when(undefined) pass
+			otherwise       ans.push x
+		def @yield(x) = x
+		def @bind(list, callback) = rangeForEach list, callback
+
+	(do G.build schemata)()
+
+	return ans
+
+
+
+// Async functions
+
+-- CPS schemata
+def cpsSchemata = derive MONAD_SCHEMATA_M
+
+-- function async: Creates async blocks
+def export('async') async(M) = 
+	if(M.build)
+		(=> (do g)()) where g = M.build cpsSchemata
+	else => do M
+
+def export('join') join(o, callback) = 
+	var nActivities = 0
+	var nDone = 0
+	var res = {}
+
+	def checkContinue(term)(val):
+		res[term] = val
+		nDone += 1
+		if(nDone >= nActivities) callback res
+
+	var keys = Object.keys o
+	if(not keys.length) callback res
+	nActivities = keys.length
+
+	keys.forEach (term) =>
+		res[term] = undefined
+		o[term].call null, checkContinue(term)
+
+def export('sleep') sleep(dt, callback) = 
+	global_.setTimeout(callback, dt)
+
+
+
+// Util functions
+
+def export('its') its(prop)(o) = o[prop]
+def export('returns') returns(x)() = x
+def export('itself') itself(x) = x
+def export('composite') composite(f, g)() = f (do g)
+def export('doon') doon(o, f) = f.call o
+
+def export('list') list = exports.object =>
+	def @car(a) = a[0]
+	def @cdr(a) = a.slice 1
+	def cat(a, b) = a.concat b
+	def @flat(a) = a.reduce cat, []

@@ -88,8 +88,8 @@ var MOE_YIELDVALUE = function(a, restart) {
 var MOE_RETURNVALUE = function(x) {
 	this.value = x
 }
-//: OBSTRUCTIVE_SCHEMATA_M
-var MOE_OBSTRUCTIVE_SCHEMATA_M = {
+//: MONAD_SCHEMATA_M
+var MOE_MONAD_SCHEMATA_M = {
 	'return': function(t, a, v) {
 		return v;
 	},
@@ -451,7 +451,7 @@ var moe = exports;
 moe.runtime = moe.rt = {
 	CNARG: MOE_CNARG,
 	M_TOP: MOE_M_TOP,
-	OBSTRUCTIVE_SCHEMATA_M: MOE_OBSTRUCTIVE_SCHEMATA_M,
+	MONAD_SCHEMATA_M: MOE_MONAD_SCHEMATA_M,
 	OWNS: MOE_OWNS,
 	RETURNVALUE: MOE_RETURNVALUE,
 	RMETHOD: MOE_RMETHOD,

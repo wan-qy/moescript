@@ -15,7 +15,7 @@ dirs:
 moeRTMods = $(MOD)/runtime.js $(MOD)/dummy.js
 $(moeRTMods): $(MOD)/%.js: src/%.js
 	cp $< $@
-moePreludeMods = $(MOD)/prelude/std.js
+moePreludeMods = $(MOD)/prelude/overture.js
 $(moePreludeMods): $(MOD)/prelude/%.js: src/prelude/%.js
 	cp $< $@
 
@@ -44,7 +44,7 @@ moec: moert moecMain moecPackageMeta
 
 moecEXE = node $(MOD)/bin/moec -t least -g moert --rtbind moert.runtime
 
-moeFullPreludeMods = $(MOD)/prelude/enum.js $(MOD)/prelude/async.js
+moeFullPreludeMods = $(MOD)/prelude/prelude.js
 $(moeFullPreludeMods): $(MOD)/%.js: src/%.moe
 	$(moecEXE) -o $@ $<
 

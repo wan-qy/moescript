@@ -66,7 +66,7 @@ var JOIN_STMTS = function (statements) {
 
 //:func{THIS_BIND}{Binds T_THIS() value `this`.}
 var THIS_BIND = function (env) {
-	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = (this === MOE_M_TOP ? null : this)' : ''
+	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : ''
 };
 var ARGS_BIND = function (env) {
 	return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = MOE_SLICE(arguments, 0)' : ''

@@ -1,30 +1,9 @@
-﻿//:^
-// Moe standard library
-//	:author:		infinte (aka. be5invis)
-//	:info:			The standard library for Lofn.
-
-//-! with moert/runtime
+﻿// Moe Standard Prelude
+//    ...'s overture
+// Copyright(c) 2012 Belleve Invis
 
 var derive = moert.derive;
 var Nai = moert.Nai;
-
-var CNARG = moert.runtime.CNARG;
-var CREATERULE = moert.runtime.CREATERULE;
-var IINVOKE = moert.runtime.IINVOKE;
-var M_TOP = moert.runtime.M_TOP;
-var NamedArguments = moert.runtime.NamedArguments;
-var OBSTRUCTIVE = moert.runtime.OBSTRUCTIVE;
-var OBSTRUCTIVE_SCHEMATA_M = moert.runtime.OBSTRUCTIVE_SCHEMATA_M;
-var OWNS = moert.runtime.OWNS;
-var RETURNVALUE = moert.runtime.RETURNVALUE;
-var RMETHOD = moert.runtime.RMETHOD;
-var SLICE = moert.runtime.SLICE;
-var THROW = moert.runtime.THROW;
-var TRY = moert.runtime.TRY;
-var UNIQ = moert.runtime.UNIQ;
-var YIELDVALUE = moert.runtime.YIELDVALUE;
-var MOE_GET_ENUM = moert.runtime.GET_ENUM;
-
 
 var reg = function(name, value){
 	exports[name] = value
@@ -32,12 +11,13 @@ var reg = function(name, value){
 
 //: moert
 reg('derive', derive);
-reg('NamedArguments', NamedArguments);
+reg('NamedArguments', moert.runtime.NamedArguments);
 
 reg('endl', '\n');
+reg('global_', (function(){return this})())
 
 //: PrimitiveTypes
-reg('Math', derive(Math));
+reg('math', derive(Math));
 reg('RegExp', function(){
 	var R = function(){
 		return RegExp.apply(this, arguments)
@@ -123,9 +103,6 @@ reg('operator', {
 	or: 	function (a, b) { return a || b}
 });
 
-reg('YieldValue', {be: function(x){return x instanceof YIELDVALUE}});
-reg('ReturnValue', {be: function(x){return x instanceof RETURNVALUE}});
-
 var _Type = function(p, f){
 	var Aut = function(){};
 	Aut.prototype = p;
@@ -150,62 +127,6 @@ Type.outof = function(T){
 
 reg('type', Type);
 reg('outof', Type.outof);
-
-var enumeratorSchemata = {
-	'return': function(v){
-		return new RETURNVALUE(v)
-	},
-	'bind': function(g, restart){
-		return new YIELDVALUE(g, restart);
-	},
-	'yield': function(j){ return j }
-};
-var generateEmitter = function(d){
-	var emitRestart = d;
-	var emit = function(){
-		var v = emitRestart();
-		if(v.restart && v.values){
-			emitRestart = v.restart;
-			return v.values;
-		}
-	};
-	return emit
-};
-//: enumerator
-var enumeration;
-reg('enumeration', enumeration = function(){
-	var f = function(M, t){
-		var G = M.build(enumeratorSchemata);
-		return function(){
-			return generateEmitter(G.apply(t || this, arguments));
-		}
-	};
-	f.bypass = function(g, restart){
-		return new YIELDVALUE(g, restart)
-	};
-	f['yield'] = function(restart){
-		return new YIELDVALUE(SLICE(arguments, 0, -1), arguments[arguments.length - 1]);
-	};
-	return f;
-}());
-reg('Enumerable', function(M){
-	var G = M.build(enumeratorSchemata);
-	return function(){
-		var t = this, a = arguments;
-		return {getEnumerator: function(){
-			return generateEmitter(G.apply(t, a));
-		}}
-	}
-});
-reg('getEnumeratorOf', MOE_GET_ENUM);
-reg('rangeFor', function(range, f){
-	var e = MOE_GET_ENUM(range);
-	if(e.enumerate) return e.enumerate(f)
-	else {
-		var t = null
-		while((t = e())) f.apply(null, t)
-	}
-})
 
 reg('debugger', function(){debugger});
 
@@ -249,7 +170,7 @@ reg('instanceof', function(f){
 	return {be: function(x){return x instanceof f}}
 });
 
-reg('keys', Object.keys || (function () {
+reg('keysof', Object.keys || (function () {
     var hasOwnProperty = Object.prototype.hasOwnProperty,
         hasDontEnumBug = !{toString:null}.propertyIsEnumerable("toString"),
         DontEnums = [
