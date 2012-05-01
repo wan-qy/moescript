@@ -4,9 +4,8 @@ Moescript
 Usage
 -----------------
 
-  1. make (requires `make`, `cp`, `mkdir`)
-  2. `moec somefile.moe -o somefile.js`
-  3. enjoy.
+  1. `npm install moe`
+  2. Enjoy
 
 Features
 -----------------
@@ -114,15 +113,15 @@ List comprehension
 				for(var y in callback x)
 					enumeration.yield! y
 
-	var table(G) =
+	var mktable(G) =
 		var f = G.build ecSchemata
 		f.apply(this, arguments)()
 
 	// simple usage
-	for(var item in table{var x <- (1..100); if(x % 2) x * 2 + 1}) tracel item
+	for(var item in mktable{var x <- (1..100); if(x % 2) x * 2 + 1}) tracel item
 	
 	// complicated usage
-	var t = table {var x <- (1...9); var y <- (1...9); if(x <= y) x + ' * ' + y + ' = ' + x * y }
+	var t = mktable {var x <- (1...9); var y <- (1...9); if(x <= y) x + ' * ' + y + ' = ' + x * y }
 	// t = table [build: fBuild]
 	// where fBuild(schemata)()():
 	//     schemata.bind (1...9), (x) :>

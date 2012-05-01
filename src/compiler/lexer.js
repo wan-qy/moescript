@@ -293,6 +293,7 @@ var LexerBackend = function(input, cfgMap){
 				make(t, "Explicit", n);
 				break;
 			case BACKSLASH:
+				make(t, s, n);
 				break;
 			default:
 				throw token_err("Unexpected symbol" + s, n)
@@ -374,7 +375,8 @@ var LexerBackend = function(input, cfgMap){
 						|| token.type === OPEN
 						|| token.type === COMMA
 						|| token.type === PIPE
-						|| token.type === PROTOMEMBER)
+						|| token.type === PROTOMEMBER
+						|| token.type === BACKSLASH)
 	}
 	var ignoresPreviousNewline = function(token){
 		return token &&  ( token.type === OPERATOR 
@@ -406,8 +408,8 @@ var LexerBackend = function(input, cfgMap){
 					nBrackets += 1
 				else if(token.type === CLOSE)
 					nBrackets -= 1
-
-				ans.push(token);
+				if(token.type !== BACKSLASH)
+					ans.push(token);
 			}
 		}
 		return ans;

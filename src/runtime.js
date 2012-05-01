@@ -1,8 +1,3 @@
-//: ^
-// Moe Runtime, by Belleve Invis
-
-//: MOE_moe
-
 //: Nai
 var Nai = function() {};
 Nai.prototype = {
@@ -21,10 +16,10 @@ var derive = Object.craate ? Object.create : function() {
 		return new F;
 	}
 }();
-var MOE_derive = derive;
+var derive = derive;
 
 //: OWNS
-var MOE_OWNS = function() {
+var OWNS = function() {
 	var hop = {}.hasOwnProperty;
 	return function(o,p) {
 		return hop.call(o,p)
@@ -32,7 +27,7 @@ var MOE_OWNS = function() {
 }();
 
 //: SLICE
-var MOE_SLICE = function() {
+var SLICE = function() {
 	var s = Array.prototype.slice;
 	return function(x, m, n) {
 		return s.call(x, m, n);
@@ -40,7 +35,7 @@ var MOE_SLICE = function() {
 } ();
 
 //: UNIQ
-var MOE_UNIQ = function(arr) {
+var UNIQ = function(arr) {
 	if (!arr.length) return arr;
 
 	var b = arr.slice(0).sort();
@@ -56,20 +51,20 @@ var NamedArguments = function() {
 	for (var i=arguments.length-2;i>=0;i-=2)
 		this[arguments[i]]=arguments[i+1];
 };
-var MOE_NamedArguments = NamedArguments;
+var NamedArguments = NamedArguments;
 NamedArguments.prototype = new Nai();
 NamedArguments.fetch = function(o, p) {
-	if (MOE_OWNS(o, p)) return o[p]
+	if (OWNS(o, p)) return o[p]
 }
 NamedArguments.enumerate = function(o, f) {	
 	for (var each in o)
-		if (MOE_OWNS(o, each))
+		if (OWNS(o, each))
 			f.call(o[each], o[each], each);
 }
 NamedArguments.each = NamedArguments.enumerate;
 
-//: MOE_CNARG
-var MOE_CNARG = function(a) {
+//: CNARG
+var CNARG = function(a) {
 	if (a instanceof NamedArguments)
 		return a
 	else
@@ -77,19 +72,19 @@ var MOE_CNARG = function(a) {
 }
 
 //: AUX-METHODS
-var MOE_M_TOP = function() {return this}();
-var MOE_RMETHOD = function(l, r, m) {
+var M_TOP = function() {return this}();
+var RMETHOD = function(l, r, m) {
 	return r[m](l)
 }
-var MOE_YIELDVALUE = function(a, restart) {
+var YIELDVALUE = function(a, restart) {
 	this.values = a;
 	this.restart = restart;
 }
-var MOE_RETURNVALUE = function(x) {
+var RETURNVALUE = function(x) {
 	this.value = x
 }
 //: MONAD_SCHEMATA_M
-var MOE_MONAD_SCHEMATA_M = {
+var MONAD_SCHEMATA_M = {
 	'return': function(t, a, v) {
 		return v;
 	},
@@ -98,13 +93,13 @@ var MOE_MONAD_SCHEMATA_M = {
 }
 
 //: Exceptions
-var MOE_THROW = function(x) {
+var THROW = function(x) {
 	throw x || "[?] Unexpected error"
 };
-var MOE_TRY = function(f) {
+var TRY = function(f) {
 	var ret, fcatch, ffinally, ffail;
 	for (var i = arguments.length - 1; i; i--) {
-		if (arguments[i] instanceof MOE_NamedArguments) {
+		if (arguments[i] instanceof NamedArguments) {
 			fcatch = arguments[i]['catch'];
 			ffinally = arguments[i]['finally'];
 			ffail = arguments[i]['fail'];
@@ -138,16 +133,13 @@ var MOE_TRY = function(f) {
 		if(ffinally) ffinally();
 	}
 };
-var MOE_NEGATE = function(x){return -x}
-var MOE_NOT = function(x){return !x}
-var MOE_ITEM = function(o, n){
-	if('item' in o) return o.item(n)
-	else return o[n]
-};
-var MOE_IS = function(x, y){ return y.be(x) }
-var MOE_AS = function(x, y){ return y.convertFrom(x) }
+var NEGATE = function(x){return -x}
+var NOT = function(x){return !x}
 
-var MOE_SCHEMATA_BLOCK = function(G, schemata, coming){
+var IS = function(x, y){ return y.be(x) }
+var AS = function(x, y){ return y.convertFrom(x) }
+
+var SCHEMATA_BLOCK = function(G, schemata, coming){
 	if(G.build){
 		var m = derive(schemata);
 		m['return'] = coming;
@@ -157,7 +149,7 @@ var MOE_SCHEMATA_BLOCK = function(G, schemata, coming){
 	}
 };
 
-var MOE_GET_ENUM = function(obj){
+var GET_ENUM = function(obj){
 	if(obj.getEnumerator) {
 		return obj.getEnumerator()
 	} else if(obj instanceof Array) {
@@ -184,7 +176,7 @@ var MOE_GET_ENUM = function(obj){
 	}
 };
 
-var MOE_IN = function(range){
+var IN = function(range){
 	return {'be': function(x){return range.contains(x)}}
 };
 
@@ -396,10 +388,10 @@ if (!Array.prototype.forEach) {
 	};
 }
 
-var MOE_RANGE_EX = function(left, right){
+var RANGE_EX = function(left, right){
 	return new ExclusiveAscRange(left, right)
 };
-var MOE_RANGE_INCL = function(left, right){
+var RANGE_INCL = function(left, right){
 	return new InclusiveAscRange(left, right)
 };
 
@@ -449,29 +441,28 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 var moe = exports;
 
 moe.runtime = moe.rt = {
-	CNARG: MOE_CNARG,
-	M_TOP: MOE_M_TOP,
-	MONAD_SCHEMATA_M: MOE_MONAD_SCHEMATA_M,
-	OWNS: MOE_OWNS,
-	RETURNVALUE: MOE_RETURNVALUE,
-	RMETHOD: MOE_RMETHOD,
-	SLICE: MOE_SLICE,
-	THROW: MOE_THROW,
-	TRY: MOE_TRY,
-	NEGATE: MOE_NEGATE,
-	NOT: MOE_NOT,
-	IN: MOE_IN,
-	IS: MOE_IS,
-	AS: MOE_AS,
-	SCHEMATA_BLOCK: MOE_SCHEMATA_BLOCK,
-	UNIQ: MOE_UNIQ,
-	YIELDVALUE: MOE_YIELDVALUE,
-	ITEM: MOE_ITEM,
-	RANGE_EX: MOE_RANGE_EX,
-	RANGE_INCL: MOE_RANGE_INCL,
+	CNARG: CNARG,
+	M_TOP: M_TOP,
+	MONAD_SCHEMATA_M: MONAD_SCHEMATA_M,
+	OWNS: OWNS,
+	RETURNVALUE: RETURNVALUE,
+	RMETHOD: RMETHOD,
+	SLICE: SLICE,
+	THROW: THROW,
+	TRY: TRY,
+	NEGATE: NEGATE,
+	NOT: NOT,
+	IN: IN,
+	IS: IS,
+	AS: AS,
+	SCHEMATA_BLOCK: SCHEMATA_BLOCK,
+	UNIQ: UNIQ,
+	YIELDVALUE: YIELDVALUE,
+	RANGE_EX: RANGE_EX,
+	RANGE_INCL: RANGE_INCL,
 	NARGS: NamedArguments,
-	GET_ENUM: MOE_GET_ENUM
+	GET_ENUM: GET_ENUM
 };
 
-moe.derive = MOE_derive;
+moe.derive = derive;
 moe.Nai = Nai;

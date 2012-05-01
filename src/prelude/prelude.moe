@@ -15,6 +15,29 @@ def export(n)(x) = (exports[n] = x)
 
 
 
+// Util functions
+
+def export('its') its(prop)(o) = o[prop]
+def export('returns') returns(x)() = x
+def export('itself') itself(x) = x
+def export('composite') composite(f, g)() = f (do g)
+def export('doon') doon(o, f) = f.call o
+def export('tee') tee(o, f) =
+	f.call o, o
+	o
+
+def export('list') list = object =>
+	def @car(a) = a[0]
+	def @cdr(a) = a.slice 1
+	def @initial(a) = a.slice 0, (-1)
+	def @last(a) = a[a.length - 1]
+	def cat(a, b) = a.concat b
+	def @flat(a) = a.reduce cat, []
+	def @fill(range, x) = table { i <- range; x }
+	def @tolist(range) = table { x <- range; x }
+
+
+
 // Enumeration functions
 
 // Enumeration monad schemata
@@ -33,19 +56,16 @@ def generateEmitter(g) =
 			return v.values
 
 -- function enumeration: Generates emitters, used for adding methods.
-def export('enumeration') enumeration = do =>
-	def f(G)      = (=> generateEmitter do enumFunction)
-	                where enumFunction = G.build ENUM_SCHEMATA
-	def f.bypass  = ENUM_SCHEMATA.bind
-	def f.yield() = new YIELDVALUE arguments.slice(0, (-1)), arguments[arguments.length - 1]
-
-	f
+def export('enumeration') enumeration = \
+	object ((G) => (=> generateEmitter do e) where e = G.build ENUM_SCHEMATA), =>
+		def @bypass  = ENUM_SCHEMATA.bind
+		def @yield() = new YIELDVALUE (list.initial arguments), (list.last arguments)
 
 -- function Enumerable: creates objects containing "getEnumerator" method.
 def export('Enumerable') Enumerable(G) = 
 	def enumFunction = G.build ENUM_SCHEMATA
 	return => 
-		[getEnumerator: function => generateEmitter enumFunction.apply t, a]
+		[getEnumerator: (=> generateEmitter enumFunction.apply t, a)]
 		where t = this
 		      a = arguments
 
@@ -86,7 +106,7 @@ def export("table") table(G) =
 
 	(do G.build schemata)()
 
-	return ans
+	ans
 
 
 
@@ -115,25 +135,9 @@ def export('join') join(o, callback) =
 	if(not keys.length) callback res
 	nActivities = keys.length
 
-	keys.forEach (term) =>
+	rangeForEach keys, (term) =>
 		res[term] = undefined
 		o[term].call null, checkContinue(term)
 
 def export('sleep') sleep(dt, callback) = 
 	global_.setTimeout(callback, dt)
-
-
-
-// Util functions
-
-def export('its') its(prop)(o) = o[prop]
-def export('returns') returns(x)() = x
-def export('itself') itself(x) = x
-def export('composite') composite(f, g)() = f (do g)
-def export('doon') doon(o, f) = f.call o
-
-def export('list') list = exports.object =>
-	def @car(a) = a[0]
-	def @cdr(a) = a.slice 1
-	def cat(a, b) = a.concat b
-	def @flat(a) = a.reduce cat, []

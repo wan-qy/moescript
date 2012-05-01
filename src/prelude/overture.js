@@ -135,6 +135,8 @@ reg('object', function(p, f){
 	if(!f){
 		o = {};
 		f = p
+	} else if(p instanceof Function){
+		o = function(){return p.apply(this, arguments)}
 	} else {
 		o = derive(p);
 	};

@@ -620,29 +620,39 @@ exports.parse = function (input, source, config) {
 		};
 		return m;
 	};
-	var argList = function (nc, bracedQ) {
-		var args = [], names = [], argTypeDetect;
-		while((argTypeDetect = argStartQ())) {
+	var pusharg = function(nc, bracedQ, relaxQ){
+		var argTypeDetect = argStartQ()
+		if (argTypeDetect) {
 			if (argTypeDetect === 2) {
 				// named argument
 				// name : value
-				names.push(token.value);
+				nc.names.push(token.value);
 				advance();
 				advance(COLON);
 			} else {
-				names.push(null);
+				nc.names.push(null);
 			}
-			args.push((bracedQ ? callItem : callExpression)());
-			if (!tokenIs(COMMA)) {
-				break
-			};
-			advance(COMMA);
+			nc.args.push((bracedQ ? callItem : callExpression)());
+			return true
+		} else if(relaxQ){
+			return false
+		} else {
+			throw new PE("Expecting argument")
+		}
+	}
+	var completeArgList = function(nc, bracedQ){
+		while(tokenIs(COMMA)) {
+			advance();
+			pusharg(nc, bracedQ);
 		};
-		ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
-		nc.args = (nc.args || []).concat(args);
-		nc.names = (nc.names || []).concat(names);
-		ensure(!(nc.func && nc.func.type === nt.CTOR && nc.nameused),
-			"Unable to use named arguments inside old-style Constructior5 invocation");
+		return nc;
+	}
+	var argList = function (nc, bracedQ) {
+		nc.args = nc.args || []
+		nc.names = nc.names || []
+		if(pusharg(nc, bracedQ, true)) {
+			completeArgList(nc, bracedQ)
+		};
 		return nc;
 	};
 	var callItem = function(omit){
@@ -781,8 +791,7 @@ exports.parse = function (input, source, config) {
 					args: [term],
 					names: [null]
 				});
-				advance(COMMA);
-				argList(node);
+				completeArgList(node);
 				return wrapCall(node);
 			} else {
 				return wrapCall(new Node(nt.CALL, {

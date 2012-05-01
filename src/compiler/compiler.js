@@ -3,7 +3,7 @@
 //	:info:			The code generator for Moe Runtime
 
 var moe = require('../runtime');
-var MOE_UNIQ = moe.runtime.UNIQ;
+var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
 
 var moecrt = require('./compiler.rt');
@@ -110,7 +110,7 @@ var compile = exports.compile = function (source, config) {
 	var initializationSource = "var undefined;\n" + function(){
 		var s = '';
 		for(var item in moe.runtime) if(OWNS(moe.runtime, item)) {
-			s += 'var MOE_' + item + ' = ' + PART(cRuntimeName, item) + ';\n';
+			s += 'var ' + C_TEMP(item) + ' = ' + PART(cRuntimeName, item) + ';\n';
 		};
 		cInitVariables(function(v, n){
 			s += 'var ' + C_NAME(n) + ' = ' + (v || PART(cInitsName, n)) + ';\n';

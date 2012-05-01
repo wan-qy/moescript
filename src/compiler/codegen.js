@@ -3,7 +3,7 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
-var MOE_UNIQ = moe.runtime.UNIQ;
+var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
 
 "Code Emission Util Functions"
@@ -69,11 +69,11 @@ var THIS_BIND = function (env) {
 	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : ''
 };
 var ARGS_BIND = function (env) {
-	return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = MOE_SLICE(arguments, 0)' : ''
+	return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = ' + C_TEMP('SLICE') + '(arguments, 0)' : ''
 };
 var ARGN_BIND = function (env) {
 	return (env.argnOccurs) ? 
-		'var ' + T_ARGN() + ' = MOE_CNARG(arguments[arguments.length - 1])' : ''
+		'var ' + T_ARGN() + ' = ' + C_TEMP('CNARG') + '(arguments[arguments.length - 1])' : ''
 };
 var TEMP_BIND = function (env, tempName) {
 	return C_TEMP(tempName);
@@ -170,7 +170,7 @@ exports.Generator = function(g_envs, g_config){
 
 		var s = transform(tree.code).replace(/^    /gm, '');
 
-		var locals = MOE_UNIQ(tree.locals),
+		var locals = UNIQ(tree.locals),
 			vars = [],
 			temps = listTemp(tree);
 
@@ -216,7 +216,7 @@ exports.Generator = function(g_envs, g_config){
 		tree.useTemp('SCHEMATA', ScopedScript.SPECIALTEMP);
 
 
-		var locals = MOE_UNIQ(tree.locals),
+		var locals = UNIQ(tree.locals),
 			vars = [],
 			temps = listTemp(tree);
 		for (var i = 0; i < locals.length; i++)
@@ -379,10 +379,10 @@ exports.Generator = function(g_envs, g_config){
 	binoper('||', '||');
 	binoper('and', '&&');
 	binoper('or', '||');
-	libfuncoper('is', 'MOE_IS');
-	libfuncoper('as', 'MOE_AS');
-	libfuncoper('..', 'MOE_RANGE_EX');
-	libfuncoper('...', 'MOE_RANGE_INCL');
+	libfuncoper('is', C_TEMP('IS'));
+	libfuncoper('as', C_TEMP('AS'));
+	libfuncoper('..', C_TEMP('RANGE_EX'));
+	libfuncoper('...', C_TEMP('RANGE_INCL'));
 
 	eSchemataDef(nt['then'], function(transform){
 		return $('(%1, %2)', transform(this.left), transform(this.right));
@@ -446,7 +446,7 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		if(hasNameQ){
-			args.push('new MOE_NARGS(' + olits.join(', ') + ')');
+			args.push('new '+C_TEMP('NARGS')+'(' + olits.join(', ') + ')');
 		}
 
 		return args;
@@ -465,7 +465,7 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		if(hasNameQ){
-			args.push('new MOE_NARGS(' + olits.join(', ') + ')');
+			args.push('new '+C_TEMP('NARGS')+'(' + olits.join(', ') + ')');
 		}
 
 		return args;
@@ -609,7 +609,7 @@ exports.Generator = function(g_envs, g_config){
 				varAssign.push($('%1 = %2[%3]', C_NAME(this.vars[i]), C_TEMP(tYV), i + ''));
 		}
 
-		return $('%1 = MOE_GET_ENUM(%2);\nwhile(%3){\n%4;%5}',
+		return $('%1 = ' + C_TEMP('GET_ENUM') + '(%2);\nwhile(%3){\n%4;%5}',
 			C_TEMP(tEnum),
 			transform(this.range),
 			s_enum,
@@ -663,8 +663,7 @@ exports.Generator = function(g_envs, g_config){
 				ans.push('function ' + C_BLOCK(b.id) + '(' + C_TEMP(b.id) + '){'
 					+ JOIN_STMTS(b.statements.concat(sContinue)) + '}')
 				for(var j = 1; j < b.labels.length; j++){
-					ans.push('var ' + C_BLOCK(b.labels[j]) + ' = function(' + C_TEMP(b.labels[j]) + '){ '
-						+ 'return ' + C_BLOCK(b.id) + '(' + C_TEMP(b.labels[j]) + ')}');
+					ans.push('var ' + C_BLOCK(b.labels[j]) + ' = ' + C_BLOCK(b.id));
 				}
 			}
 			return {s: ans.join(';\n'), enter: C_BLOCK(basicBlocks[0].id)};
@@ -781,7 +780,7 @@ exports.Generator = function(g_envs, g_config){
 			};
 
 			if(hasNameQ){
-				args.push('new MOE_NARGS(' + olits.join(',') + ')')
+				args.push('new ' + C_TEMP('NARGS') + '(' + olits.join(',') + ')')
 			};
 
 			return {
@@ -879,7 +878,7 @@ exports.Generator = function(g_envs, g_config){
 
 		mSchemataDef(nt.CALLBLOCK, function(){
 			var l = label();
-			ps($("return (MOE_SCHEMATA_BLOCK(%1, %2, %3))",
+			ps($("return (" + C_TEMP('SCHEMATA_BLOCK') + "(%1, %2, %3))",
 				transform(this.func),
 				C_TEMP('SCHEMATA'),
 				C_BLOCK(l)));
@@ -1037,7 +1036,7 @@ exports.Generator = function(g_envs, g_config){
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			ps(C_TEMP(tEnum) + '=MOE_GET_ENUM(' + ct(this.range) + ')');
+			ps(C_TEMP(tEnum) + '=' + C_TEMP('GET_ENUM') + '(' + ct(this.range) + ')');
 			ps(s_enum);
 			(LABEL(lLoop));
 			ps('if(!(' + C_TEMP(tYV) + '))' + GOTO(lEnd));
@@ -1082,7 +1081,7 @@ exports.Generator = function(g_envs, g_config){
 
 		// mSchemataDef(nt.TRY, function(){
 		// 	var l = label();
-		// 	ps($("return (MOE_SCHEMATA_TRY(%1, %2, %3, %4, %5))",
+		// 	ps($("return (" + C_TEMP('SCHEMATA_TRY') + "(%1, %2, %3, %4, %5))",
 		// 		transform(this.body),
 		// 		transform(this.catchPart),
 		// 		transform(this.finallyPart),
