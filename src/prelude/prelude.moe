@@ -27,7 +27,7 @@ def ENUM_SCHEMATA = object MONAD_SCHEMATA_M, :>
 def generateEmitter(g) = 
 	var emitRestart = g
 	return =>
-		def v = emitRestart()
+		def v = do emitRestart
 		if(v.restart and v.values)
 			emitRestart = v.restart
 			return v.values
@@ -44,9 +44,10 @@ def export('enumeration') enumeration = do =>
 -- function Enumerable: creates objects containing "getEnumerator" method.
 def export('Enumerable') Enumerable(G) = 
 	def enumFunction = G.build ENUM_SCHEMATA
-	return (=> [getEnumerator: => generateEmitter enumFunction.apply t, a])
-	       where t = this
-	             a = arguments
+	return => 
+		[getEnumerator: function => generateEmitter enumFunction.apply t, a]
+		where t = this
+		      a = arguments
 
 def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GET_ENUM
 
