@@ -44,7 +44,6 @@ def export('list') list = object =>
 def ENUM_SCHEMATA = object MONAD_SCHEMATA_M, :>
 	def @return(v)        = new RETURNVALUE v
 	def @bind(g, restart) = new YIELDVALUE g, restart
-	def @yield(j)         = j
 
 // Emitter generator
 def generateEmitter(g) = 
@@ -62,6 +61,7 @@ def export('enumeration') enumeration = \
 		def @yield() = new YIELDVALUE (list.initial arguments), (list.last arguments)
 
 -- function Enumerable: creates objects containing "getEnumerator" method.
+-- Enumerable: (MonadPrimitive(* -> [T])) -> Enumerable T
 def export('Enumerable') Enumerable(G) = 
 	def enumFunction = G.build ENUM_SCHEMATA
 	return => 
@@ -69,8 +69,14 @@ def export('Enumerable') Enumerable(G) =
 		where t = this
 		      a = arguments
 
+-- function getEnumeratorOf: Returns an enumerator of an Enumerable object
+-- Defined in moert
+-- getEnumeratorOf: (Enumerable T) -> Enumerator T
 def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GET_ENUM
 
+-- function rangeForEach: A "sometimes-faster" way to run "for" on a function
+-- Approximately for(var *a in range) f.apply null, a
+-- rangeForEach: (Enumerable T, T -> *) -> *
 def export('rangeForEach') rangeForEach(range, f) = 
 	def e = getEnumeratorOf range
 	if(e.enumerate) e.enumerate f
@@ -79,7 +85,7 @@ def export('rangeForEach') rangeForEach(range, f) =
 		while((t = e())) f.apply null, t
 
 -- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
--- takeWhile: (Enumerable(T), T -> Boolean) -> Enumerable(T)
+-- takeWhile: (Enumerable T, T -> Boolean) -> Enumerable(T)
 def export("takeWhile") Enumerable takeWhile(I, condition):
 	for(var *a in I)
 		if(not condition.apply null, a)
@@ -87,7 +93,7 @@ def export("takeWhile") Enumerable takeWhile(I, condition):
 		() <- a
 
 -- function select: Wraps an enumerable object, only emits terms satisifying the condition
--- select: (Enumerable(T), T -> Boolean) -> Enumerable(T)
+-- select: (Enumerable T, T -> Boolean) -> Enumerable(T)
 def export("select") Enumerable select(I, condition):
 	for(var *a in I)
 		if(condition.apply null, a)
@@ -101,7 +107,6 @@ def export("table") table(G) =
 		def @return(x) = case(x)
 			when(undefined) pass
 			otherwise       ans.push x
-		def @yield(x) = x
 		def @bind(list, callback) = rangeForEach list, callback
 
 	(do G.build schemata)()
@@ -141,3 +146,20 @@ def export('join') join(o, callback) =
 
 def export('sleep') sleep(dt, callback) = 
 	global_.setTimeout(callback, dt)
+
+
+
+// Pattern match functions
+def matcher(G) = 
+    var fMatcher = (x) => undefined;
+    def schemata = object MONAD_SCHEMATA_M, =>
+        def @bindYield(f, thisp, gotcha, mismatch):
+            mismatch()
+            fMatcher = f.call thisp, gotcha, fMatcher
+    
+    G.build(schemata)()()
+    return fMatcher
+
+def export('match') match(x, G) =
+	if (not G) matcher(x)
+	else       matcher(G) x

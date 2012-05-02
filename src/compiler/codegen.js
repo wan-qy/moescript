@@ -842,26 +842,28 @@ exports.Generator = function(g_envs, g_config){
 
 			if(this.func.expression){
 				var func = bindFunctionPart.call(this.func.expression);
-				var finalProcess = PART(C_TEMP('SCHEMATA'), 'yield');
+				var finalProcess = PART(C_TEMP('SCHEMATA'), 'bindYield');
 			} else {
-				var func = { f: PART(C_TEMP('SCHEMATA'), 'bind') };
-				var finalProcess = ''
+				var func = null;
+				var finalProcess = PART(C_TEMP('SCHEMATA'), 'bind')
 			}
 			var ca = mArgsList(this, env, skip, skips);
 			var l = label();
 			ca.args.push(C_BLOCK(l));
-			if(func.p) {
+			if(!func) {
+
+			} else if(func.p) {
 				ca.args.unshift(func.p);
-				ps($('return %1(%2.call(%3))',
-					finalProcess,
-					func.b || func.f,
-					ca.args.join(',')));
-			} else {
-				ps($('return %1(%2(%3))',
-					finalProcess,
-					func.b || func.f,
-					ca.args.join(',')));
-			}
+				ca.args.unshift(func.b || func.f);
+			} else if(finalProcess) {
+				ca.args.unshift('null');
+				ca.args.unshift(func.b || func.f);
+			};
+
+			ps($('return %1(%2)',
+				finalProcess,
+				ca.args.join(',')));
+
 			LABEL(l);
 			return C_TEMP(l);
 		};

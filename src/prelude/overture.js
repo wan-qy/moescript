@@ -206,3 +206,5 @@ reg('keysof', Object.keys || (function () {
         return result;
     };
 })());
+
+reg('defaultMonadSchemata', moert.runtime.MONAD_SCHEMATA_M)

@@ -88,7 +88,7 @@ var MONAD_SCHEMATA_M = {
 	'return': function(t, a, v) {
 		return v;
 	},
-	'yield': function(j) { return j },
+	'bindYield': function() { return arguments[0].apply(arguments[1], SLICE(arguments, 2)) },
 	'bind': function(v, cb){ return cb(b) }
 }
 

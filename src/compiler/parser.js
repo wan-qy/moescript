@@ -381,7 +381,6 @@ exports.parse = function (input, source, config) {
 		} else if (tokenIs(COMMA)) {
 			advance();
 			node.args = [];
-			node.type = nt.ARRAY
 		} else if (tokenIs(COLON)) {
 			advance();
 			node.args = [];
@@ -1036,36 +1035,57 @@ exports.parse = function (input, source, config) {
 		};
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
-			ensure(c.type === nt.VARIABLE || c.type === nt.MEMBER || c.type === nt.TEMPVAR,
-					"Invalid assignment/bind");
 			if(tokenIs(ASSIGN)) {
-				var _v = advance().value;
-				var right = assignmentExpression();
-				return new Node(nt.ASSIGN, {
-					left: c,
-					right: _v === "=" ? right : new Node(nt[_v.slice(0, _v.length - 1)], {
-						left: c,
-						right: right
-					}),
-					position: c.position
-				})
+				return formAssignment(c, advance().value, assignmentExpression());
 			} else {
-				advance();
-				var right = new Node(nt.CALL, {
+				return formAssignment(c, (advance(), '='), new Node(nt.CALL, {
 					func: new Node(nt.BINDPOINT),
 					args: [assignmentExpression()],
 					names: [null]
-				});
-				return new Node(nt.ASSIGN, {
-					left: c,
-					right: right
-				})
+				}));
 			}
 		} else {
 			return whereClausedExpression(c);
 		}
 	};
-
+	var formAssignment = function(left, oper, right){
+		ensure(left.type === nt.VARIABLE || left.type === nt.MEMBER || left.type === nt.TEMPVAR || left.type === nt.OBJECT,
+			"Invalid assignment/bind");
+		if(left.type === nt.OBJECT){
+			var objt = makeT();
+			var seed = formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right);
+			var j = 0;
+			for(var i = 0; i < left.args.length; i++){
+				if(left.names[i]) {
+					seed = new Node(nt.then, {
+						left: seed,
+						right: formAssignment(left.args[i], oper, 
+							MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]))
+					})
+				} else {
+					seed = new Node(nt.then, {
+						left: seed,
+						right: formAssignment(left.args[i], oper, 
+							MemberNode(new Node(nt.TEMPVAR, {name: objt}), (j++)))
+					})
+				}
+			};
+			seed = new Node(nt.then, {
+				left: seed,
+				right: new Node(nt.TEMPVAR, {name: objt})
+			});
+			return seed
+		} else {
+			return new Node(nt.ASSIGN, {
+				left: left,
+				right: oper === "=" ? right : new Node(nt[oper.slice(0, oper.length - 1)], {
+					left: left,
+					right: right
+				}),
+				position: left.position
+			})
+		}
+	};
 
 	var stover = function () {
 		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE || token.type === OUTDENT);
