@@ -1,7 +1,3 @@
-### To build the Moescript
-### npm install uglify-js
-### is required.
-
 everything: __all
 
 DIST = dist

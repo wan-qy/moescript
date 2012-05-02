@@ -102,13 +102,12 @@ Enumerators
 List comprehension
 
 	-- Enumerator comprehension monad
-	var ecSchemata = [yield: fYield, return: fReturn, bind: fBind]
-	where 
-		fReturn = Enumerable function(x):
+	var ecSchemata = object defaultMonadSchemata, => 
+		def Enumerable @return(x):
 			if(x != undefined)
 				enumeration.yield! x
-		fYield(x) = x
-		fBind = Enumerable function(list, callback):
+		def @bindYield(f, thisp, args) = f.apply thisp, arguments.slice(2)
+		def Enumerable @bind(list, callback):
 			for(var x in list) 
 				for(var y in callback x)
 					enumeration.yield! y
@@ -118,14 +117,13 @@ List comprehension
 		f.apply(this, arguments)()
 
 	// simple usage
-	for(var item in mktable{var x <- (1..100); if(x % 2) x * 2 + 1}) tracel item
+	for(var item in mktable {var x <- (1..100); x * 2 + 1}) trace item
 	
 	// complicated usage
-	var t = mktable {var x <- (1...9); var y <- (1...9); if(x <= y) x + ' * ' + y + ' = ' + x * y }
-	// t = table [build: fBuild]
-	// where fBuild(schemata)()():
-	//     schemata.bind (1...9), (x) :>
-	//         schemata.bind (1...9), (y) :>
-	//             if(x <= y) schemata.return (x + ' * ' + y + ' = ' + x * y)
-	//             else schemata.return()
+	var t = mktable {var x <- (1...9); var y <- (x...9); x + ' * ' + y + ' = ' + x * y }
+	// t = mktable [build: fBuild]
+	// where fBuild(schemata)()() =
+	//     schemata.bind (1...9), (x) =>
+	//         schemata.bind (x...9), (y) =>
+	//             schemata.return (x + ' * ' + y + ' = ' + x * y)
 	for(var item in t) trace item
