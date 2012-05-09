@@ -146,12 +146,43 @@ reg('object', function(p, f){
 
 reg('seq', function(){return arguments[arguments.length - 1]})
 
+var internalClassWrapper = function(C, f){
+	var T = function(){return C.apply(this, arguments)}
+	T.prototype = C.prototype
+	T.be = function(x){return x instanceof C}
+	T.formMatch = function(got, miss){return function(x){
+		if(T.be(x))
+			got(x)
+		else
+			miss(x)
+	}};
+	if(f) f.call(T, C, T);
+	T.__ = C;
+	T.toString = function(){ return 'function () { [Moe Wrapped Native Type] }'};
+	return T
+}
+
 reg('Object', Object);
-reg('Number', Number);
-reg('Boolean', Boolean);
-reg('Array', Array);
-reg('Function', Function);
-reg('String', String);
+reg('Number', internalClassWrapper(Number, function(){
+	this.be = function(x){return typeof x === 'number' || x instanceof Number}
+}));
+reg('Boolean', internalClassWrapper(Boolean, function(){
+	this.be = function(x){return x === true || x === false}
+}));
+reg('Array', internalClassWrapper(Array, function(){
+	this.formMatch = function(got, miss){return function(x){
+		if(x instanceof Array && x.length >= got.length - 1){
+			got.apply(null, x.slice(0, got.length - 1).concat([x.slice(got.length - 1)]))
+		} else {
+			miss(x)
+		}
+	}};
+	this.isArray = this.be;
+}));
+reg('Function', internalClassWrapper(Function));
+reg('String', internalClassWrapper(String, function(){
+	this.be = function(x){return typeof x === 'string' || x instanceof String}
+}));
 
 // trace and tracel
 if(typeof console === undefined){

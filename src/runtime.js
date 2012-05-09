@@ -56,12 +56,6 @@ NamedArguments.prototype = new Nai();
 NamedArguments.fetch = function(o, p) {
 	if (OWNS(o, p)) return o[p]
 }
-NamedArguments.enumerate = function(o, f) {	
-	for (var each in o)
-		if (OWNS(o, each))
-			f.call(o[each], o[each], each);
-}
-NamedArguments.each = NamedArguments.enumerate;
 
 //: CNARG
 var CNARG = function(a) {
@@ -166,7 +160,7 @@ var GET_ENUM = function(obj){
 //				return [t[i], i++]
 			}
 		};
-		f.enumerate = function(g){
+		f.each = function(g){
 			for(var i = low; i < high; i++)
 				g(t[i], i)
 		};
@@ -410,7 +404,7 @@ ExclusiveAscRange.prototype.getEnumerator = function(){
 			return [i++];
 		}
 	}
-	f.enumerate = function(g){
+	f.each = function(g){
 		for(var i = low, k = high; i < k; i++) g(i)
 	}
 	return f
@@ -431,7 +425,7 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 			return [i++];
 		}
 	}
-	f.enumerate = function(g){
+	f.each = function(g){
 		for(var i = low, k = high; i <= k; i++) g(i)
 	}
 	return f

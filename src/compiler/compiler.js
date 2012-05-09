@@ -57,14 +57,15 @@ var compile = exports.compile = function (source, config) {
 	var sourceSlice = function(p, q){
 		var slice = source.slice(p, q);
 		if(slice.trim()){
-			return slice.replace(/\s+$/, '').replace(/^/gm, '//MoeMap// ') + '\n';
+			return slice.replace(/\s+$/, '').replace(/^/gm, '/// SEMB // ! // ') + '\n';
 		} else {
 			return ''
 		}
-	}
+	};
+	var rSmapBegin = /^[ \t]*\/\/\/ SMAP \/\/ \[ \/\/ (\d+);.*\n/gm
 	var generateSourceMap = function(generated){
 		var a = [], s = [];
-		generated.replace(/^[ \t]*\/\/@ - MOEMAP -- (\d+).*/gm, function(m, pos){
+		generated.replace(rSmapBegin, function(m, pos){
 			a.push(pos - 0);
 			return m;
 		});
@@ -95,7 +96,7 @@ var compile = exports.compile = function (source, config) {
 			s[i] = sourceSlice(a[i], a[i + 1]);
 
 		i = 0;
-		return generated.replace(/^\s*\/\/@ - MOEMAP -- \d+.*\n/gm, function(){
+		return generated.replace(rSmapBegin, function(){
 			return s[i++];
 		});
 	}
@@ -121,10 +122,13 @@ var compile = exports.compile = function (source, config) {
 	var generator = Generator(trees, {makeT: makeT});
 	var generatedSource = generator(enter);
 
-	if(ast.debugQ){
-		generatedSource = generateSourceMap(generatedSource)
+	if(ast.options.smap){
+
 	} else {
-		generatedSource = generatedSource.replace(/^\s*\/\/.*\n/gm, '');
+		if(ast.options.debug){
+			generatedSource = generateSourceMap(generatedSource)
+		}
+		generatedSource = generatedSource.replace(/^\s*\/\/\/(?! SEMB).*\n/gm, '');
 	}
 
 	return {

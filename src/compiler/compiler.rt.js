@@ -53,7 +53,7 @@ var NodeType = exports.NodeType = function () {
 		'UNKNOWN',
 		// Primary
 		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-		'ARGUMENTS', 'ARGN', 'GROUP', 'CALLWRAP',
+		'ARGUMENTS', 'ARGN', 'GROUP', 'CALLWRAP', 'UNIT',
 		// Wrappers
 		'BINDPOINT', 'CTOR',
 		// Membering

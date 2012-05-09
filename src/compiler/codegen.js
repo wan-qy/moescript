@@ -150,7 +150,13 @@ exports.Generator = function(g_envs, g_config){
 	
 	var walkedPosition;
 	var walkedTo = function(position){
-		return '//@ - MOEMAP -- ' + position;
+		return '/// SMAP // @ // ' + position;
+	}
+	var smapLeft = function(position){
+		return '/// SMAP // [ // ' + position
+	}
+	var smapRight = function(position){
+		return '/// SMAP // ] // ' + position
 	}
 
 	var ungroup = function(node){
@@ -306,6 +312,9 @@ exports.Generator = function(g_envs, g_config){
 	eSchemataDef(nt.PARAMETERS, function () {
 		throw new Error('Unexpected parameter group');
 	});
+	eSchemataDef(nt.UNIT, function(){
+		return 'undefined';
+	})
 
 
 
@@ -631,8 +640,9 @@ exports.Generator = function(g_envs, g_config){
 		var a = [];
 		for (var i = 0; i < n.content.length; i++) {
 			if (n.content[i]){
-				a.push(walkedTo(n.content[i].begins));
+				a.push(smapLeft(n.content[i].begins));
 				a.push(transform(n.content[i]));
+				a.push(smapRight(n.content[i].ends));
 			}
 		}
 		return JOIN_STMTS(a)
@@ -1097,9 +1107,10 @@ exports.Generator = function(g_envs, g_config){
 			var gens;
 			for (var i = 0; i < n.content.length; i++){
 				if (n.content[i]){
-					ps(walkedTo(n.content[i].begins));
+					ps(smapLeft(n.content[i].begins));
 					gens = ct(n.content[i]);
 					if(gens) ps(gens);
+					ps(smapRight(n.content[i].ends));
 				}
 			};
 		});

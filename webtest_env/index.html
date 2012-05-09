@@ -73,8 +73,15 @@
 			outline: none;
 			border-color: rgba(51,153,255,0.75);
 			box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
-			-webkit-box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
-			-moz-box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
+		}
+		#go {
+			background: #2F96B4;
+			color: white;
+			border-radius: 0.3em;
+			padding: 0.3em 0.7em;
+			border: none;
+			cursor: pointer;
+			text-shadow: rgba(0, 0, 0, 0.2) 0 -1px;
 		}
 		#err {
 			color: red
@@ -86,12 +93,16 @@
 <body>
 
 	<div id="master">
+		<button id="go">Start script</button> When in doubt, F12.
 		<textarea id="input"></textarea>
-		<button id="go">Start script</button>Moescript web test page. F12 if necessary.
 		<pre id="output"></pre>
 		<pre id="err"></pre>
 	</div>
-	<pre id="info"></pre>
+	<pre id="info">Moescript web test environment.
+Type script in the box and click "start".
+Prelude is loaded.
+
+When in doubt, F12.</pre>
 
 	<script type="text/javascript">
 		//<![CDATA[
@@ -125,7 +136,7 @@
 		
 //]]></script>
 	
-	<!-- eisa runtime -->
+	<!-- runtime -->
 	<script src="mod.rt.js" type="text/javascript"></script>
 	
 	<script src="inputbox.js" type="text/javascript"></script>
@@ -194,13 +205,13 @@
 								initVariables: varMaps,
 								warn: tracel
 							});
-							tracer('[LFC] Generated Source:' + source2html(script.generatedSource));
-							tracer('[LFC] Initialization Source:' + source2html(script.initializationSource));
+							tracer('Generated Source:' + source2html(script.generatedSource));
+							tracer('Initialization Source:' + source2html(script.initializationSource));
 							var func = Function(script.aux.runtimeName, script.aux.initsName, 
 								script.initializationSource + '\nreturn ' + script.generatedSource);
-							tracel('[ESA] Started Master Execution.');
+							tracel('Started Master Execution.');
 							func(eisa.runtime, initvs)();
-							tracel('[ESA] Master Execution finished.');
+							tracel('Master Execution finished.');
 						} catch(e){
 							terr('Error occurs:\n' + e + '\nF12 to read more');
 						}

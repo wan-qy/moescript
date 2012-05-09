@@ -5,6 +5,7 @@ def derive = exports.derive
 def Object = exports.Object
 def object = exports.object
 def global_ = exports.global_
+def Array = exports.Array
 
 def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
 def OWNS = moert.runtime.OWNS
@@ -36,16 +37,17 @@ def export('list') list = object =>
 	def @fill(range, x) = table { i <- range; x }
 	def @tolist(range) = table { x <- range; x }
 
-
+def isBack(f) = [be: f]
+def export('empty') isBack empty(x) = (not x) or (x.length === 0)
 
 // Enumeration functions
 
-// Enumeration monad schemata
+-- Enumeration monad schemata
 def ENUM_SCHEMATA = object MONAD_SCHEMATA_M, :>
 	def @return(v)        = new RETURNVALUE v
 	def @bind(g, restart) = new YIELDVALUE g, restart
 
-// Emitter generator
+-- Emitter generator
 def generateEmitter(g) = 
 	var emitRestart = g
 	return =>
@@ -79,7 +81,7 @@ def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GET_ENUM
 -- rangeForEach: (Enumerable T, T -> *) -> *
 def export('rangeForEach') rangeForEach(range, f) = 
 	def e = getEnumeratorOf range
-	if(e.enumerate) e.enumerate f
+	if(e.each) e.each f
 	else
 		var t = null
 		while((t = e())) f.apply null, t
@@ -129,7 +131,8 @@ def export('async') async(M) =
 def export('join') join(o, callback) = 
 	var nActivities = 0
 	var nDone = 0
-	var res = {}
+	var res = []  when(o is Array),
+	          [:]
 
 	def checkContinue(term)(val):
 		res[term] = val
@@ -153,9 +156,9 @@ def export('sleep') sleep(dt, callback) =
 def matcher(G) = 
     var fMatcher = (x) => undefined;
     def schemata = object MONAD_SCHEMATA_M, =>
-        def @bindYield(f, thisp, gotcha, mismatch):
+        def @bindYield(extractor, thisp, gotcha, mismatch):
             mismatch()
-            fMatcher = f.call thisp, gotcha, fMatcher
+            fMatcher = extractor.formMatch.call thisp, gotcha, fMatcher
     
     G.build(schemata)()()
     return fMatcher
@@ -163,3 +166,9 @@ def matcher(G) =
 def export('match') match(x, G) =
 	if (not G) matcher(x)
 	else       matcher(G) x
+
+def export('extractor') extractor(formFunc) =
+	def f = formFunc {true}, {false}
+	f.formMatch = formFunc
+	f.be = f
+	f

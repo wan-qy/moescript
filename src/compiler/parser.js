@@ -82,14 +82,7 @@ exports.parse = function (input, source, config) {
 		len = tokens.length,
 		nt = NodeType,
 		token_type = token ? token.type : undefined,
-		token_value = token ? token.value : undefined,
-		opt_explicit = !!input.options.explicit,
-		opt_colononly = !!input.options.colononly,
-		opt_sharpno = !!input.options.sharpno,
-		opt_forfunction = !!input.options.forfunction,
-		opt_filledbrace = !!input.options.filledbrace,
-		opt_notcolony = !!input.options.notcolony,
-		opt_debug = !!input.options.debug;
+		token_value = token ? token.value : undefined
 	var makeT = config.makeT,
 		initInterator = config.initInterator;
 	// Token processor
@@ -455,7 +448,11 @@ exports.parse = function (input, source, config) {
 			});
 			advance(CLOSE, RDEND);
 			return r;
-		};
+		} else if(nextIs(CLOSE, RDEND) && !shiftIs(2, LAMBDA)) {
+			advance();
+			advance();
+			return new Node(nt.UNIT);
+		}
 		
 		if(nextIs(CLOSE, RDEND) && shiftIs(2, LAMBDA)
 			|| nextIs(ID) && (shiftIs(2, CLOSE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))) {
@@ -671,7 +668,7 @@ exports.parse = function (input, source, config) {
 				throw new PE('Wrong call wrapper usage.')
 			} else if(n.func.operatorType) {
 				return callWrappers.OPERATOR(n);
-			};
+			}
 		};
 		return n;
 	};
@@ -783,21 +780,31 @@ exports.parse = function (input, source, config) {
 			argList(node);
 			return wrapCall(node);
 		} else {
-			var term = callExpression();
-			if(tokenIs(COMMA)){
-				var node = new Node(nt.CALL, {
-					func: head,
-					args: [term],
-					names: [null]
-				});
-				completeArgList(node);
-				return wrapCall(node);
-			} else {
+			if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND)) {
+				advance();
+				advance();
 				return wrapCall(new Node(nt.CALL, {
 					func: head,
-					args: [completeOmissionCall(term)],
-					names: [null]
+					args: [],
+					names: []
 				}));
+			} else {
+				var term = callExpression();
+				if(tokenIs(COMMA)){
+					var node = new Node(nt.CALL, {
+						func: head,
+						args: [term],
+						names: [null]
+					});
+					completeArgList(node);
+					return wrapCall(node);
+				} else {
+					return wrapCall(new Node(nt.CALL, {
+						func: head,
+						args: [completeOmissionCall(term)],
+						names: [null]
+					}));
+				}
 			}
 		}
 	};
@@ -956,9 +963,11 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	var whereClausedExpression = function(c){
-		var r = whereClausize(expression(c));
-		//ensure(!exprStartQ(), 'Unexpected expression termination.');
-		return r;
+		var begins = pos()
+		var e = expression(c);
+		e.begins = begins;
+		e.ends = pos();
+		return whereClausize(e);
 	};
 	var whereClausize = function(node){
 		var shift = 0;
@@ -980,7 +989,11 @@ exports.parse = function (input, source, config) {
 				stmts.push(whereClause());
 				if(tokenIs(INDENT)) stmts = stmts.concat(whereClauses())
 			};
-			stmts.push(new Node(nt.RETURN, { expression: node }));
+			stmts.push(new Node(nt.RETURN, { 
+				expression: node,
+				begins: node.begins,
+				ends: node.ends
+			}));
 			return whereClausize(new Node(nt.CALLBLOCK, {
 				func: new Node(nt.FUNCTION, {
 						parameters: new Node(nt.PARAMETERS, {names: []}),
@@ -1023,16 +1036,6 @@ exports.parse = function (input, source, config) {
 		});
 	};
 	var assignmentExpression = function(){
-		if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND) && shiftIs(2, BIND)){
-			advance(OPEN);
-			advance(CLOSE);
-			advance(BIND);
-			return new Node(nt.CALL, {
-				func: new Node(nt.BINDPOINT),
-				args: [assignmentExpression()],
-				names: [null]
-			});
-		};
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
 			if(tokenIs(ASSIGN)) {
@@ -1049,25 +1052,32 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	var formAssignment = function(left, oper, right){
-		ensure(left.type === nt.VARIABLE || left.type === nt.MEMBER || left.type === nt.TEMPVAR || left.type === nt.OBJECT,
+		ensure( left.type === nt.VARIABLE 
+			 || left.type === nt.MEMBER 
+			 || left.type === nt.TEMPVAR 
+			 || left.type === nt.OBJECT
+			 || left.type === nt.UNIT,
 			"Invalid assignment/bind");
 		if(left.type === nt.OBJECT){
 			var objt = makeT();
 			var seed = formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right);
 			var j = 0;
 			for(var i = 0; i < left.args.length; i++){
-				if(left.names[i]) {
-					seed = new Node(nt.then, {
-						left: seed,
-						right: formAssignment(left.args[i], oper, 
-							MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]))
-					})
-				} else {
-					seed = new Node(nt.then, {
-						left: seed,
-						right: formAssignment(left.args[i], oper, 
-							MemberNode(new Node(nt.TEMPVAR, {name: objt}), (j++)))
-					})
+				if(!left.names[i]) j += 1;
+				if(left.args[i].type !== nt.UNIT) {
+					if(left.names[i]) {
+						seed = new Node(nt.then, {
+							left: seed,
+							right: formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]))
+						})
+					} else {
+						seed = new Node(nt.then, {
+							left: seed,
+							right: formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1))
+						})
+					}
 				}
 			};
 			seed = new Node(nt.then, {
@@ -1075,6 +1085,8 @@ exports.parse = function (input, source, config) {
 				right: new Node(nt.TEMPVAR, {name: objt})
 			});
 			return seed
+		} else if(left.type === nt.UNIT) {
+			return right;
 		} else {
 			return new Node(nt.ASSIGN, {
 				left: left,
@@ -1550,7 +1562,6 @@ exports.parse = function (input, source, config) {
 			code: ws_code
 		}),
 		options: input.options,
-		module: input.module,
-		debugQ: opt_debug
+		module: input.module
 	};
 };
