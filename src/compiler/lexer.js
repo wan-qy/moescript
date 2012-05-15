@@ -209,6 +209,7 @@ var symbolType = function (m) {
 
 var walkRex = function(r, s, fMatch, fGap){
 	var l = r.lastIndex;
+	r.lastIndex = 0;
 	fMatch = fMatch || function(){};
 	fGap = fGap || function(){};
 	var match, last = 0;
