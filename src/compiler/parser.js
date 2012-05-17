@@ -1051,7 +1051,7 @@ exports.parse = function (input, source, config) {
 			return whereClausedExpression(c);
 		}
 	};
-	var formAssignment = function(left, oper, right){
+	var formAssignment = function(left, oper, right, declVarQ, constantQ){
 		ensure( left.type === nt.VARIABLE 
 			 || left.type === nt.MEMBER 
 			 || left.type === nt.TEMPVAR 
@@ -1069,13 +1069,13 @@ exports.parse = function (input, source, config) {
 						seed = new Node(nt.then, {
 							left: seed,
 							right: formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]))
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ)
 						})
 					} else {
 						seed = new Node(nt.then, {
 							left: seed,
 							right: formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1))
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ)
 						})
 					}
 				}
@@ -1094,7 +1094,9 @@ exports.parse = function (input, source, config) {
 					left: left,
 					right: right
 				}),
-				position: left.position
+				position: left.position,
+				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
+				constantQ: constantQ
 			})
 		}
 	};
@@ -1294,50 +1296,31 @@ exports.parse = function (input, source, config) {
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable
 					advance();
-					return new Node(nt.ASSIGN, {
-						left: v,
-						right: expression(),
-						constantQ: constantQ,
-						declareVariable: v.name
-					});
+					return [v, expression()]
 				} else if (defType === DEF_FUNCTIONAL){
-					return new Node(nt.ASSIGN, {
-						left: v,
-						right: functionLiteral(true),
-						constantQ: constantQ,
-						declareVariable: v.name
-					});
+					return [v, functionLiteral(true)]
 				} else if (defType === DEF_BIND){
 					advance();
-					return new Node(nt.ASSIGN, {
-						left: v,
-						right: new Node(nt.CALL, {
-							func: new Node(nt.BINDPOINT),
-							args: [expression()],
-							names: [null]
-						}),
-						declareVariable: v.name
-					});
+					return [v, new Node(nt.CALL, {
+						func: new Node(nt.BINDPOINT),
+						args: [assignmentExpression()],
+						names: [null]
+					})];
 				}
 			} else {
 				v = completeCallExpression(v);
 				var rhs = dp(constantQ);
-				return new Node(nt.ASSIGN, {
-					left: rhs.left,
-					right: new Node(nt.CALL, {
-						func: v,
-						args: [rhs.right],
-						names: [null],
-					}),
-					constantQ: rhs.constantQ,
-					declareVariable: rhs.declareVariable
-				});
+				return [rhs[0], new Node(nt.CALL, {
+					func: v,
+					args: [rhs[1]],
+					names: [null],
+				})]
 			}
 		};
 		return function(constantQ){
 			var r = dp(constantQ);
-			r.right = whereClausize(r.right);
-			return r;
+			r[1] = whereClausize(r[1]);
+			return formAssignment(r[0], "=", r[1], true, constantQ)
 		}
 	}();
 
