@@ -159,7 +159,7 @@ def matcher(G) =
         def @bindYield(extractor, thisp, gotcha, mismatch):
             mismatch()
             fMatcher = extractor.formMatch.call thisp, gotcha, fMatcher
-    
+    	
     G.build(schemata)()()
     return fMatcher
 

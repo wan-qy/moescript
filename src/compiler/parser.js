@@ -780,7 +780,7 @@ exports.parse = function (input, source, config) {
 			argList(node);
 			return wrapCall(node);
 		} else {
-			if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND)) {
+			if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND) && !(shiftIs(2, LAMBDA))) {
 				advance();
 				advance();
 				return wrapCall(new Node(nt.CALL, {

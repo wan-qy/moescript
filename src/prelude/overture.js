@@ -152,9 +152,9 @@ var internalClassWrapper = function(C, f){
 	T.be = function(x){return x instanceof C}
 	T.formMatch = function(got, miss){return function(x){
 		if(T.be(x))
-			got(x)
+			return got(x)
 		else
-			miss(x)
+			return miss(x)
 	}};
 	if(f) f.call(T, C, T);
 	T.__ = C;
@@ -162,7 +162,10 @@ var internalClassWrapper = function(C, f){
 	return T
 }
 
-reg('Object', Object);
+reg('_Object', Object);
+reg('Object', internalClassWrapper(Object, function(){
+	this.be = function(x){return x !== undefined}
+}));
 reg('Number', internalClassWrapper(Number, function(){
 	this.be = function(x){return typeof x === 'number' || x instanceof Number}
 }));
@@ -172,9 +175,9 @@ reg('Boolean', internalClassWrapper(Boolean, function(){
 reg('Array', internalClassWrapper(Array, function(){
 	this.formMatch = function(got, miss){return function(x){
 		if(x instanceof Array && x.length >= got.length - 1){
-			got.apply(null, x.slice(0, got.length - 1).concat([x.slice(got.length - 1)]))
+			return got.apply(null, x.slice(0, got.length - 1).concat([x.slice(got.length - 1)]))
 		} else {
-			miss(x)
+			return miss(x)
 		}
 	}};
 	this.isArray = this.be;
