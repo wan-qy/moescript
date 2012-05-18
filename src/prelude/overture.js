@@ -106,12 +106,12 @@ reg('operator', {
 var _Type = function(p, f){
 	var Aut = function(){};
 	Aut.prototype = p;
-	var T = function(){return f.apply(this, arguments)}
-	T['new'] = function(){
+	var T = function(){
 		var o = new Aut();
 		f.apply(o, arguments);
 		return o;
 	};
+	T.new = T;
 	T.prototype = p;
 	return T
 }
