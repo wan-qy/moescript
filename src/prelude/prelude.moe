@@ -172,3 +172,13 @@ def export('extractor') extractor(formFunc) =
 	f.formMatch = formFunc
 	f.be = f
 	f
+
+def export('Both') Both() = 
+	var extractors = arguments;
+	return extractor function(got, miss) =
+		extractors.reduceRight ((total, extractor) => extractor.formMatch total, miss), got
+
+def export('Either') Either() = 
+	var extractors = arguments;
+	return extractor function(got, miss) =
+		extractors.reduceRight ((total, extractor) => extractor.formMatch got, total), miss

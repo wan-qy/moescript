@@ -393,9 +393,6 @@ exports.Generator = function(g_envs, g_config){
 	libfuncoper('..', C_TEMP('RANGE_EX'));
 	libfuncoper('...', C_TEMP('RANGE_INCL'));
 
-	eSchemataDef(nt['then'], function(transform){
-		return $('(%1, %2)', transform(this.left), transform(this.right));
-	});
 	eSchemataDef(nt.NEGATIVE, function (transform) {
 		return '(-(' + transform(this.operand) + '))';
 	});
@@ -540,7 +537,12 @@ exports.Generator = function(g_envs, g_config){
 			return $('%1(%2)', transform(this.func), regularOrderArgs.call(this).join(', '))
 		}
 	});
-
+	vmSchemataDef(nt['then'], function(){
+		var a = []
+		for(var i = 0; i < this.args.length; i++)
+			a.push(transform(this.args[i]))
+		return '(' + a.join(',') + ')';
+	});
 	vmSchemataDef(nt.CONDITIONAL, function(){
 		return $("(%1 ? %2 : %3)", transform(this.condition), transform(this.thenPart), transform(this.elsePart))
 	});
@@ -887,6 +889,12 @@ exports.Generator = function(g_envs, g_config){
 			};
 			return awaitCall.call(node, node, env);
 		});
+
+		mSchemataDef(nt.then, function(){
+			for(var i = 0; i < this.args.length - 1; i++)
+				pct(this.args[i]);
+			return expPart(this.args[this.args.length - 1]);
+		})
 
 		mSchemataDef(nt.CALLBLOCK, function(){
 			var l = label();

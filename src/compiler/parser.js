@@ -1060,30 +1060,26 @@ exports.parse = function (input, source, config) {
 			"Invalid assignment/bind");
 		if(left.type === nt.OBJECT){
 			var objt = makeT();
-			var seed = formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right);
+			var seed = new Node(nt.then, {
+				args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
+				names: [null]
+			});
 			var j = 0;
 			for(var i = 0; i < left.args.length; i++){
 				if(!left.names[i]) j += 1;
 				if(left.args[i].type !== nt.UNIT) {
 					if(left.names[i]) {
-						seed = new Node(nt.then, {
-							left: seed,
-							right: formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ)
-						})
+						seed.args.push(formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ));
 					} else {
-						seed = new Node(nt.then, {
-							left: seed,
-							right: formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ)
-						})
+						seed.args.push(formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ));
 					}
+					seed.names.push(null);
 				}
 			};
-			seed = new Node(nt.then, {
-				left: seed,
-				right: new Node(nt.TEMPVAR, {name: objt})
-			});
+			seed.args.push(new Node(nt.TEMPVAR, {name: objt}))
+			seed.names.push(null);
 			return seed
 		} else if(left.type === nt.UNIT) {
 			return right;
@@ -1415,13 +1411,15 @@ exports.parse = function (input, source, config) {
 			var hightmp = makeT();
 			var d0name = decls.terms[0].name;
 			return new Node(nt.OLD_FOR, {
-				start: new Node(nt['then'], {
-					left: new Node(nt.ASSIGN, {
-						left: new Node(nt.VARIABLE, {name: d0name}),
-						right: node.range.left}),
-					right: new Node(nt.ASSIGN, {
-						left: new Node(nt.TEMPVAR, {name: hightmp}),
-						right: node.range.right})}),
+				start: new Node(nt.then, {
+					args: [new Node(nt.ASSIGN, {
+							left: new Node(nt.VARIABLE, {name: d0name}),
+							right: node.range.left}),
+						new Node(nt.ASSIGN, {
+							left: new Node(nt.TEMPVAR, {name: hightmp}),
+							right: node.range.right})],
+					names: [null, null]
+				}),
 				condition: new Node((node.range.type === nt['..'] ? nt['<'] : nt['<=']), {
 					left: new Node(nt.VARIABLE, {name: d0name}),
 					right: new Node(nt.TEMPVAR, {name: hightmp})}),
