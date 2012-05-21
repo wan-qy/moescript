@@ -60,27 +60,9 @@ reg('RegExp', function(){
 		r.lastIndex = l;
 		return s;
 	};
+	R.prototype = RegExp.prototype;
 
 	return R;
-}());
-
-reg('Date', function(){
-	var f = function(){
-		var a = arguments;
-		switch(a.length){
-			case 0: return new Date();
-			case 1: return new Date(a[0]);
-			case 2: return new Date(a[0], a[1]);
-			case 3: return new Date(a[0], a[1], a[2]);
-			case 4: return new Date(a[0], a[1], a[2], a[3]);
-			case 5: return new Date(a[0], a[1], a[2], a[3], a[4]);
-			case 6: return new Date(a[0], a[1], a[2], a[3], a[4], a[5]);
-			default: return new Date(a[0], a[1], a[2], a[3], a[4], a[5], a[6]);
-		};
-	};
-	f['new'] = f.convertFrom = f;
-	f.now = function(){return new Date()};
-	return f;
 }());
 
 //: operator
@@ -164,13 +146,7 @@ var internalClassWrapper = function(C, f){
 
 reg('_Object', Object);
 reg('Object', internalClassWrapper(Object, function(){
-	this.be = function(x){return x !== undefined}
-}));
-reg('Number', internalClassWrapper(Number, function(){
-	this.be = function(x){return typeof x === 'number' || x instanceof Number}
-}));
-reg('Boolean', internalClassWrapper(Boolean, function(){
-	this.be = function(x){return x === true || x === false}
+	this.be = function(x){return x !== undefined};
 }));
 reg('Array', internalClassWrapper(Array, function(){
 	this.formMatch = function(got, miss){return function(x){
@@ -183,10 +159,61 @@ reg('Array', internalClassWrapper(Array, function(){
 	this.isArray = this.be;
 }));
 reg('Function', internalClassWrapper(Function));
+reg('Number', internalClassWrapper(Number, function(){
+	this.be = function(x){return typeof x === 'number' || x instanceof Number}
+	this.convertFrom = function(x){return x - 0}
+}));
+reg('Boolean', internalClassWrapper(Boolean, function(){
+	this.be = function(x){return x === true || x === false}
+	this.convertFrom = function(x){return !!x}
+}));
 reg('String', internalClassWrapper(String, function(){
 	this.be = function(x){return typeof x === 'string' || x instanceof String}
+	this.convertFrom = function(x){return x + ""}
 }));
+reg('Error', internalClassWrapper(Error));
+reg('Date', internalClassWrapper(Date, function(){
+	this.now = function(){new Date()};
+}));
+reg('RegExp', internalClassWrapper(RegExp, function(){
+	var R = this;
+	R.convertFrom = function(s){
+		return RegExp(s)
+	};
+	
+	var rType = function(options){
+		R[options] = function(s){
+			return RegExp(s, options)
+		};
+		R[options].convertFrom = function(s){
+			return RegExp(s, options)
+		}
+	};
 
+	rType('g');
+	rType('i');
+	rType('m');
+	rType('gi');
+	rType('gm');
+	rType('im');
+	rType('gim');
+
+	R.walk = function(r, s, fMatch, fGap){
+		var l = r.lastIndex;
+		r.lastIndex = 0;
+		fMatch = fMatch || function(){};
+		fGap = fGap || function(){};
+		var match, last = 0;
+		while(match = r.exec(s)){
+			if(last < match.index) fGap(s.slice(last, match.index));
+			if(fMatch.apply(this, match)) fGap.apply(this, match);
+			last = r.lastIndex;
+		};
+		if(last < s.length) fGap(s.slice(last));
+		r.lastIndex = l;
+		return s;
+	};
+}));
 // trace and tracel
 if(typeof console === undefined){
 	console = {

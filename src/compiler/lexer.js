@@ -1,6 +1,3 @@
-var moe = require('../runtime');
-var moecrt = require('./compiler.rt');
-
 var tokenTypeStrs = exports.tokenTypeStrs = [];
 var TokenType = function(){
 	var k = 0;
@@ -235,8 +232,7 @@ var composeRex = function(r, o){
 	return new RegExp(source, (g ? 'g' : '') + (i ? 'i' : '') + (m ? 'm' : ''));
 };
 
-var LexerBackend = function(input, cfgMap){
-	var token_err = moecrt.PEMeta(moecrt.PWMeta(input));
+var LexerBackend = function(input, cfgMap, token_err){
 	var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
 	var output = {};
 	var optionMaps = cfgMap || {}
@@ -481,7 +477,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	return backend.output();
 };
 
-var lex = exports.lex = function(input, cfgMap){
+var lex = exports.lex = function(input, cfgMap, token_err){
 	input += '\n\n\n'
-	return LexMeta(input, LexerBackend(input, cfgMap))
+	return LexMeta(input, LexerBackend(input, cfgMap, token_err))
 }
