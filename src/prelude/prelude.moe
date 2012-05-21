@@ -57,10 +57,13 @@ def generateEmitter(g) =
 			return v.values
 
 -- function enumeration: Generates emitters, used for adding methods.
-def export('enumeration') enumeration = \
-	object ((G) => (=> generateEmitter do e) where e = G.build ENUM_SCHEMATA), =>
-		def @bypass  = ENUM_SCHEMATA.bind
-		def @yield() = new YIELDVALUE (list.initial arguments), (list.last arguments)
+def export('enumeration') enumeration(G) = 
+	def e = G.build ENUM_SCHEMATA
+	return => 
+		generateEmitter e.apply this, arguments
+
+def enumeration.bypass  = ENUM_SCHEMATA.bind
+def enumeration.yield() = new YIELDVALUE (list.initial arguments), (list.last arguments)
 
 -- function Enumerable: creates objects containing "getEnumerator" method.
 -- Enumerable: (MonadPrimitive(* -> [T])) -> Enumerable T
