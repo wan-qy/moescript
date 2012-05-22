@@ -1,3 +1,9 @@
+ifeq ($(OS),Windows_NT)
+	MKDIR = -@mkdir.exe -p
+else
+	MKDIR = -@mkdir -p
+endif
+
 everything: __all
 
 DIST = dist
@@ -5,12 +11,12 @@ NODEMODDIR = dist/node_modules
 MOD = $(NODEMODDIR)/moe
 MOEC = $(MOD)/compiler
 dirs:
-	-@mkdir -p $(DIST)
-	-@mkdir -p $(MOD)
-	-@mkdir -p $(MOD)/bin
-	-@mkdir -p $(MOD)/prelude
-	-@mkdir -p $(MOEC)
-	-@mkdir -p $(MOEC)/targets
+	$(MKDIR) $(DIST)
+	$(MKDIR) $(MOD)
+	$(MKDIR) $(MOD)/bin
+	$(MKDIR) $(MOD)/prelude
+	$(MKDIR) $(MOEC)
+	$(MKDIR) $(MOEC)/targets
 
 moeRTMods = $(MOD)/runtime.js $(MOD)/dummy.js
 $(moeRTMods): $(MOD)/%.js: src/%.js
@@ -57,11 +63,11 @@ moePrelude: $(moeFullPreludeMods)
 WEBTEST = doc/webtest
 WEBMOD  = $(WEBTEST)/moe
 webtestDir:
-	-@mkdir -p doc
-	-@mkdir -p $(WEBTEST)
-	-@mkdir -p $(WEBMOD)
-	-@mkdir -p $(WEBMOD)/prelude
-	-@mkdir -p $(WEBMOD)/compiler
+	$(MKDIR) doc
+	$(MKDIR) $(WEBTEST)
+	$(MKDIR) $(WEBMOD)
+	$(MKDIR) $(WEBMOD)/prelude
+	$(MKDIR) $(WEBMOD)/compiler
 
 nessatEXE = node tools/nessat
 
