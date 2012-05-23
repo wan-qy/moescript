@@ -153,7 +153,6 @@ var GET_ENUM = function(obj){
 		var i = low;
 		var f = {};
 		f.emit = function(){
-			debugger;
 			if(i >= high) {
 				f.stop = true;
 				return;

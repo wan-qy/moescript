@@ -98,20 +98,20 @@ def export('rangeForEach') rangeForEach(range, f) =
 			f t
 			t = e.emit()
 
--- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
--- takeWhile: (Enumerable T, T -> Boolean) -> Enumerable(T)
+-- function takeWhile: Wraps an enumerable object, emits terms while it satisifies the condition
+-- takeWhile: (Enumerable T, T -> Boolean) -> Enumerable T
 def export("takeWhile") Enumerable takeWhile(I, condition):
 	for(a <- I)
 		if(not condition a)
 			return undefined;
-		() <- a
+		return <- a
 
 -- function select: Wraps an enumerable object, only emits terms satisifying the condition
--- select: (Enumerable T, T -> Boolean) -> Enumerable(T)
+-- select: (Enumerable T, T -> Boolean) -> Enumerable T
 def export("select") Enumerable select(I, condition):
 	for(a <- I)
 		if(condition a)
-			() <- a
+			return <- a
 
 -- function table: Creates lists using list comprehension monad.
 -- table: MonadicPrimitive(* -> T) -> [T]

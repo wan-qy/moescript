@@ -1396,7 +1396,6 @@ exports.parse = function (input, source, config) {
 		var bind = declAssignment[0]
 		var range = declAssignment[1];
 		while(range.type === nt.GROUP) range = range.operand;
-		debugger;
 		if(bind.type === nt.VARIABLE && (range.type === nt['..'] || range.type === nt['...'])){
 			var hightmp = makeT()
 			return new Node(nt.OLD_FOR, {

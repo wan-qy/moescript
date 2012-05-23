@@ -143,7 +143,7 @@ var nameTypes = {
 //	'finally': FINALLY,
 	'where': WHERE,
 	'pass': PASS,
-	'wait': WAIT,
+//	'wait': WAIT,
 	'resend': RESEND,
 	'new': NEW
 };
