@@ -41,38 +41,45 @@ def isBack(f) = [be: f]
 def export('empty') isBack empty(x) = (not x) or (x.length === 0)
 
 // Enumeration functions
-
--- Enumeration monad schemata
-def ENUM_SCHEMATA = object MONAD_SCHEMATA_M, :>
-	def @return(v)        = new RETURNVALUE v
-	def @bind(g, restart) = new YIELDVALUE g, restart
-
--- Emitter generator
-def generateEmitter(g) = 
-	var emitRestart = g
-	return =>
-		def v = do emitRestart
-		if(v.restart and v.values)
-			emitRestart = v.restart
-			return v.values
-
 -- function enumeration: Generates emitters, used for adding methods.
-def export('enumeration') enumeration(G) = 
-	def e = G.build ENUM_SCHEMATA
-	return => 
-		generateEmitter e.apply this, arguments
+def export('enumeration') enumeration(G)() = 
+	def t = this
+	def a = arguments
+	var e = [emit: (=> fCont.apply this, arguments)]
+	var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
+	where 
+		fRet(x) = 
+			e.stop = true
+			x
+		fBind(x, cont) = 
+			fCont = cont
+			x
+		fBindYield(f, t, x, cont) = fBind(f.call(t, x), arguments[arguments.length - 1])
+	var fCont = g.apply(t, a)
 
-def enumeration.bypass  = ENUM_SCHEMATA.bind
-def enumeration.yield() = new YIELDVALUE (list.initial arguments), (list.last arguments)
+	e;
 
+def enumeration.yield(x) = x;
 -- function Enumerable: creates objects containing "getEnumerator" method.
 -- Enumerable: (MonadPrimitive(* -> [T])) -> Enumerable T
-def export('Enumerable') Enumerable(G) = 
-	def enumFunction = G.build ENUM_SCHEMATA
-	return => 
-		[getEnumerator: (=> generateEmitter enumFunction.apply t, a)]
-		where t = this
-		      a = arguments
+def export('Enumerable') Enumerable(G)() = 
+	def t = this
+	def a = arguments
+	[getEnumerator: fGetEnumerator]
+	where fGetEnumerator() =
+		var e = [emit: (=> fCont.apply this, arguments)]
+		var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
+		where 
+			fRet(x) = 
+				e.stop = true
+				x
+			fBind(x, cont) = 
+				fCont = cont
+				x
+			fBindYield(f, t, x, cont) = fBind(f.call(t, x), arguments[arguments.length - 1])
+		var fCont = g.apply(t, a)
+
+		e;
 
 -- function getEnumeratorOf: Returns an enumerator of an Enumerable object
 -- Defined in moert
@@ -86,22 +93,24 @@ def export('rangeForEach') rangeForEach(range, f) =
 	def e = getEnumeratorOf range
 	if(e.each) e.each f
 	else
-		var t = null
-		while((t = e())) f.apply null, t
+		var t = e.emit()
+		while(not e.stop)
+			f t
+			t = e.emit()
 
 -- function takeWhile: Wraps an enumerable object, emits terms until it satisifies the condition
 -- takeWhile: (Enumerable T, T -> Boolean) -> Enumerable(T)
 def export("takeWhile") Enumerable takeWhile(I, condition):
-	for(var *a in I)
-		if(not condition.apply null, a)
+	for(a <- I)
+		if(not condition a)
 			return undefined;
 		() <- a
 
 -- function select: Wraps an enumerable object, only emits terms satisifying the condition
 -- select: (Enumerable T, T -> Boolean) -> Enumerable(T)
 def export("select") Enumerable select(I, condition):
-	for(var *a in I)
-		if(condition.apply null, a)
+	for(a <- I)
+		if(condition a)
 			() <- a
 
 -- function table: Creates lists using list comprehension monad.

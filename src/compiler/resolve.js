@@ -72,7 +72,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 					while(e.rebind && e.parent) e = e.parent;
 					e[node.type === nt.THIS ? 'thisOccurs' : 
 					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 'argnOccurs'] = true;
-				} else if(node.type === nt.TEMPVAR){
+				} else if(node.type === nt.TEMPVAR && !node.builtin){
 					current.useTemp(node.name, node.processing)
 				};
 				moecrt.walkNode(node, fWalk);

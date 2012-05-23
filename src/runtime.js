@@ -151,18 +151,19 @@ var GET_ENUM = function(obj){
 		var low = 0;
 		var high = t.length;
 		var i = low;
-		var r = [];
-		var f = function(){
+		var f = {};
+		f.emit = function(){
+			debugger;
 			if(i >= high) {
+				f.stop = true;
 				return;
 			} else {
-				return r[0] = t[i], r[1] = i++, r
-//				return [t[i], i++]
+				return t[i++]
 			}
 		};
 		f.each = function(g){
 			for(var i = low; i < high; i++)
-				g(t[i], i)
+				g(t[i])
 		};
 		return f;
 	} else {
@@ -397,11 +398,13 @@ ExclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	var f = function(){
+	var f = {}
+	f.emit = function(){
 		if(i >= high) {
-			return;
+			f.stop = true
+			return i;
 		} else {
-			return [i++];
+			return i++;
 		}
 	}
 	f.each = function(g){
@@ -418,9 +421,11 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	var f = function(){
+	var f = {}
+	f.emit = function(){
 		if(i > high) {
-			return;
+			f.stop = true
+			return i;
 		} else {
 			return [i++];
 		}

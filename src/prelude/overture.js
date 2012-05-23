@@ -147,6 +147,19 @@ var internalClassWrapper = function(C, f){
 reg('_Object', Object);
 reg('Object', internalClassWrapper(Object, function(){
 	this.be = function(x){return x !== undefined};
+	this.getPrototypeOf = Object.getPrototypeOf  
+	this.getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor  
+	this.getOwnPropertyNames = Object.getOwnPropertyNames  
+	this.create = Object.create  
+	this.defineProperty = Object.defineProperty  
+	this.defineProperties = Object.defineProperties 
+	this.seal = Object.seal  
+	this.freeze = Object.freeze  
+	this.preventExtensions = Object.preventExtensions  
+	this.isSealed = Object.isSealed  
+	this.isFrozen = Object.isFrozen  
+	this.isExtensible = Object.isExtensible  
+	this.keys = Object.keys  
 }));
 reg('Array', internalClassWrapper(Array, function(){
 	this.formMatch = function(got, miss){return function(x){
@@ -172,9 +185,7 @@ reg('String', internalClassWrapper(String, function(){
 	this.convertFrom = function(x){return x + ""}
 }));
 reg('Error', internalClassWrapper(Error));
-reg('Date', internalClassWrapper(Date, function(){
-	this.now = function(){new Date()};
-}));
+reg('Date', Date);
 reg('RegExp', internalClassWrapper(RegExp, function(){
 	var R = this;
 	R.convertFrom = function(s){

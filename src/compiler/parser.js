@@ -1286,24 +1286,31 @@ exports.parse = function (input, source, config) {
 		else return parlistQ();
 	};
 	var varDefinition = function(){
-		var dp = function(constantQ){
+		var dp = function(constantQ, forQ){
 			var v = member();
 			var defType;
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable
+					if(forQ) throw new PE("Invalid Declaration")
 					advance();
 					return [v, expression()]
 				} else if (defType === DEF_FUNCTIONAL){
+					if(forQ) throw new PE("Invalid Declaration")
 					return [v, functionLiteral(true)]
 				} else if (defType === DEF_BIND){
 					advance();
-					return [v, new Node(nt.CALL, {
-						func: new Node(nt.BINDPOINT),
-						args: [assignmentExpression()],
-						names: [null]
-					})];
+					if(forQ){
+						return [v, expression()]
+					} else {
+						return [v, new Node(nt.CALL, {
+							func: new Node(nt.BINDPOINT),
+							args: [assignmentExpression()],
+							names: [null]
+						})];
+					}
 				}
 			} else {
+				if(forQ) throw new PE("Invalid Declaration")
 				v = completeCallExpression(v);
 				var rhs = dp(constantQ);
 				return [rhs[0], new Node(nt.CALL, {
@@ -1313,8 +1320,9 @@ exports.parse = function (input, source, config) {
 				})]
 			}
 		};
-		return function(constantQ){
-			var r = dp(constantQ);
+		return function(constantQ, forQ){
+			var r = dp(constantQ, forQ);
+			if(forQ) return r;
 			r[1] = whereClausize(r[1]);
 			return formAssignment(r[0], "=", r[1], true, constantQ)
 		}
@@ -1381,57 +1389,54 @@ exports.parse = function (input, source, config) {
 	var forstmt = function () {
 		advance(FOR);
 		advance(OPEN, RDSTART);
-		var node = new Node(nt.FOR);
-		var declQ = false;
-		var decls;
-		if(tokenIs(VAR)){
-			advance(VAR);
-			declQ = true;
-		};
-		if(tokenIs(OPERATOR, '*')){
-			advance();
-			node.pass = true;
-			var passVar = variable();
-			passVar.declareVariable = passVar.name;
-			decls = new Node(nt.VAR, {terms: [passVar]});
-		} else {
-			decls = vardecls();
-		};
-		node.vars = decls.terms.map(function(term){return term.name});
-		if(declQ)
-			node._variableDeclares = decls;
-		advance(IN);
-		node.range = expression();
+		var declAssignment = varDefinition(false, true);
 		advance(CLOSE, RDEND);
-		node.body = block();
-		while(node.range.type === nt.GROUP)
-			node.range = node.range.operand;
+		var body = block();
 
-		if(!node.pass && (node.range.type === nt['..'] || node.range.type === nt['...'])){ // range loop simplification
-			var hightmp = makeT();
-			var d0name = decls.terms[0].name;
+		var bind = declAssignment[0]
+		var range = declAssignment[1];
+		while(range.type === nt.GROUP) range = range.operand;
+		debugger;
+		if(bind.type === nt.VARIABLE && (range.type === nt['..'] || range.type === nt['...'])){
+			var hightmp = makeT()
 			return new Node(nt.OLD_FOR, {
-				start: new Node(nt.then, {
-					args: [new Node(nt.ASSIGN, {
-							left: new Node(nt.VARIABLE, {name: d0name}),
-							right: node.range.left}),
-						new Node(nt.ASSIGN, {
-							left: new Node(nt.TEMPVAR, {name: hightmp}),
-							right: node.range.right})],
+					start: new Node(nt.then, {
+						args: [
+							formAssignment(bind, '=', range.left, true),
+							formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right)
+						],
+						names: [null, null]
+					}),
+					condition: new Node((range.type === nt['..'] ? nt['<'] : nt['<=']), {
+						left: bind,
+						right: new Node(nt.TEMPVAR, {name: hightmp})}),
+					step: formAssignment(bind, '=',
+						new Node(nt['+'], {
+							left: bind,
+							right: new Node(nt.LITERAL, {value: 1})})),
+					body: body
+				});
+		} else {
+			var t = makeT();
+			return new Node(nt.OLD_FOR, {
+				start: formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
+					func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
+					args: [range],
+					names: [null]
+				})),
+				condition: new Node(nt.then, {
+					args: [
+						formAssignment(bind, '=', new Node(nt.CALL, {
+							func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
+							args: [],
+							names: []
+						}), true),
+						new Node(nt.NOT, {operand: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'stop')})
+					],
 					names: [null, null]
 				}),
-				condition: new Node((node.range.type === nt['..'] ? nt['<'] : nt['<=']), {
-					left: new Node(nt.VARIABLE, {name: d0name}),
-					right: new Node(nt.TEMPVAR, {name: hightmp})}),
-				step: new Node(nt.ASSIGN, {
-					left: new Node(nt.VARIABLE, {name: d0name}),
-					right: new Node(nt['+'], {
-						left: new Node(nt.VARIABLE, {name: d0name}),
-						right: new Node(nt.LITERAL, {value: 1})})}),
-				body: node.body,
-				_variableDeclares: declQ ? decls : null});
-		} else {
-			return node;
+				body: body
+			})
 		}
 	};
 

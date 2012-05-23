@@ -1027,11 +1027,11 @@ exports.Generator = function(g_envs, g_config){
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
-			ps(ct(this.start));
+			if(this.start) ps(ct(this.start));
 			(LABEL(lLoop));
 			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd));
 			pct(this.body);
-			ps(ct(this.step));
+			if(this.step) ps(ct(this.step));
 			ps(GOTO(lLoop));
 			(LABEL(lEnd));
 			lNearest = bk;
