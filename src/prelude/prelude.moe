@@ -194,3 +194,9 @@ def export('Either') Either() =
 	var extractors = arguments;
 	return extractor function(got, miss) =
 		extractors.reduceRight ((total, extractor) => extractor.formMatch got, total), miss
+
+def export('time') time(args, f) = 
+	def start = new Date
+	f.apply null, args
+	def final = new Date
+	final - start
