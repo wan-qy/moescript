@@ -6,6 +6,7 @@ def Object = exports.Object
 def object = exports.object
 def global_ = exports.global_
 def Array = exports.Array
+def Date = exports.Date
 
 def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
 def OWNS = moert.runtime.OWNS

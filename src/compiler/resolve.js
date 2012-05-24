@@ -6,7 +6,7 @@ var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
 exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
-	var createScopes = function(tree){
+	var createScopes = function(overallAst){
 		var scopes = [];
 		var stack = [];
 		var ensure = function(c, m, p){
@@ -80,11 +80,16 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 		};
 
 		var current = scopes[0] = stack[0] = new ScopedScript(1);
-		current.parameters = tree.parameters;
-		current.code = tree.code;
-		tree.tree = 1;
+		current.parameters = overallAst.parameters;
+		current.code = overallAst.code;
+		overallAst.tree = 1;
 
-		moecrt.walkNode(tree, fWalk);
+		cInitVariables(function(v, n){
+			current.newVar(n, false, true);
+			current.varIsArg[n] = true
+		});
+
+		moecrt.walkNode(overallAst, fWalk);
 		return scopes;
 	};
 
@@ -173,14 +178,15 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 	};
 
 	var trees = createScopes(ast.tree);
+	var enter = trees[0];
+	generateBindRequirement(enter);
+	
+	if(enter.mPrim){
+		throw PE("The global scope cannot be a monadic primitive.", 1);
+	}
 
 	for(var i = 0; i < trees.length; i++)
 		checkFunction(trees[i]);
-	var enter = trees[0];
-	cInitVariables(function(v, n){
-		enter.newVar(n);
-		enter.varIsArg[n] = true
-	});
 
 	resolveVariables(enter, trees, !!ast.options.explicit);
 	return trees;

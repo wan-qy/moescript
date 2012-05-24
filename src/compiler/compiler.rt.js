@@ -35,7 +35,7 @@ var PWMeta = exports.PWMeta = function(source, positionGetter){
 		var lineFront = line.slice(0, line.length - posSofar + pos);
 		message = $('%1 \n %2: %3\n---%4^',
 				message,
-				i,
+				i - 1,
 				line,
 				(i + lineFront).replace(/./g, '-'));
 		return message;

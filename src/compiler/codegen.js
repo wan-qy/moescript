@@ -166,11 +166,11 @@ exports.Generator = function(g_envs, g_config){
 	}
 
 	"Common Functions";
-	var compileFunctionBody = function (tree) {
+	var compileFunctionBody = function (tree, bodyOnlyQ) {
 		// Generates code for normal function.
 		// Skip when necessary.
 		if (tree.transformed) return tree.transformed;
-		if (tree.mPrim) return compileMPrim(tree);
+		if (tree.mPrim) return compileMPrim(tree, bodyOnlyQ);
 		var backupenv = env;
 		env = tree;
 
@@ -192,17 +192,20 @@ exports.Generator = function(g_envs, g_config){
 			temps[i] = TEMP_BIND(tree, temps[i]);
 
 		s = JOIN_STMTS([
-				THIS_BIND(tree),
-				ARGS_BIND(tree),
-				ARGN_BIND(tree),
-				(temps.length ? 'var ' + temps.join(', '): ''),
-				(vars.length ? 'var ' + vars.join(', ') : ''),
-				s]);
+			THIS_BIND(tree),
+			ARGS_BIND(tree),
+			ARGN_BIND(tree),
+			(temps.length ? 'var ' + temps.join(', '): ''),
+			(vars.length ? 'var ' + vars.join(', ') : ''),
+			s
+		]);
 
 		for (var i = 0; i < pars.length; i++)
 			pars[i] = C_NAME(pars[i].name)
 		for (var i = 0; i < temppars.length; i++)
-			temppars[i] = C_TEMP(temppars[i])
+			temppars[i] = C_TEMP(temppars[i]);
+
+		if(bodyOnlyQ) return s.replace(/^    /gm, '');
 		s = $('function %3(%1){%2}',  pars.concat(temppars).join(','), s, C_TEMP(tree.fid));
 	
 		tree.transformed = s;
@@ -210,9 +213,9 @@ exports.Generator = function(g_envs, g_config){
 		return s;
 	};
 
-	"Obstructive Protos";
+	"Monadic Primitives";
 	var compileMPrim = function(tree){
-		// Generates code for OPs.
+		// Generates code for MPs.
 		if(tree.transformed) return tree.transformed;
 		var backupenv = env;
 		env = tree;

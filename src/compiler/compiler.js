@@ -29,10 +29,11 @@ var parse = exports.parse = lfc_parser.parse;
 var Generator = lfc_codegen.Generator;
 
 var inputNormalize = exports.inputNormalize = function(s){
-	return s.replace(/^\ufeff/, '')
+	s = s.replace(/^\ufeff/, '')
 			.replace(/^\ufffe/, '')
 			.replace(/\r\n/g,   '\n')
 			.replace(/\r/g,     '\n');
+	return '\n' + s + '\n';
 }
 
 var compile = exports.compile = function (source, config) {
@@ -120,7 +121,7 @@ var compile = exports.compile = function (source, config) {
 	}();
 
 	var generator = Generator(trees, {makeT: makeT});
-	var generatedSource = generator(enter);
+	var generatedSource = generator(enter, true);
 
 	if(ast.options.smap){
 

@@ -561,59 +561,57 @@ exports.parse = function (input, source, config) {
 			}
 		}
 	};
-	var member = function () {
-		var m = primary();
-		while (tokenIs(DOT) || tokenIs(OPEN, SQSTART) && !token.spaced || tokenIs(PROTOMEMBER))
-			if (tokenIs(DOT) || tokenIs(PROTOMEMBER)) {
-				m = memberitem(m);
-			} else {
-				advance();
-				m = new Node(nt.MEMBER, {
-					left: m,
-					right: callItem()
-				});
-				advance(CLOSE, SQEND);
-			};
-		return m;
-	};
+
 	var completeCallExpression = function(m){
-		while (tokenIs(OPEN) && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) {
-			switch (token.type) {
-				case EXCLAM:
-					var m = new Node(nt.BINDPOINT, { expression: m });
-					advance();
-					continue;
-				case OPEN:
-					if (token.value === RDSTART) { // invocation f(a,b,c...)
-						advance();
-						m = new Node(nt.CALL, {
-							func: m
-						});
-						if (tokenIs(CLOSE, RDEND)) { m.args = []; advance(); continue; };
-						argList(m, true);
-						advance(CLOSE, RDEND);
-						m = wrapCall(m);
-					} else if (token.value === SQSTART) { // [] operator
-						advance();
-						m = new Node(nt.MEMBER, {
-							left: m,
-							right: callItem()
-						});
-						advance(CLOSE, SQEND);
-					} else if (token.value === CRSTART) {
-						m = wrapCall(new Node(nt.CALL, {
-							func: m,
-							args:[expressionBody()],
-							names: [null]
-						}));
+		while (tokenIs(OPEN) && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
+		switch (token.type) {
+			case EXCLAM:
+				var m = new Node(nt.BINDPOINT, { expression: m });
+				advance();
+				continue;
+			case OPEN:
+				if (token.value === RDSTART) { // invocation f(a,b,c...)
+					var state = saveState();
+					var m_ = m;
+					try {
+						while(tokenIs(OPEN, RDSTART)) {
+							advance(OPEN, RDSTART);
+							m = new Node(nt.CALL, {
+								func: m
+							});
+							if (tokenIs(CLOSE, RDEND)) { m.args = []; advance(); continue; };
+							argList(m, true);
+							advance(CLOSE, RDEND);
+							m = wrapCall(m);
+						};
+						if(tokenIs(ASSIGN, '=') || tokenIs(COLON)) { // a declaration
+							loadState(state);
+							return m_;
+						};
+					} catch (e) {
+						loadState(state);
+						return m_;
 					};
-					continue;
-				case DOT:
-				case PROTOMEMBER:
-					m = memberitem(m);
-					continue;
-			}
-		};
+				} else if (token.value === SQSTART) { // [] operator
+					advance();
+					m = new Node(nt.MEMBER, {
+						left: m,
+						right: callItem()
+					});
+					advance(CLOSE, SQEND);
+				} else if (token.value === CRSTART) {
+					m = wrapCall(new Node(nt.CALL, {
+						func: m,
+						args:[expressionBody()],
+						names: [null]
+					}));
+				};
+				continue;
+			case DOT:
+			case PROTOMEMBER:
+				m = memberitem(m);
+				continue;
+		}
 		return m;
 	};
 	var pusharg = function(nc, bracedQ, relaxQ){
@@ -982,13 +980,7 @@ exports.parse = function (input, source, config) {
 		} else if(shiftIs(shift, WHERE)) {
 			stripSemicolons();
 			advance(WHERE);
-			var stmts = [];
-			if(tokenIs(INDENT)) {
-				stmts = whereClauses()
-			} else {
-				stmts.push(whereClause());
-				if(tokenIs(INDENT)) stmts = stmts.concat(whereClauses())
-			};
+			var stmts = whereClauses();
 			stmts.push(new Node(nt.RETURN, { 
 				expression: node,
 				begins: node.begins,
@@ -1004,7 +996,13 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	var whereClauses = function(){
-		var stmts = []
+		var stmts = [];
+		if(!tokenIs(INDENT)){
+			stmts.push(whereClause());
+			var s = 0;
+			if(!(tokenIs(INDENT) || tokenIs(SEMICOLON, "Implicit") && nextIs(INDENT)))
+				return stmts;
+		};
 		stripSemicolons();
 		advance(INDENT);
 		while(token && !tokenIs(OUTDENT)){
@@ -1015,26 +1013,9 @@ exports.parse = function (input, source, config) {
 		return stmts;
 	};
 	var whereClause = function(){
-		var begins = pos();
-		var bind = variable();
-		var right;
-		if(tokenIs(ASSIGN, '=')){
-			advance(ASSIGN, '=');
-			right = expression();
-		} else {
-			right = functionLiteral(true);
-		};
-		return new Node(nt.EXPRSTMT, {
-			expression: new Node(nt.ASSIGN, {
-				left: bind,
-				right: right,
-				declareVariable: bind.name,
-				constantQ: true
-			}),
-			begins: begins,
-			ends: pos()
-		});
+		return new Node(nt.EXPRSTMT, {expression: varDefinition()})
 	};
+
 	var assignmentExpression = function(){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
@@ -1057,7 +1038,7 @@ exports.parse = function (input, source, config) {
 			 || left.type === nt.TEMPVAR 
 			 || left.type === nt.OBJECT
 			 || left.type === nt.UNIT,
-			"Invalid assignment/bind");
+			"Invalid assignment/bind", left.position);
 		if(left.type === nt.OBJECT){
 			var objt = makeT();
 			var seed = new Node(nt.then, {
@@ -1115,6 +1096,10 @@ exports.parse = function (input, source, config) {
 		if(r){
 			r.begins = begins;
 			r.ends = ends;
+			if(r.type === nt.EXPRSTMT){
+				r.expression.begins = begins;
+				r.expression.ends = ends;
+			}
 		};
 		return r;
 	};
@@ -1243,51 +1228,27 @@ exports.parse = function (input, source, config) {
 	var defstmt = function () {
 		return new Node(nt.EXPRSTMT, {expression: varDefinition(true)});
 	};
+
 	var DEF_ASSIGNMENT = 1;
 	var DEF_FUNCTIONAL = 2;
 	var DEF_BIND = 3;
-	var parlistQ = function(tSpecific){
-		var shift = 0;
-		while(true){
-			// matches `(`
-			if(!shiftIs(shift, OPEN, RDSTART))
-				return false;
-			else
-				shift++;
-			if(shiftIs(shift, CLOSE, RDEND))
-				shift++
-			else
-				while(true){
-					// matches ID
-					if(!shiftIs(shift, ID)) return false;
-					shift++;
-					// if there is a `=` or `:`, return true
-					if(shiftIs(shift, ASSIGN, '=')) return tSpecific ? false : DEF_FUNCTIONAL;
-					// if there is a `(`, break
-					if(shiftIs(shift, CLOSE, RDEND)) {shift++; break}
-					// then loop is there is a `,`
-					else if (shiftIs(shift, COMMA)) shift++;
-					else return false;
-				};
-			if(tSpecific){
-				return shiftIs(shift, tSpecific)
-			} else {
-				if(shiftIs(shift, ASSIGN, '=') || shiftIs(shift, COLON) || shiftIs(shift, LAMBDA))
-					return DEF_FUNCTIONAL
-				else if(shiftIs(shift, OPEN, RDSTART)) { }
-				else return false;
-			};
-		};
-	};
+	// defPartQ: detects the type of declaration
+	// <expr> = 
+	//        ^ -- Simple assignment
+	// <expr> <-
+	//        ^ -- Bind assignment
+	// <expr> : 
+	// <expr> (
+	//        ^ -- Function declaration
 	var defPartQ = function(){
 		if(tokenIs(ASSIGN, '=')) return DEF_ASSIGNMENT;
 		else if(tokenIs(BIND)) return DEF_BIND;
-		else if(tokenIs(COLON)) return DEF_FUNCTIONAL;
-		else return parlistQ();
+		else if(tokenIs(COLON) || tokenIs(OPEN, RDSTART)) return DEF_FUNCTIONAL;
 	};
+
 	var varDefinition = function(){
 		var dp = function(constantQ, forQ){
-			var v = member();
+			var v = callExpression();
 			var defType;
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable
@@ -1311,7 +1272,6 @@ exports.parse = function (input, source, config) {
 				}
 			} else {
 				if(forQ) throw new PE("Invalid Declaration")
-				v = completeCallExpression(v);
 				var rhs = dp(constantQ);
 				return [rhs[0], new Node(nt.CALL, {
 					func: v,
@@ -1324,7 +1284,7 @@ exports.parse = function (input, source, config) {
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
 			r[1] = whereClausize(r[1]);
-			return formAssignment(r[0], "=", r[1], true, constantQ)
+			return formAssignment(r[0], "=", r[1], true, constantQ);
 		}
 	}();
 

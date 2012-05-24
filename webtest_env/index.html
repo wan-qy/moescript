@@ -208,9 +208,10 @@ When in doubt, F12.</pre>
 							tracer('Generated Source:' + source2html(script.generatedSource));
 							tracer('Initialization Source:' + source2html(script.initializationSource));
 							var func = Function(script.aux.runtimeName, script.aux.initsName, 
-								script.initializationSource + '\nreturn ' + script.generatedSource);
+								script.initializationSource + '\n;' + script.generatedSource);
 							tracel('Started Master Execution.');
-							func(eisa.runtime, initvs)();
+							debugger;
+							func(eisa.runtime, initvs);
 							tracel('Master Execution finished.');
 						} catch(e){
 							terr('Error occurs:\n' + e + '\nF12 to read more');
