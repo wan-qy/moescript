@@ -151,10 +151,10 @@ var GET_ENUM = function(obj){
 		var low = 0;
 		var high = t.length;
 		var i = low;
-		var f = {};
+		var f = {active: true};
 		f.emit = function(){
 			if(i >= high) {
-				f.stop = true;
+				f.active = false;
 				return;
 			} else {
 				return t[i++]
@@ -397,10 +397,10 @@ ExclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	var f = {}
+	var f = {active: true}
 	f.emit = function(){
 		if(i >= high) {
-			f.stop = true
+			f.active = false
 			return i;
 		} else {
 			return i++;
@@ -420,10 +420,10 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	var f = {}
+	var f = {active: false}
 	f.emit = function(){
 		if(i > high) {
-			f.stop = true
+			f.active = false
 			return i;
 		} else {
 			return [i++];

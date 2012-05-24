@@ -1418,22 +1418,24 @@ exports.parse = function (input, source, config) {
 		} else {
 			var t = makeT();
 			return new Node(nt.OLD_FOR, {
-				start: formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
-					func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
-					args: [range],
-					names: [null]
+				start: formAssignment(bind, '=', new Node(nt.CALL, {
+					func: MemberNode(
+						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
+							func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
+							args: [range],
+							names: [null]
+						})), 
+						'emit'
+					),
+					args: [],
+					names: []
+				}), true),
+				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
+				step: formAssignment(bind, '=', new Node(nt.CALL, {
+					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
+					args: [],
+					names: []
 				})),
-				condition: new Node(nt.then, {
-					args: [
-						formAssignment(bind, '=', new Node(nt.CALL, {
-							func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
-							args: [],
-							names: []
-						}), true),
-						new Node(nt.NOT, {operand: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'stop')})
-					],
-					names: [null, null]
-				}),
 				body: body
 			})
 		}

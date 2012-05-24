@@ -45,11 +45,11 @@ def export('empty') isBack empty(x) = (not x) or (x.length === 0)
 def export('enumeration') enumeration(G)() = 
 	def t = this
 	def a = arguments
-	var e = [emit: (=> fCont.apply this, arguments)]
+	var e = [emit: (=> fCont.apply this, arguments), active: true]
 	var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
 	where 
 		fRet(x) = 
-			e.stop = true
+			e.active = false
 			x
 		fBind(x, cont) = 
 			fCont = cont
@@ -67,11 +67,11 @@ def export('Enumerable') Enumerable(G)() =
 	def a = arguments
 	[getEnumerator: fGetEnumerator]
 	where fGetEnumerator() =
-		var e = [emit: (=> fCont.apply this, arguments)]
+		var e = [emit: (=> fCont.apply this, arguments), active: true]
 		var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
 		where 
 			fRet(x) = 
-				e.stop = true
+				e.active = false
 				x
 			fBind(x, cont) = 
 				fCont = cont
