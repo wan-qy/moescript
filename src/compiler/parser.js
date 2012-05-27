@@ -1085,7 +1085,6 @@ exports.parse = function (input, source, config) {
 		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE || next.type === OUTDENT);
 	};
 	var aStatementEnded = false;
-	var currentlyInlineQ = false;
 
 	var statement =  function(){
 		aStatementEnded = false;
@@ -1117,8 +1116,6 @@ exports.parse = function (input, source, config) {
 			advance(OUTDENT);
 			return r;
 		} else {
-			ensure(!currentlyInlineQ, "Unable to use multiple-line statements here.")
-
 			var script = new Node(nt.SCRIPT, {content: []});
 			var s;
 			do {
@@ -1131,9 +1128,6 @@ exports.parse = function (input, source, config) {
 		}
 	};
 	var onelineStatements = function(){
-		var _t = currentlyInlineQ;
-		currentlyInlineQ = true;
-
 		var script = new Node(nt.SCRIPT, {content: []});
 		var s;
 		do {
@@ -1143,7 +1137,6 @@ exports.parse = function (input, source, config) {
 		} while(aStatementEnded && token);
 		aStatementEnded = false;
 
-		currentlyInlineQ = _t;
 		return script;
 	};
 
@@ -1316,9 +1309,8 @@ exports.parse = function (input, source, config) {
 		var n = new Node(nt.IF);
 		n.condition = contExpression();
 		n.thenPart = block();
-		var lineSkipped = stripSemicolons();
+		stripSemicolons();
 		if(tokenIs(ELSE)){
-			ensure(!(currentlyInlineQ && lineSkipped), "Unable to use multiple-line statements here.")
 			advance(ELSE);
 			if(tokenIs(IF)){
 				n.elsePart = blocky(ifstmt());
