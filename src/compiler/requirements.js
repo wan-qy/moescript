@@ -24,13 +24,13 @@ exports.RequirementsManager = function(_require){
 
 	var actions = [];
 
-	var addLibImport = function(libName){
+	var addLibImport = function(libName, bind){
 		actions.push(function(){
 			initModules.push(libName);
 			var lib = _require(libName);
 			for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
 				globalVars[item] = YES;
-				variableMaps[item] = 'require(' + STRIZE(libName) + ')[' + STRIZE(item) + ']';
+				variableMaps[item] = (bind || 'require(' + STRIZE(libName) + ')') + '[' + STRIZE(item) + ']';
 			}
 		})
 	};

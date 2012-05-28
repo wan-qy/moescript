@@ -30,7 +30,7 @@ moert: dirs $(moeRTMods) $(moePreludeMods)
 moecMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js \
 			$(MOEC)/resolve.js $(MOEC)/requirements.js
 moecNodeMods = $(MOD)/bin/opts.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
-moecTargets = $(MOEC)/targets/node.js $(MOEC)/targets/least.js
+moecTargets = $(MOEC)/targets/node.js $(MOEC)/targets/least.js $(MOEC)/targets/node.moei.js
 $(moecMods) $(moecTargets): $(MOEC)/%: src/compiler/%
 	cp $< $@
 $(moecNodeMods): $(MOD)/bin/%: src/bin/%

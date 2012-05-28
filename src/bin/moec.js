@@ -1,13 +1,13 @@
 var path = require('path')
 var opts = require('./opts')
-var moe = require('moe/runtime')
-var compiler = require('moe/compiler')
+var moe = require('../runtime')
+var compiler = require('../compiler')
 var util = require('util')
 var fs = require('fs')
 
 var target;
 
-var rm = new (require('moe/compiler/requirements').RequirementsManager);
+var rm = new (require('../compiler/requirements').RequirementsManager);
 
 var addLibName = function(line){
 	var m, name, libName
@@ -21,8 +21,8 @@ var addLibName = function(line){
 
 var optmaps = {'with': addLibName};
 var setTarget = function(v){
-	rm = new (require('moe/compiler/requirements').RequirementsManager);
-	target = require('moe/compiler/targets/' + v);
+	rm = new (require('../compiler/requirements').RequirementsManager);
+	target = require('../compiler/targets/' + v);
 	target.addInits(rm);
 };
 setTarget('node');
