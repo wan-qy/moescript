@@ -133,6 +133,7 @@ var compile = exports.compile = function (source, config) {
 	}
 
 	return {
+		trees: trees,
 		generatedSource: generatedSource,
 		initializationSource: initializationSource,
 		aux: {

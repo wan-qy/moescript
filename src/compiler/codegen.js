@@ -68,11 +68,13 @@ var JOIN_STMTS = function (statements) {
 var THIS_BIND = function (env) {
 	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : ''
 };
-var ARGS_BIND = function (env) {
-	return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = ' + C_TEMP('SLICE') + '(arguments, 0)' : ''
+var ARGS_BIND = function (env, ReplGlobalQ) {
+	if(ReplGlobalQ) return 'var ' + T_ARGS() + ' = ' + '[]';
+	else return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = ' + C_TEMP('SLICE') + '(arguments, 0)' : ''
 };
-var ARGN_BIND = function (env) {
-	return (env.argnOccurs) ? 
+var ARGN_BIND = function (env, ReplGlobalQ) {
+	if(ReplGlobalQ) return 'var ' + T_ARGN() + ' = ' + '{}';
+	else return (env.argnOccurs) ? 
 		'var ' + T_ARGN() + ' = ' + C_TEMP('CNARG') + '(arguments[arguments.length - 1])' : ''
 };
 var TEMP_BIND = function (env, tempName) {
@@ -166,11 +168,11 @@ exports.Generator = function(g_envs, g_config){
 	}
 
 	"Common Functions";
-	var compileFunctionBody = function (tree, bodyOnlyQ) {
+	var compileFunctionBody = function (tree, ReplGlobalQ) {
 		// Generates code for normal function.
 		// Skip when necessary.
 		if (tree.transformed) return tree.transformed;
-		if (tree.mPrim) return compileMPrim(tree, bodyOnlyQ);
+		if (tree.mPrim) return compileMPrim(tree, ReplGlobalQ);
 		var backupenv = env;
 		env = tree;
 
@@ -193,8 +195,8 @@ exports.Generator = function(g_envs, g_config){
 
 		s = JOIN_STMTS([
 			THIS_BIND(tree),
-			ARGS_BIND(tree),
-			ARGN_BIND(tree),
+			ARGS_BIND(tree, ReplGlobalQ),
+			ARGN_BIND(tree, ReplGlobalQ),
 			(temps.length ? 'var ' + temps.join(', '): ''),
 			(vars.length ? 'var ' + vars.join(', ') : ''),
 			s
@@ -205,8 +207,8 @@ exports.Generator = function(g_envs, g_config){
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i]);
 
-		if(bodyOnlyQ) return s.replace(/^    /gm, '');
-		s = $('function %3(%1){%2}',  pars.concat(temppars).join(','), s, C_TEMP(tree.fid));
+		if(ReplGlobalQ) return s.replace(/^    /gm, '');
+		s = $('function (%1){%2}',  pars.concat(temppars).join(','), s);
 	
 		tree.transformed = s;
 		env = backupenv;

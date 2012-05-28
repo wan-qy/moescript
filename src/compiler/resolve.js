@@ -174,7 +174,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 			resolveVariables(trees[scope.nest[i] - 1], trees, explicitQ);
 
 		// minimalize AST size
-		scope.cleanup();
+		// scope.cleanup();
 	};
 
 	var trees = createScopes(ast.tree);

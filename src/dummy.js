@@ -10,8 +10,8 @@ var config = {}
 target.addInits(rm);
 
 exports.config = config;
-exports.addDirectMap = rm.addDirectMap.bind(rm);
-exports.addLibName = rm.addLibName.bind(rm);
+exports.addDirectMap = function(){rm.addDirectMap.apply(rm, arguments)}
+exports.addLibName = function(){rm.addLibName.apply(rm, arguments)};
 
 exports.setTarget = function(v){
 	rm = new (require('./compiler/requirements').RequirementsManager);
@@ -19,23 +19,26 @@ exports.setTarget = function(v){
 	target.addInits(rm);
 };
 
-var getCompiled = exports.getCompiled = function(fileName){
-	var source = fs.readFileSync(fileName, 'utf-8');
-
+var compile = exports.compile = function(source){
 	var script = compiler.compile(source, {
 		optiomMaps : {},
 		initVariables: rm.fInits,
 		warn: function(s){ process.stderr.write(s + '\n') }
 	});
-	return target.composite(
+	return {
+		script: target.composite(
 				script,
 				rm.wrappedLibRequirements(),
 				rm.fInits,
-				config)
+				config),
+		trees: script.trees
+	}
 }
 
-var compile = exports.compile = function(module, fileName){
+var getCompiled = function(fileName){
+	return compile(fs.readFileSync(fileName, 'utf-8')).script;
+};
+
+require.extensions['.moe'] = function(module, fileName){
 	module._compile(getCompiled(fileName), fileName);
-}
-
-require.extensions['.moe'] = compile;
+};
