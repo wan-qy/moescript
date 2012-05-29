@@ -6,9 +6,13 @@ if(process.argv[2]) {
 	var path = require('path')
 	return require(path.resolve(process.argv[2]))
 } else {
-	// Start a repl
+	startRepl();
+}
 
-	var VERSION = require('../package.json').version;
+// Start a repl
+function startRepl(){
+
+	var META = require('../package.json')
 	
 	var vm = require('vm');
 	var util = require('util');
@@ -77,17 +81,21 @@ if(process.argv[2]) {
 				prompt(SYNT_PROMPT);
 			}
 		} else {
-			var ret = vm.runInContext(script.generatedSource, sandbox);
-			console.log(util.inspect(ret).replace(/^/gm, RETURNED));
+			try {
+				var ret = vm.runInContext(script.generatedSource, sandbox);
+				console.log(util.inspect(ret).replace(/^/gm, RETURNED));
+			} catch(e) {
+				console.log(util.inspect(e).replace(/^/gm, ERROR))
+			}
 			buf = '';
 			prompt(NORMAL_PROMPT)
 		}
 	});
 	rl.on('close', function(){
-		console.log('Bye!');
+		console.log('Bye.');
 		process.exit(0)
 	});
 
-	console.log("Moescript REPL ver." + VERSION);
+	console.log("Moescript moei version " + META.version + ' on Nodejs. By ' + META.author);
 	prompt(NORMAL_PROMPT);
 }

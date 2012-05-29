@@ -174,19 +174,6 @@ var IN = function(range){
 	return {'be': function(x){return range.contains(x)}}
 };
 
-String.be = function(s) {
-	return (typeof(s) === 'string') || s instanceof this
-};
-String.convertFrom = function(x){ return x + '' }
-Number.be = function(s) {
-	return (typeof(s) === 'number') || s instanceof this
-};
-Number.convertFrom = function(x){ return x - 0 }
-Boolean.be = function(s) {
-	return (typeof(s) === 'boolean') || s instanceof this
-};
-Boolean.convertFrom = function(x){ return !!x }
-
 //: ES5
 // Essential ES5 prototype methods
 if (!Array.prototype.map) {
