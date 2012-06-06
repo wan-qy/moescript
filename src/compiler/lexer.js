@@ -425,7 +425,7 @@ var LexerBackend = function(input, cfgMap, token_err){
 		newline: function(type, match, n){make(NEWLINE, match.slice(1), n)},
 		mismatch: function(m, pos){
 			if(m.trim())
-				throw token_err("Unexpected character", pos);
+				throw token_err("Unexpected character", pos + m.match(/^\s*/)[0].length);
 		},
 		output: function(){
 			output.tokens = layout(tokens);
