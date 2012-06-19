@@ -1,0 +1,10 @@
+def http = require 'http';
+
+-- Or: def server = http.createServer (request, response) =>
+def http.createServer server(request, response) = 
+	response.writeHead 200, "Content-Type": "text/plain"
+	response.end "Hello!"
+
+server.listen 3000
+
+trace "Server started at port 3000."
