@@ -96,8 +96,8 @@ Enumerators
 		for(i <- 0..this.length)
 			enumeration.yield! this.charAt(i), i
 
-	for(var x in "this is a string")
-		trace x
+	for(c <- "this is a string")
+		trace c
 
 List comprehension
 
@@ -126,4 +126,4 @@ List comprehension
 	//     schemata.bind (1...9), (x) =>
 	//         schemata.bind (x...9), (y) =>
 	//             schemata.return (x + ' * ' + y + ' = ' + x * y)
-	for(var item in t) trace item
+	for(item <- t) trace item
