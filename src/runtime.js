@@ -407,13 +407,13 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	var low = this.left;
 	var high = this.right;
 	var i = low;
-	var f = {active: false}
+	var f = {active: true}
 	f.emit = function(){
 		if(i > high) {
 			f.active = false
 			return i;
 		} else {
-			return [i++];
+			return i++;
 		}
 	}
 	f.each = function(g){

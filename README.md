@@ -13,7 +13,7 @@ Features
 
 	def max(list):
 		var m = list[0]
-		for(var i in 0..list.length)
+		for(i <- 0..list.length)
 			if(list[i] > m) m = list[i]
 		return m
 
@@ -81,7 +81,7 @@ Asyncs
 
 	def async randPrintNums(n):
 		def tasks = []
-		for(var i in 0..n)
+		for(i <- 0..n)
 			tasks.push async :>
 				sleep! (100 * Math.random())
 				trace index
@@ -93,7 +93,7 @@ Asyncs
 Enumerators
 
 	def enumeration String::getEnumerator():
-		for(var i in 0..this.length)
+		for(i <- 0..this.length)
 			enumeration.yield! this.charAt(i), i
 
 	for(var x in "this is a string")
@@ -108,8 +108,8 @@ List comprehension
 				enumeration.yield! x
 		def @bindYield(f, thisp, args) = f.apply thisp, arguments.slice(2)
 		def Enumerable @bind(list, callback):
-			for(var x in list) 
-				for(var y in callback x)
+			for(x <- list) 
+				for(y <- callback x)
 					enumeration.yield! y
 
 	var mktable(G) =
@@ -117,7 +117,7 @@ List comprehension
 		f.apply(this, arguments)()
 
 	// simple usage
-	for(var item in mktable {var x <- (1..100); x * 2 + 1}) trace item
+	for(item <- mktable {var x <- (1..100); x * 2 + 1}) trace item
 	
 	// complicated usage
 	var t = mktable {var x <- (1...9); var y <- (x...9); x + ' * ' + y + ' = ' + x * y }
