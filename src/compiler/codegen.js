@@ -300,6 +300,8 @@ exports.Generator = function(g_envs, g_config){
 			return STRIZE(this.value);
 		} else if (typeof this.value === 'number'){
 			return '' + this.value;
+		} else if (this.value.tid){
+			return C_TEMP(this.value.tid);
 		} else return '' + this.value.map;
 	});
 	eSchemataDef(nt.GROUP, function(transform, env){

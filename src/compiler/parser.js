@@ -221,17 +221,19 @@ exports.parse = function (input, source, config) {
 		'true': 'true',
 		'false': 'false',
 		'null': 'null',
-		'undefined': 'undefined',
-		'try': 'MOE_TRY',
-		'throw': 'MOE_THROW',
-		'negate': 'MOE_NEGATE',
-		'not': 'MOE_NOT',
-		'in': 'MOE_IN'
+		'undefined': 'undefined'
+	};
+	var rtConsts = {
+		'try': 'TRY',
+		'throw': 'THROW',
+		'negate': 'NEGATE',
+		'not': 'NOT',
+		'in': 'IN'
 	};
 	var constant = function () {
 		var t = advance();
 		return new Node(nt.LITERAL, {
-			value: {map: consts[t.value]},
+			value: consts[t.value] ? {map: consts[t.value]} : {tid: rtConsts[t.value]},
 			operatorType: (t.value === 'not' ? nt.NOT :
 				           t.value === 'negate' ? nt.NEGATIVE :
 				           null)
