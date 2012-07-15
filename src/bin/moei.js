@@ -30,7 +30,7 @@ function startRepl(){
 	var cGlobalDump = function(f){
 		for(var each in globalDump)
 			if(globalDump[each] === 1)
-				f('null', each)
+				f('null', each, true)
 	};
 	vm.runInContext(initialScript.script, sandbox);
 

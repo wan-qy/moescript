@@ -293,7 +293,7 @@ var LexerBackend = function(input, cfgMap, token_err){
 				make(t, s, n);
 				break;
 			default:
-				throw token_err("Unexpected symbol" + s, n)
+				throw token_err("Unexpected symbol" + s + '.', n)
 		}
 	};
 	var stringliteral = function(match, n){
@@ -314,7 +314,7 @@ var LexerBackend = function(input, cfgMap, token_err){
 			if(a === b) return 0;
 			else if (a.length < b.length && b.slice(0, a.length) === a) return 1
 			else if (a.length > b.length && a.slice(0, b.length) === b) return -1
-			else throw token_err("Wrong indentation", p)
+			else throw token_err("Wrong indentation.", p)
 		};
 		var stack = [''], top = 0;
 		var process = function(b, p){
@@ -425,7 +425,7 @@ var LexerBackend = function(input, cfgMap, token_err){
 		newline: function(type, match, n){make(NEWLINE, match.slice(1), n)},
 		mismatch: function(m, pos){
 			if(m.trim())
-				throw token_err("Unexpected character", pos + m.match(/^\s*/)[0].length);
+				throw token_err("Unexpected character.", pos + m.match(/^\s*/)[0].length);
 		},
 		output: function(){
 			output.tokens = layout(tokens);

@@ -118,10 +118,10 @@ var ScopedScript = exports.ScopedScript = function (id, env) {
 };
 
 ScopedScript.prototype.newVar = function (name, parQ, constQ) {
-	if (this.variables[name] === this.id && (this.varIsConst[name] || constQ)) {
-		throw "Attempt to redefine constant " + name;
-	}
-	if (this.variables[name] === this.id) return;
+	if (this.variables[name] === this.id) {
+		this.varIsConst[name] = this.varIsConst[name] || constQ;
+		return;
+	};
 
 	this.varIsArg[name] = parQ === true;
 	this.varIsConst[name] = constQ;

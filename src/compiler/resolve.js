@@ -5,7 +5,7 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
-exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
+exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 	var createScopes = function(overallAst){
 		var scopes = [];
 		var stack = [];
@@ -44,14 +44,14 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 			} else if(node.type === nt.LABEL) {
 				var label = node.name;
 				ensure(!current.labels[label] && current.labels[label] !== 0,
-					'Unable to re-label a statement',
+					'Unable to re-label a statement.',
 					node.position);
 				current.labels[label] = node;
 				moecrt.walkNode(node, fWalk);
 				current.labels[label] = 0
 			} else if(node.type === nt.BREAK && node.destination) {
 				ensure(current.labels[node.destination] && current.labels[node.destination].type === nt.LABEL, 
-					"BREAK statement used a unfound label",
+					"BREAK statement used a unfound label.",
 					node.position)
 			} else {
 				if(node.declareVariable){
@@ -61,8 +61,9 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 						e.newVar(node.declareVariable, false, node.constantQ);
 					} catch(ex) {
 						throw PE(ex, node.begins || node.position)
-					}
-				} else if(node.type === nt.ASSIGN && node.left.type === nt.VARIABLE){
+					};
+				};
+				if(node.type === nt.ASSIGN && node.left.type === nt.VARIABLE && !node.constantQ){
 					current.usedVariablesAssignOcc[node.left.name] = node.left.position;
 				};
 				if(node.type === nt.VARIABLE){
@@ -84,8 +85,8 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 		current.code = overallAst.code;
 		overallAst.tree = 1;
 
-		cInitVariables(function(v, n){
-			current.newVar(n, false, true);
+		cInitVariables(function(v, n, constantQ){
+			current.newVar(n, false, !constantQ);
 			current.varIsArg[n] = true
 		});
 
@@ -129,7 +130,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 		// "CALLWRAP" check
 		var fWalk = function(node){
 			if(node.type === nt.CALLWRAP)
-				throw PE("Invalid CALLWRAP usage", node.position);
+				throw PE("Invalid CALLWRAP usage.", node.position);
 			return moecrt.walkNode(node, fWalk);
 		};
 		moecrt.walkNode(scope.code, fWalk);
@@ -147,7 +148,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 			if(!(scope.variables[each] > 0)){
 				if(!explicitQ) {
 					if(!/^[a-z][\d_$]?$/.test(each))
-						cWarn(PW('Undeclared variable "' + each + '"',
+						cWarn(PW('Undeclared variable "' + each + '".',
 							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
 					scope.newVar(each);
 					trees[scope.variables[each] - 1].locals.push(each);
@@ -160,11 +161,12 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn){
 			} else {
 				var livingScope = trees[scope.variables[each] - 1];
 				livingScope.locals.push(each);
+				debugger;
 				if(scope.varIsConst[each]) {
 					var s = scope;
 					do {
 						if(s.usedVariablesAssignOcc[each] >= 0)
-							throw PE('Attempt to assign to constant ' + each, s.usedVariablesAssignOcc[each])
+							throw PE('Attempt to redefine or assign to constant "' + each + '".', s.usedVariablesAssignOcc[each])
 						s = s.parent;
 					} while(s && s !== livingScope)
 				}

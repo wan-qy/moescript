@@ -106,7 +106,7 @@ var compile = exports.compile = function (source, config) {
 
 	//Parse
 	var ast = parse(lex(source, config.optionMaps, PE), source, {initInterator: cInitVariables, makeT: makeT});
-	var trees = lfc_resolver.resolve(ast, cInitVariables, PE, PW, cWarn);
+	var trees = lfc_resolver.resolve(ast, cInitVariables, PE, PW, cWarn, config);
 	var enter = trees[0];
 
 	var initializationSource = "var undefined;\n" + function(){

@@ -90,5 +90,9 @@ clean:
 	rm -rf dist
 	rm -rf doc/webtest
 
+force:
+	make clean
+	make everything
+
 __all: webtest
 	rm -rf $(MOD)/prelude

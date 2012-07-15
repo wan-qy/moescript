@@ -105,9 +105,9 @@ exports.parse = function (input, source, config) {
 	var advance = function (type, test, errorMessage) {
 		var nt, value, t, node;
 		if (!token)
-			throw PE(errorMessage || 'Requires token type#' + type);
+			throw PE(errorMessage || 'Requires token type#' + type + '.');
 		if (type !== undefined && token.type !== type || test !== undefined && token.value !== test)
-			throw PE(errorMessage || 'Unexpected token: got' + token + ' instead ' + new Token(type, test));
+			throw PE(errorMessage || 'Unexpected token: got' + token + ' instead ' + new Token(type, test) + '.');
 		return moveNext();
 	};
 	var saveState = function(){
@@ -205,7 +205,7 @@ exports.parse = function (input, source, config) {
 	};
 	var name = function () {
 		if(token && token.isName) var t = advance();
-		else throw PE("A name is needed here");
+		else throw PE("A name is needed here.");
 		return t.value;
 	};
 	// literals: number, string
@@ -304,7 +304,7 @@ exports.parse = function (input, source, config) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		if(tokenIs(PIPE)) { // {|args| } form
 			if(p)
-				throw PE('Attempting to add parameters to a parameter-given function');
+				throw PE('Attempting to add parameters to a parameter-given function.');
 			advance(PIPE);
 			parameters.names = parlist();
 			advance(PIPE);
@@ -544,7 +544,7 @@ exports.parse = function (input, source, config) {
 		if(esp[token.type])
 			return esp[token.type](token.type)
 		else
-			throw PE("Unexpected token " + token)
+			throw PE("Unexpected token " + token + '.')
 	};
 	var memberitem = function (left) {
 		var right;
@@ -633,7 +633,7 @@ exports.parse = function (input, source, config) {
 		} else if(relaxQ){
 			return false
 		} else {
-			throw new PE("Expecting argument")
+			throw new PE("Expecting argument.")
 		}
 	}
 	var completeArgList = function(nc, bracedQ){
@@ -857,7 +857,7 @@ exports.parse = function (input, source, config) {
 					while (n.right.bp > nbp)
 						n = n.right;
 					if (combining === N && n.right.bp === nbp)
-						throw PE("Attempting to combine uncombinable operator", p);
+						throw PE("Attempting to combine uncombinable operator.", p);
 					node.left = n.right;
 					n.right = node;
 				} else if (combining === R){
@@ -1178,7 +1178,7 @@ exports.parse = function (input, source, config) {
 			case OTHERWISE:
 			case WHEN:
 			case CLOSE:
-				throw PE('Unexpected statement symbol');
+				throw PE('Unexpected statement symbol.');
 			case VAR:
 				advance();
 				return varstmt();
@@ -1247,11 +1247,11 @@ exports.parse = function (input, source, config) {
 			var defType;
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable
-					if(forQ) throw new PE("Invalid Declaration")
+					if(forQ) throw new PE("Invalid Declaration.")
 					advance();
 					return [v, expression()]
 				} else if (defType === DEF_FUNCTIONAL){
-					if(forQ) throw new PE("Invalid Declaration")
+					if(forQ) throw new PE("Invalid Declaration.")
 					return [v, functionLiteral(true)]
 				} else if (defType === DEF_BIND){
 					advance();
@@ -1266,7 +1266,7 @@ exports.parse = function (input, source, config) {
 					}
 				}
 			} else {
-				if(forQ) throw new PE("Invalid Declaration")
+				if(forQ) throw new PE("Invalid Declaration.")
 				var rhs = dp(constantQ);
 				return [rhs[0], new Node(nt.CALL, {
 					func: v,
