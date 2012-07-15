@@ -27,7 +27,6 @@
 		}
 		#info {
 			color: #009;
-
 			position: absolute;
 			left: 620px;
 			right: 0;
@@ -47,26 +46,18 @@
 			font-weight: bolder;
 			font-size: 14px;
 		}
-		h1 {
-			font-family: Arial,NSimSun,sans-serif;
-		}
 		#input {
-
-			width: 100%;
+			font-family: monospace;
+			font-size: 14px;
+			width: 590px;
 			display: block;
 			padding: 4px;
 			border: 1px solid #ddd;
 			line-height: 1.2em;
-			height: 2.4em;
-			min-height: 3.2em;
+			min-height: 8em;
 			max-height: 26em;
 			margin: 0;
-			box-sizing: border-box;
-			-ms-box-sizing: border-box;
-			-moz-box-sizing: border-box;
-			-webkit-box-sizing: border-box;
-			-o-box-sizing: border-box;
-			overflow: auto;
+			overflow-x: hidden;
 			border-radius: 4px;
 		}
 		#input:focus {
@@ -219,9 +210,10 @@ When in doubt, F12.</pre>
 				});
 			};
 		});
-
+	</script>
+	<script>
 		var resizeInput = function(){
-			$('input').style.height = Math.max($('input').scrollHeight + 2, 150) + 'px';
+			$('input').style.height = ($('input').scrollHeight - 8) + 'px';
 		}
 		var last_blanks = '';
 		var exec = false;
@@ -255,8 +247,6 @@ When in doubt, F12.</pre>
 		window.onload = function(){
 			resizeInput()
 		};
-
 	</script>
-
 </body>
 </html>
