@@ -134,6 +134,7 @@ def export("table") table(G) =
 
 -- CPS schemata
 def cpsSchemata = derive MONAD_SCHEMATA_M
+def cpsSchemata.bind(f, cb) = f cb
 
 -- function async: Creates async blocks
 def export('async') async(M) = 

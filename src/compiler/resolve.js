@@ -161,7 +161,6 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 			} else {
 				var livingScope = trees[scope.variables[each] - 1];
 				livingScope.locals.push(each);
-				debugger;
 				if(scope.varIsConst[each]) {
 					var s = scope;
 					do {

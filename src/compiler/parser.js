@@ -518,7 +518,9 @@ exports.parse = function (input, source, config) {
 		} else if (tokenIs(MY, '@') && !token.spaced){
 			advance();
 			return new Node(nt.ARGN);
-		};
+		} else {
+			throw new PE('Invalid # usage.')
+		}
 	};
 	esp[FUNCTION] = function(){
 		advance(FUNCTION);
@@ -1495,6 +1497,7 @@ exports.parse = function (input, source, config) {
 		});
 	}
 	///
+	stripSemicolons();
 	var ws_code = statements();
 	stripSemicolons();
 	return {

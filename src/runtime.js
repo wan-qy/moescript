@@ -83,7 +83,7 @@ var MONAD_SCHEMATA_M = {
 		return v;
 	},
 	'bindYield': function() { return arguments[0].apply(arguments[1], SLICE(arguments, 2)) },
-	'bind': function(v, cb){ return cb(b) }
+	'bind': function(v, cb){ return cb(v) }
 }
 
 //: Exceptions
