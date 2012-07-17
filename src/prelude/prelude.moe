@@ -146,7 +146,7 @@ def export('join') join(o, callback) =
 	var nActivities = 0
 	var nDone = 0
 	var res = []  when(o is Array),
-	          [:]
+	          [:] otherwise
 
 	def checkContinue(term)(val):
 		res[term] = val

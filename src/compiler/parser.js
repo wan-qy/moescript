@@ -192,6 +192,15 @@ exports.parse = function (input, source, config) {
 		};
 	};
 
+	var optimizeOnelineWhere = function(code){
+		if(code.content.length === 1                              // one statement
+			&& code.content[0].type === nt.RETURN                // it is return
+			&& code.content[0].expression.type === nt.CALLBLOCK){ // and it is a WHERE
+			return code.content[0].expression.func.code;
+		}
+		return code;
+	}
+
 
 	// Here we go
 	// Identifier: like the javascript
@@ -311,6 +320,7 @@ exports.parse = function (input, source, config) {
 		};
 		var code = onelineStatements();
 		implicitReturn(code);
+		code = optimizeOnelineWhere(code);
 		advance(CLOSE, CREND);
 		return new Node(nt.FUNCTION, { parameters: parameters, code: code });
 	};
@@ -320,6 +330,7 @@ exports.parse = function (input, source, config) {
 		var code = block();
 		if(t.type === ASSIGN && t.value === '=')
 			implicitReturn(code);
+		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
 	};
@@ -336,6 +347,7 @@ exports.parse = function (input, source, config) {
 		var code = block();
 		if(t.value === '=>')
 			implicitReturn(code);
+		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {
 			parameters: parameters,
@@ -954,12 +966,15 @@ exports.parse = function (input, source, config) {
 			});
 			advance(CLOSE, RDEND);
 			if(tokenIs(COMMA)){
-				advance();
+				advance(COMMA);
 				c.elsePart = expression()
 			} else {
 				c.elsePart = new Node(nt.LITERAL, {value: {map: undefined}});
 			};
 			return c;
+		} else if(tokenIs(OTHERWISE)) {
+			advance()
+			return node;
 		} else {
 			return node;
 		}
@@ -1017,7 +1032,7 @@ exports.parse = function (input, source, config) {
 		return stmts;
 	};
 	var whereClause = function(){
-		return new Node(nt.EXPRSTMT, {expression: varDefinition()})
+		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true)})
 	};
 
 	var assignmentExpression = function(){
@@ -1277,10 +1292,11 @@ exports.parse = function (input, source, config) {
 				})]
 			}
 		};
-		return function(constantQ, forQ){
+		return function(constantQ, forQ, whereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			r[1] = whereClausize(r[1]);
+			if(!whereClauseQ)
+				r[1] = whereClausize(r[1]);
 			return formAssignment(r[0], "=", r[1], true, constantQ);
 		}
 	}();

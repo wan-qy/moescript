@@ -7,22 +7,11 @@ var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
 
 "Code Emission Util Functions"
-//:Note{Uppercased functions returns string. It generates JavaScript code for the compiler.}
-//:func{TO_ENCCD}
-//	:takes{string}
-//	:returns{string}
-//
-//	Converts names into encoded name.
 var TO_ENCCD = function (name) {
 	return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
 		return '$' + m.charCodeAt(0).toString(36) + '$'
 	});
 };
-//:func{STRIZE}
-//	:takes{string}
-//	:returns{string}
-//
-//	Encodes a string into JavaScript Literal
 var STRIZE = exports.STRIZE = function(){
 	var CTRLCHR = function (c) {
 		var n = c.charCodeAt(0);
@@ -36,12 +25,6 @@ var STRIZE = exports.STRIZE = function(){
 	};
 }();
 
-//:func{C_NAME}{Converts variable name.}
-//:func{C_LABELNAME}{Converts label name.}
-//:func{C_TEMP}{Converts temp name used.}
-//:func{T_THIS}{Returns variable replacing `this`.}
-//:func{T_ARGN}{Returns variable for named arguments.}
-//:func{T_ARGS}{Returns variable replacing `arguments`.}
 var C_NAME = exports.C_NAME = function (name) { return TO_ENCCD(name) + '$' },
 	C_LABELNAME = function (name) { return TO_ENCCD(name) + '$L' },
 	C_TEMP = exports.C_TEMP = function (type){ return type + '$_' },
@@ -50,10 +33,8 @@ var C_NAME = exports.C_NAME = function (name) { return TO_ENCCD(name) + '$' },
 	T_ARGS = function(){ return '_$_ARGS' },
 	C_BLOCK = function(label){ return 'block_' + label }
 
-//:func{INDENT}{Indents block}
 var INDENT = function(s){ return s.replace(/^/gm, '    ') };
 
-//:func{JOIN_STMTS}{Joins an array of statements}
 var JOIN_STMTS = function (statements) {
 	var ans = [], ansl = 0, statement;
 	for(var i = 0; i < statements.length; i++) if((statement = statements[i])){
@@ -64,7 +45,6 @@ var JOIN_STMTS = function (statements) {
 	return '\n' + INDENT(ans.join(';\n')) + ';\n';
 }
 
-//:func{THIS_BIND}{Binds T_THIS() value `this`.}
 var THIS_BIND = function (env) {
 	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : ''
 };
@@ -81,13 +61,6 @@ var TEMP_BIND = function (env, tempName) {
 	return C_TEMP(tempName);
 };
 
-//:func{$}
-//	:takes{string*}
-//	:returns{string}
-//	Templating function. Replaces `%1` forms into arguments given.
-//	%1 for 2nd argument.
-//
-//	Usage: `$('%1%1%2', 'a', 'b') //= 'aab'`
 var $ = function(template, items_){
 	var a = arguments;
 	return template.replace(/%(\d+)/g, function(m, $1){
@@ -98,7 +71,6 @@ var $ = function(template, items_){
 var GETV = function (node) { return C_NAME(node.name) };
 var SETV = function (node, val) { return '(' + C_NAME(node.name) + ' = ' + val + ')' };
 
-//:obj{SPECIALNAMES}{Reserved words of JavaScript}
 var SPECIALNAMES = {
 	"break":1, "continue":1, "do":1, "for":1, "import":1, 
 	"new":1, "this":1, "void":1, "case":1, 
@@ -354,7 +326,9 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	eSchemataDef(nt.MEMBER, function (transform) {
-		if(this.right.type === nt.LITERAL && typeof this.right.value === 'string' && !(this.left.type === nt.LITERAL && typeof this.left.value === 'number')) {
+		if(this.right.type === nt.LITERAL 
+			&& typeof this.right.value === 'string' 
+			&& !(this.left.type === nt.LITERAL && typeof this.left.value === 'number')) {
 			return PART(transform(this.left), this.right.value);
 		} else {
 			return $('%1[%2]', transform(this.left), transform(this.right))
@@ -1105,18 +1079,6 @@ exports.Generator = function(g_envs, g_config){
 			ps(GOTO(this.destination ? scopeLabels[this.destination] : lNearest));
 			return ''
 		});
-
-		// mSchemataDef(nt.TRY, function(){
-		// 	var l = label();
-		// 	ps($("return (" + C_TEMP('SCHEMATA_TRY') + "(%1, %2, %3, %4, %5))",
-		// 		transform(this.body),
-		// 		transform(this.catchPart),
-		// 		transform(this.finallyPart),
-		// 		C_TEMP('SCHEMATA'),
-		// 		C_BLOCK(l)));
-		// 	LABEL(l);
-		// 	return ''
-		// });
 
 		mSchemataDef(nt.SCRIPT, function (n) {
 			var gens;
