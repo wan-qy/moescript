@@ -979,15 +979,17 @@ exports.parse = function (input, source, config) {
 			return node;
 		}
 	};
-	var whereClausedExpression = function(c){
+	var whereClausedExpression = function(c, singleLineQ){
 		var begins = pos()
 		var e = expression(c);
 		e.begins = begins;
 		e.ends = pos();
-		return whereClausize(e);
+		return whereClausize(e, singleLineQ);
 	};
-	var whereClausize = function(node){
+	var whereClausize = function(node, singleLineQ){
 		var shift = 0;
+		// Clearify WHERE in oneline statements
+		if(singleLineQ && !(tokenIs(WHERE))) return node;
 		while(shiftIs(shift, SEMICOLON)) shift++;
 		if(shiftIs(shift, INDENT) && shiftIs(shift + 1, WHERE)){
 			stripSemicolons();
@@ -1035,7 +1037,7 @@ exports.parse = function (input, source, config) {
 		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true)})
 	};
 
-	var assignmentExpression = function(){
+	var assignmentExpression = function(singleLineQ){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
 			if(tokenIs(ASSIGN)) {
@@ -1043,12 +1045,12 @@ exports.parse = function (input, source, config) {
 			} else {
 				return formAssignment(c, (advance(), '='), new Node(nt.CALL, {
 					func: new Node(nt.BINDPOINT),
-					args: [assignmentExpression()],
+					args: [assignmentExpression(singleLineQ)],
 					names: [null]
 				}));
 			}
 		} else {
-			return whereClausedExpression(c);
+			return whereClausedExpression(c, singleLineQ);
 		}
 	};
 	var formAssignment = function(left, oper, right, declVarQ, constantQ){
@@ -1105,7 +1107,8 @@ exports.parse = function (input, source, config) {
 	};
 	var aStatementEnded = false;
 
-	var statement =  function(){
+	var SINGLE_LINE = true
+	var statement = function(singleLineQ){
 		aStatementEnded = false;
 		var begins = pos();
 		var r = statement_r.apply(this, arguments);
@@ -1125,7 +1128,7 @@ exports.parse = function (input, source, config) {
 		if(tokenIs(INDENT)){
 			return statements()
 		} else {
-			return blocky(statement())
+			return blocky(statement(SINGLE_LINE))
 		};
 	};
 	var statements = function () {
@@ -1152,14 +1155,14 @@ exports.parse = function (input, source, config) {
 		do {
 			while(tokenIs(SEMICOLON, "Explicit")) advance();
 			if (tokenIs(CLOSE)) break;
-			script.content.push(statement());
+			script.content.push(statement(SINGLE_LINE));
 		} while(aStatementEnded && token);
 		aStatementEnded = false;
 
 		return script;
 	};
 
-	var statement_r = function () {
+	var statement_r = function (singleLineQ) {
 		if (token)
 			switch (token.type) {
 			case RETURN:
@@ -1175,21 +1178,21 @@ exports.parse = function (input, source, config) {
 					return new Node(nt.RETURN, { expression: whereClausedExpression() })
 				}
 			case IF:
-				return ifstmt();
+				return ifstmt(singleLineQ);
 			case WHILE:
-				return whilestmt();
+				return whilestmt(singleLineQ);
 			case REPEAT:
-				return repeatstmt();
+				return repeatstmt(singleLineQ);
 			case PIECEWISE:
-				return piecewise();
+				return piecewise(false, singleLineQ);
 			case CASE:
-				return piecewise(true);
+				return piecewise(true, singleLineQ);
 			case FOR:
-				return forstmt();
+				return forstmt(singleLineQ);
 			case LABEL:
-				return labelstmt();
+				return labelstmt(singleLineQ);
 			case BREAK:
-				return brkstmt();
+				return brkstmt(singleLineQ);
 			case END:
 			case ELSE:
 			case OTHERWISE:
@@ -1198,10 +1201,10 @@ exports.parse = function (input, source, config) {
 				throw PE('Unexpected statement symbol.');
 			case VAR:
 				advance();
-				return varstmt();
+				return varstmt(singleLineQ);
 			case DEF:
 				advance();
-				return defstmt();
+				return defstmt(singleLineQ);
 			case PASS:
 				advance(PASS);
 				return;
@@ -1209,7 +1212,7 @@ exports.parse = function (input, source, config) {
 //			case TRY:
 //				return trystmt();
 			default:
-				return new Node(nt.EXPRSTMT, {expression: assignmentExpression(), exprStmtQ : true});
+				return new Node(nt.EXPRSTMT, {expression: assignmentExpression(singleLineQ), exprStmtQ : true});
 		};
 	};
 	var blocky = function(node){
@@ -1219,11 +1222,11 @@ exports.parse = function (input, source, config) {
 			return node
 		}
 	};
-	var varstmt = function(){
+	var varstmt = function(singleLineQ){
 		if(tokenIs(ID) && (nextIs(COMMA) || nextstover())){
 			return vardecls();
 		} else {
-			return new Node(nt.EXPRSTMT, {expression: varDefinition(false)});
+			return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, singleLineQ)});
 		};
 	}
 	var vardecls = function () {
@@ -1237,8 +1240,9 @@ exports.parse = function (input, source, config) {
 		};
 		return new Node(nt.VAR, {terms: a});
 	};
-	var defstmt = function () {
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(true)});
+
+	var defstmt = function (singleLineQ) {
+		return new Node(nt.EXPRSTMT, {expression: varDefinition(true, false, singleLineQ)});
 	};
 
 	var DEF_ASSIGNMENT = 1;
@@ -1324,13 +1328,13 @@ exports.parse = function (input, source, config) {
 		return hasLinebreaks;
 	};
 
-	var ifstmt = function () {
+	var ifstmt = function (singleLineQ) {
 		advance(IF);
 		var n = new Node(nt.IF);
 		n.condition = contExpression();
 		n.thenPart = block();
 		stripSemicolons();
-		if(tokenIs(ELSE)){
+		if(!singleLineQ && tokenIs(ELSE)){
 			advance(ELSE);
 			if(tokenIs(IF)){
 				n.elsePart = blocky(ifstmt());

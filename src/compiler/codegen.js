@@ -301,7 +301,7 @@ exports.Generator = function(g_envs, g_config){
 		var inits = [],
 		    terms = [],
 			x = 0,
-			hasNameQ = false;
+			hasNameQ = this.nameused;
 		for (var i = 0; i < this.args.length; i++) {
 			var right = transform(ungroup(this.args[i]))
 			if (typeof this.names[i] === "string") {

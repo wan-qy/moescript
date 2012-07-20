@@ -12,58 +12,13 @@ var reg = function(name, value){
 //: moert
 reg('derive', derive);
 reg('NamedArguments', moert.runtime.NamedArguments);
+reg('JSON', (function(){return this})().JSON);
 
 reg('endl', '\n');
 reg('global_', (function(){return this})())
 
 //: PrimitiveTypes
 reg('math', derive(Math));
-reg('RegExp', function(){
-	var R = function(){
-		return RegExp.apply(this, arguments)
-	};
-	R.be = function(o){
-		return o instanceof RegExp
-	};
-	R.convertFrom = function(s){
-		return RegExp(s)
-	};
-	
-	var rType = function(options){
-		R[options] = function(s){
-			return RegExp(s, options)
-		};
-		R[options].convertFrom = function(s){
-			return RegExp(s, options)
-		}
-	};
-
-	rType('g');
-	rType('i');
-	rType('m');
-	rType('gi');
-	rType('gm');
-	rType('im');
-	rType('gim');
-
-	R.walk = function(r, s, fMatch, fGap){
-		var l = r.lastIndex;
-		fMatch = fMatch || function(){};
-		fGap = fGap || function(){};
-		var match, last = 0;
-		while(match = r.exec(s)){
-			if(last < match.index) fGap(s.slice(last, match.index));
-			if(fMatch.apply(this, match)) fGap.apply(this, match);
-			last = r.lastIndex;
-		};
-		if(last < s.length) fGap(s.slice(last));
-		r.lastIndex = l;
-		return s;
-	};
-	R.prototype = RegExp.prototype;
-
-	return R;
-}());
 
 //: operator
 reg('operator', {
@@ -225,6 +180,28 @@ reg('RegExp', internalClassWrapper(RegExp, function(){
 		return s;
 	};
 }));
+reg('Primitive', function(){
+	var P = function(){};
+	var STRIZE = exports.STRIZE = function(){
+		var CTRLCHR = function (c) {
+			var n = c.charCodeAt(0);
+			return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
+		};
+		return function (s) {
+			return '"' + (s || '')
+				.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+				.replace(/[\x00-\x1f\x7f]/g, CTRLCHR)
+				.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
+		};
+	}();
+	P.be = function(x){return !x || typeof x === 'number' || typeof x === 'string' || typeof x === 'boolean'};
+	P.stringify = function(x){
+		if(typeof x === 'string') return STRIZE(x)
+		else return '' + x
+	};
+	return P;
+}());
+
 // trace and tracel
 if(typeof console === undefined){
 	console = {

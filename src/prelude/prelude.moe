@@ -3,10 +3,14 @@
 
 def derive = exports.derive
 def Object = exports.Object
+def Function = exports.Function
 def object = exports.object
 def global_ = exports.global_
+def Primitive = exports.Primitive
 def Array = exports.Array
 def Date = exports.Date
+def keysof = exports.keysof
+def RegExp = exports.RegExp
 
 def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
 def OWNS = moert.runtime.OWNS
@@ -18,7 +22,6 @@ def export(n)(x) = (exports[n] = x)
 
 
 // Util functions
-
 def export('its') its(prop)(o) = o[prop]
 def export('returns') returns(x)() = x
 def export('itself') itself(x) = x
@@ -38,8 +41,44 @@ def export('list') list = object =>
 	def @fill(range, x) = table { i <- range; x }
 	def @tolist(range) = table { x <- range; x }
 
-def isBack(f) = [be: f]
-def export('empty') isBack empty(x) = (not x) or (x.length === 0)
+-- function time: record run time of an function
+def export('time') time(args, f) = 
+	def start = new Date
+	f.apply null, args
+	def final = new Date
+	final - start
+
+-- function inspect: pretty-print of object
+def export('inspect') inspect(x, targetDepth = 3) = 
+	inspectObject x, [], 0, targetDepth
+where	
+	rIdentifier = '^[a-zA-Z_$][\w$]*$' as RegExp
+	tPropName(s) = 
+		s                     when(rIdentifier.test s),
+		Primitive.stringify s otherwise
+	inspectProperties(x, stack, depth, targetDepth) =
+		var a = [];
+		for(p <- keysof x)
+			var prop = x[p]
+			var foundCircle = false
+			for(j <- stack) if(j === prop) 
+				foundCircle = true
+				break
+
+			if(foundCircle)
+				a.push (tPropName p + ': ' + '[Circular]')
+			else
+				a.push (tPropName p + ': ' + inspectObject(prop, stack, depth + 1, targetDepth))
+
+		return ' ' + (a.join ",\n  ") + ' ' when(depth == 0), 
+		       a.join ", "                  otherwise
+	inspectObject(x, stack, depth, targetDepth) = piecewise
+			when(depth >= targetDepth) '[...]'
+			when(x is Primitive)       Primitive.stringify x
+			when(x is Function)        "{ [Function]\n " + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + '}'
+			otherwise                  '[' + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + ']'
+
+
 
 // Enumeration functions
 -- function enumeration: Generates emitters, used for adding methods.
@@ -47,8 +86,7 @@ def export('enumeration') enumeration(G)() =
 	def t = this
 	def a = arguments
 	var e = [emit: (=> fCont.apply this, arguments), active: true]
-	var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
-	where 
+	var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield] where 
 		fRet(x) = 
 			e.active = false
 			x
@@ -57,20 +95,18 @@ def export('enumeration') enumeration(G)() =
 			x
 		fBindYield(f, t, x, cont) = fBind(f.call(t, x), arguments[arguments.length - 1])
 	var fCont = g.apply(t, a)
-
+	
 	e;
 
 def enumeration.yield(x) = x;
 -- function Enumerable: creates objects containing "getEnumerator" method.
 -- Enumerable: (MonadPrimitive(* -> [T])) -> Enumerable T
-def export('Enumerable') Enumerable(G)() = 
-	def t = this
-	def a = arguments
-	[getEnumerator: fGetEnumerator]
-	where fGetEnumerator() =
+def export('Enumerable') Enumerable(G)() = [getEnumerator: fGetEnumerator] where 
+	t = this
+	a = arguments
+	fGetEnumerator() =
 		var e = [emit: (=> fCont.apply this, arguments), active: true]
-		var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield]
-		where 
+		var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield] where 
 			fRet(x) = 
 				e.active = false
 				x
@@ -131,17 +167,16 @@ def export("table") table(G) =
 
 
 // Async functions
-
 -- CPS schemata
 def cpsSchemata = derive MONAD_SCHEMATA_M
 def cpsSchemata.bind(f, cb) = f cb
 
 -- function async: Creates async blocks
 def export('async') async(M) = 
-	if(M.build)
-		(=> (do g)()) where g = M.build cpsSchemata
-	else => do M
+	if(M.build) (=> (do g)()) where g = M.build cpsSchemata
+	else        (=> do M)
 
+-- function join: Start mulitple tasks parallelly, callback when all of them completed.
 def export('join') join(o, callback) = 
 	var nActivities = 0
 	var nDone = 0
@@ -161,12 +196,14 @@ def export('join') join(o, callback) =
 		res[term] = undefined
 		o[term].call null, checkContinue(term)
 
+-- function sleep: a wrap for global_.setTimeout
 def export('sleep') sleep(dt, callback) = 
 	global_.setTimeout(callback, dt)
 
 
 
 // Pattern match functions
+-- function matcher: form a matcher function
 def matcher(G) = 
     var fMatcher = (x) => undefined;
     def schemata = object MONAD_SCHEMATA_M, =>
@@ -177,28 +214,31 @@ def matcher(G) =
     G.build(schemata)()()
     return fMatcher
 
+-- function match: form a matcher
 def export('match') match(x, G) =
-	if (not G) matcher(x)
-	else       matcher(G) x
+	matcher x    when(not G),
+	matcher(G) x otherwise
 
+-- function extractor: form an extractor
 def export('extractor') extractor(formFunc) =
 	def f = formFunc {true}, {false}
 	f.formMatch = formFunc
 	f.be = f
 	f
 
+-- function Both: Both extractor, matches when all the branches matches
 def export('Both') Both() = 
 	var extractors = arguments;
 	return extractor function(got, miss) =
 		extractors.reduceRight ((total, extractor) => extractor.formMatch total, miss), got
 
+-- function Either: Either extractor, matches when one of the branches matches
 def export('Either') Either() = 
 	var extractors = arguments;
 	return extractor function(got, miss) =
 		extractors.reduceRight ((total, extractor) => extractor.formMatch got, total), miss
 
-def export('time') time(args, f) = 
-	def start = new Date
-	f.apply null, args
-	def final = new Date
-	final - start
+-- function empty: detect whether x is falsy or empty Array
+def export('empty') export('Empty') extractor Empty(got, miss)(x) = 
+	got x  when(not x or (x is Array and not x.length)),
+	miss x otherwise
