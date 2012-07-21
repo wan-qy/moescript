@@ -5,6 +5,8 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
+var quenchRebinds = function(s){var t = s; while(t && t.rebind) t = t.parent; return t}
+
 exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 	var createScopes = function(overallAst){
 		var scopes = [];
@@ -13,6 +15,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 			if(!c) throw PE(m, p);
 			return c;
 		};
+
 		var fWalk = function(node){
 			if(node.type === nt.FUNCTION) {
 				var s = new ScopedScript(scopes.length + 1, current);
@@ -27,6 +30,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 					s.newVar(s.parameters.names[i].name, true)
 				};
 				s.code = node.code;
+
 				scopes[scopes.length] = s;
 				stack.push(s);
 				current = s;
@@ -56,9 +60,10 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 			} else {
 				if(node.declareVariable){
 					try {
-						var e = current;
-						while(e.rebind && e.noVarDecl && e.parent) e = e.parent;
-						e.newVar(node.declareVariable, false, node.constantQ);
+						if(node.whereClauseQ)
+							current.newVar(node.declareVariable, false, node.constantQ)
+						else
+							quenchRebinds(current).newVar(node.declareVariable, false, node.constantQ);
 					} catch(ex) {
 						throw PE(ex, node.begins || node.position)
 					};
@@ -66,7 +71,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 				if(node.type === nt.ASSIGN && node.left.type === nt.VARIABLE && !node.constantQ){
 					current.usedVariablesAssignOcc[node.left.name] = node.left.position;
 				};
-				if(node.type === nt.VARIABLE){
+				if(node.type === nt.VARIABLE) {
 					current.useVar(node.name, node.position)
 				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN){
 					var e = current;
@@ -150,8 +155,9 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 					if(!/^[a-z][\d_$]?$/.test(each))
 						cWarn(PW('Undeclared variable "' + each + '".',
 							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
-					scope.newVar(each);
-					trees[scope.variables[each] - 1].locals.push(each);
+					var s = scope;
+					s.newVar(each);
+					trees[s.variables[each] - 1].locals.push(each);
 				} else {
 					throw PE(
 						'Undeclared variable "' + each + '" when using `-!option explicit`.',

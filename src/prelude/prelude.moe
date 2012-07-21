@@ -49,8 +49,7 @@ def export('time') time(args, f) =
 	final - start
 
 -- function inspect: pretty-print of object
-def export('inspect') inspect(x, targetDepth = 3) = 
-	inspectObject x, [], 0, targetDepth
+def export('inspect') inspect(x, targetDepth = 3) = inspectObject x, [], 0, targetDepth
 where	
 	rIdentifier = '^[a-zA-Z_$][\w$]*$' as RegExp
 	tPropName(s) = 

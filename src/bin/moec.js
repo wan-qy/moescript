@@ -44,7 +44,7 @@ opts.parse([
 	{long: 'rtbind', value: true, 
 		callback: function(expr){ runtimeBind = expr }}
 ], [{name: 'source_path', required: true, callback: function(value){
-	path.exists(value, function(existQ){
+	(fs.exists||path.exists)(value, function(existQ){
 		if(existQ){
 			var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
 				optionMaps: optmaps,

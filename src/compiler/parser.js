@@ -979,9 +979,73 @@ exports.parse = function (input, source, config) {
 			return node;
 		}
 	};
-	var whereClausedExpression = function(c, singleLineQ){
+
+var assignmentExpression = function(){
+		var c = unary();
+		if (tokenIs(ASSIGN) || tokenIs(BIND)){
+			if(tokenIs(ASSIGN)) {
+				return formAssignment(c, advance().value, assignmentExpression());
+			} else {
+				return formAssignment(c, (advance(), '='), new Node(nt.CALL, {
+					func: new Node(nt.BINDPOINT),
+					args: [assignmentExpression()],
+					names: [null]
+				}));
+			}
+		} else {
+			return expression(c);
+		}
+	};
+	var formAssignment = function(left, oper, right, declVarQ, constantQ, whereClauseQ){
+		ensure( left.type === nt.VARIABLE 
+			 || left.type === nt.MEMBER 
+			 || left.type === nt.TEMPVAR 
+			 || left.type === nt.OBJECT
+			 || left.type === nt.UNIT,
+			"Invalid assignment/bind", left.position);
+		if(left.type === nt.OBJECT){
+			var objt = makeT();
+			var seed = new Node(nt.then, {
+				args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
+				names: [null]
+			});
+			var j = 0;
+			for(var i = 0; i < left.args.length; i++){
+				if(!left.names[i]) j += 1;
+				if(left.args[i].type !== nt.UNIT) {
+					if(left.names[i]) {
+						seed.args.push(formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ));
+					} else {
+						seed.args.push(formAssignment(left.args[i], oper, 
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ));
+					}
+					seed.names.push(null);
+				}
+			};
+			seed.args.push(new Node(nt.TEMPVAR, {name: objt}))
+			seed.names.push(null);
+			return seed
+		} else if(left.type === nt.UNIT) {
+			return right;
+		} else {
+			return new Node(nt.ASSIGN, {
+				left: left,
+				right: oper === "=" ? right : new Node(nt[oper.slice(0, oper.length - 1)], {
+					left: left,
+					right: right
+				}),
+				position: left.position,
+				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
+				constantQ: constantQ,
+				whereClauseQ: whereClauseQ
+			})
+		}
+	};
+
+	var whereClausedExpression = function(singleLineQ){
 		var begins = pos()
-		var e = expression(c);
+		var e = assignmentExpression();
 		e.begins = begins;
 		e.ends = pos();
 		return whereClausize(e, singleLineQ);
@@ -1034,69 +1098,7 @@ exports.parse = function (input, source, config) {
 		return stmts;
 	};
 	var whereClause = function(){
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true)})
-	};
-
-	var assignmentExpression = function(singleLineQ){
-		var c = unary();
-		if (tokenIs(ASSIGN) || tokenIs(BIND)){
-			if(tokenIs(ASSIGN)) {
-				return formAssignment(c, advance().value, assignmentExpression());
-			} else {
-				return formAssignment(c, (advance(), '='), new Node(nt.CALL, {
-					func: new Node(nt.BINDPOINT),
-					args: [assignmentExpression(singleLineQ)],
-					names: [null]
-				}));
-			}
-		} else {
-			return whereClausedExpression(c, singleLineQ);
-		}
-	};
-	var formAssignment = function(left, oper, right, declVarQ, constantQ){
-		ensure( left.type === nt.VARIABLE 
-			 || left.type === nt.MEMBER 
-			 || left.type === nt.TEMPVAR 
-			 || left.type === nt.OBJECT
-			 || left.type === nt.UNIT,
-			"Invalid assignment/bind", left.position);
-		if(left.type === nt.OBJECT){
-			var objt = makeT();
-			var seed = new Node(nt.then, {
-				args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
-				names: [null]
-			});
-			var j = 0;
-			for(var i = 0; i < left.args.length; i++){
-				if(!left.names[i]) j += 1;
-				if(left.args[i].type !== nt.UNIT) {
-					if(left.names[i]) {
-						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ));
-					} else {
-						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ));
-					}
-					seed.names.push(null);
-				}
-			};
-			seed.args.push(new Node(nt.TEMPVAR, {name: objt}))
-			seed.names.push(null);
-			return seed
-		} else if(left.type === nt.UNIT) {
-			return right;
-		} else {
-			return new Node(nt.ASSIGN, {
-				left: left,
-				right: oper === "=" ? right : new Node(nt[oper.slice(0, oper.length - 1)], {
-					left: left,
-					right: right
-				}),
-				position: left.position,
-				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
-				constantQ: constantQ
-			})
-		}
+		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true, true)})
 	};
 
 	var stover = function () {
@@ -1212,7 +1214,7 @@ exports.parse = function (input, source, config) {
 //			case TRY:
 //				return trystmt();
 			default:
-				return new Node(nt.EXPRSTMT, {expression: assignmentExpression(singleLineQ), exprStmtQ : true});
+				return new Node(nt.EXPRSTMT, {expression: whereClausedExpression(singleLineQ), exprStmtQ : true});
 		};
 	};
 	var blocky = function(node){
@@ -1296,12 +1298,13 @@ exports.parse = function (input, source, config) {
 				})]
 			}
 		};
-		return function(constantQ, forQ, whereClauseQ){
+		return function(constantQ, forQ, singleLineQ, whereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			if(!whereClauseQ)
-				r[1] = whereClausize(r[1]);
-			return formAssignment(r[0], "=", r[1], true, constantQ);
+			r = formAssignment(r[0], "=", r[1], true, constantQ, whereClauseQ);
+			if(!singleLineQ)
+				r = whereClausize(r);
+			return r;
 		}
 	}();
 
@@ -1476,46 +1479,7 @@ exports.parse = function (input, source, config) {
 			return new Node(nt.BREAK, { destination: null });
 		}
 	};
-	var trystmt = function(){
-		advance(TRY);
-		var body = new Node(nt.FUNCTION, {
-			code: block(),
-			parameters: new Node(nt.PARAMETERS, { names: [] }),
-			rebind: true,
-			noVarDecl: true
-		});
-		var catchPart = new Node(nt.FUNCTION, {
-			code: new Node(nt.SCRIPT, {content: []}),
-			parameters: new Node(nt.PARAMETERS, {names: []}),
-			rebind: true,
-			noVarDecl: true
-		});
-		var finallyPart = new Node(nt.FUNCTION, {
-			code: new Node(nt.SCRIPT, {content: []}),
-			parameters: new Node(nt.PARAMETERS, {names: []}),
-			rebind: true,
-			noVarDecl: true
-		});
-		stripSemicolons();
-		if(tokenIs(CATCH)) {
-			advance();
-			advance(OPEN, RDSTART);
-			var catchId = variable();
-			advance(CLOSE, RDEND);
-			catchPart.parameters.names[0] = {name: catchId.name}
-			catchPart.code = block();
-		};
-		stripSemicolons();
-		if(tokenIs(FINALLY)) {
-			advance();
-			finallyPart.code = block();
-		};
-		return new Node(nt.TRY, {
-			body: body,
-			catchPart: catchPart,
-			finallyPart: finallyPart
-		});
-	}
+
 	///
 	stripSemicolons();
 	var ws_code = statements();
