@@ -1055,14 +1055,7 @@ var assignmentExpression = function(){
 		// Clearify WHERE in oneline statements
 		if(singleLineQ && !(tokenIs(WHERE))) return node;
 		while(shiftIs(shift, SEMICOLON)) shift++;
-		if(shiftIs(shift, INDENT) && shiftIs(shift + 1, WHERE)){
-			stripSemicolons();
-			advance(INDENT);
-			var r = whereClausize(node);
-			stripSemicolons();
-			advance(OUTDENT);
-			return r;
-		} else if(shiftIs(shift, WHERE)) {
+		if(shiftIs(shift, WHERE)) {
 			stripSemicolons();
 			advance(WHERE);
 			var stmts = whereClauses();
