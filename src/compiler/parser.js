@@ -980,7 +980,7 @@ exports.parse = function (input, source, config) {
 		}
 	};
 
-var assignmentExpression = function(){
+	var assignmentExpression = function(){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
 			if(tokenIs(ASSIGN)) {
@@ -1161,17 +1161,7 @@ var assignmentExpression = function(){
 		if (token)
 			switch (token.type) {
 			case RETURN:
-				advance();
-				if(tokenIs(BIND)){
-					advance(BIND);
-					return new Node(nt.CALL, {
-						func: new Node(nt.BINDPOINT),
-						args: [assignmentExpression()],
-						names: [null]
-					});
-				} else {
-					return new Node(nt.RETURN, { expression: whereClausedExpression() })
-				}
+				return returnstmt(singleLineQ)
 			case IF:
 				return ifstmt(singleLineQ);
 			case WHILE:
@@ -1217,13 +1207,26 @@ var assignmentExpression = function(){
 			return node
 		}
 	};
+	var returnstmt = function(singleLineQ){
+		advance(RETURN);
+		if(tokenIs(BIND)){
+			advance(BIND);
+			return new Node(nt.CALL, {
+				func: new Node(nt.BINDPOINT),
+				args: [whereClausedExpression(singleLineQ)],
+				names: [null]
+			});
+		} else {
+			return new Node(nt.RETURN, { expression: whereClausedExpression(singleLineQ) })
+		}
+	}
 	var varstmt = function(singleLineQ){
 		if(tokenIs(ID) && (nextIs(COMMA) || nextstover())){
 			return vardecls();
 		} else {
 			return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, singleLineQ)});
 		};
-	}
+	};
 	var vardecls = function () {
 		var a = [variable()];
 		while(tokenIs(COMMA)){
@@ -1291,13 +1294,10 @@ var assignmentExpression = function(){
 				})]
 			}
 		};
-		return function(constantQ, forQ, singleLineQ, whereClauseQ){
+		return function(constantQ, forQ, singleLineQ, insideWhereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			r = formAssignment(r[0], "=", r[1], true, constantQ, whereClauseQ);
-			if(!singleLineQ)
-				r = whereClausize(r);
-			return r;
+			return whereClausize(formAssignment(r[0], "=", r[1], true, constantQ, insideWhereClauseQ), singleLineQ);
 		}
 	}();
 
@@ -1329,13 +1329,22 @@ var assignmentExpression = function(){
 		var n = new Node(nt.IF);
 		n.condition = contExpression();
 		n.thenPart = block();
-		stripSemicolons();
-		if(!singleLineQ && tokenIs(ELSE)){
-			advance(ELSE);
-			if(tokenIs(IF)){
-				n.elsePart = blocky(ifstmt());
-			} else {
-				n.elsePart = block();
+		debugger;
+		if(singleLineQ) {
+			if(tokenIs(ELSE)){
+				advance(ELSE);
+				n.elsePart = blocky(statement(SINGLE_LINE));
+			};
+		} else {
+			var newlinedElse = tokenIs(SEMICOLON);
+			stripSemicolons();
+			if(tokenIs(ELSE)){
+				advance(ELSE);
+				if(newlinedElse && tokenIs(IF)){
+					n.elsePart = blocky(ifstmt());
+				} else {
+					n.elsePart = block();
+				}
 			}
 		}
 		return n;
