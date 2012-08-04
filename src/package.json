@@ -1,9 +1,9 @@
 {
 	"name": "moe",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"author": "Belleve Invis",
 	"description": "New generation language. JavaScript targeted.",
-	"homepage": "http://github.com/be5invis/moe",
+	"homepage": "https://github.com/be5invis/moe",
 	"engines": ["node >= 0.6.0"],
 	"main": "./dummy",
 	"bin" : {
