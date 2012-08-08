@@ -16,7 +16,7 @@ dirs:
 	$(MKDIR) $(MOD)/bin
 	$(MKDIR) $(MOD)/prelude
 	$(MKDIR) $(MOEC)
-	$(MKDIR) $(MOEC)/targets
+
 
 moeRTMods = $(MOD)/runtime.js $(MOD)/dummy.js
 $(moeRTMods): $(MOD)/%.js: src/%.js
@@ -30,8 +30,8 @@ moert: dirs $(moeRTMods) $(moePreludeMods)
 moecMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js \
 			$(MOEC)/resolve.js $(MOEC)/requirements.js
 moecNodeMods = $(MOD)/bin/opts.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
-moecTargets = $(MOEC)/targets/node.js $(MOEC)/targets/least.js $(MOEC)/targets/node.moei.js
-$(moecMods) $(moecTargets): $(MOEC)/%: src/compiler/%
+
+$(moecMods): $(MOEC)/%: src/compiler/%
 	cp $< $@
 $(moecNodeMods): $(MOD)/bin/%: src/bin/%
 	cp $< $@
@@ -44,15 +44,14 @@ $(MOD)/package.json: src/package.json
 
 moecLib: $(moecMods) $(MOEC)/package.json
 moecNodeLib: $(moecNodeMods)
-moecTargets: $(moecTargets)
-moecMain: moecLib moecNodeLib moecTargets
+moecMain: moecLib moecNodeLib
 moec: moert moecMain moecPackageMeta
 
-moecEXE = node $(MOD)/bin/moec -t least -g moert --rtbind moert.runtime
+preludeMoecEXE = node $(MOD)/bin/moec --no-prelude -g moert --runtime-bind moert.runtime 
 
 moeFullPreludeMods = $(MOD)/prelude/prelude.js
 $(moeFullPreludeMods): $(MOD)/%.js: src/%.moe
-	$(moecEXE) -o $@ $<
+	$(preludeMoecEXE) -o $@ $<
 
 moePrelude: $(moeFullPreludeMods)
 	node tools/preludesquash $(MOD)/prelude.js $(moePreludeMods) $(moeFullPreludeMods)

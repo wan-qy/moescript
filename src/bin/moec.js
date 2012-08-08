@@ -18,44 +18,42 @@ var addLibName = function(line){
 	};
 	rm.addLibName(name, libName)
 };
-
 var optmaps = {'with': addLibName};
-var setTarget = function(v){
-	rm = new (require('../compiler/requirements').RequirementsManager);
-	target = require('../compiler/targets/' + v);
-	target.addInits(rm);
-};
-setTarget('node');
-var runtimeBind = '';
 
+var runtimeBind = '';
+var noPreludeQ  = false;
 var fWrite = console.log;
 
+rm.bind('require', 'require');
+rm.bind('module', 'module');
+rm.bind('exports', 'exports');
+
 opts.parse([
-	{short: 't', long: 'target', value: true, description: "Set compilation target (node, least)",
-		callback: function(v){ setTarget(v) }},
-	{short: 'm', long: 'module', value: true, description: "Include module as global variable. Usage: -m name=path/to/module",
-		callback: function(v){ addLibName(v) }},
-	{short: 'i', long: 'include', value: true, description: "Include all exports of a module as global variable",
-		callback: function(mod){ rm.addLibImport(mod) }},
 	{short: 'o', long: 'output', value: true, description: "Set output .js path",
 		callback: function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} }},
 	{short: 'g', long: 'global', value: true, description: "Declare a global variable",
-		callback: function(varName){ rm.addDirectMap(varName, varName) }},
-	{long: 'rtbind', value: true, 
-		callback: function(expr){ runtimeBind = expr }}
+		callback: function(varName){ rm.bind(varName, varName) }},
+	{short: 'b', long: 'bind', value: true, description: "Create a global variable with specific bind",
+		callback: function(s){
+			var m = s.match(/(\w+)\s*=\s*([\s\S]*)$/);
+			if(m){rm.bind(m[1], m[2])}
+		}},
+	{long: 'runtime-bind', value: true, 
+		callback: function(expr){ runtimeBind = expr }},
+	{long: 'no-prelude', value: false,
+		callback: function(){noPreludeQ = true}}
 ], [{name: 'source_path', required: true, callback: function(value){
 	(fs.exists||path.exists)(value, function(existQ){
 		if(existQ){
+			if(!noPreludeQ) 
+				rm.addLibImport('./../prelude', '(require("moe/prelude"))');
+
 			var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
 				optionMaps: optmaps,
 				initVariables: rm.fInits,
 				warn: function(s){ process.stderr.write(s + '\n') }
 			})
-			fWrite(target.composite(
-				script,
-				rm.wrappedLibRequirements(),
-				rm.fInits,
-				{runtimeBind: runtimeBind}))
+			fWrite(compiler.stdComposite(script, {runtimeBind: runtimeBind}))
 		} else {
 			util.debug('File ' + value + ' does not exist.')
 		}

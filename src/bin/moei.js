@@ -1,6 +1,13 @@
 var dummy = require('moe/dummy')
-dummy.setTarget('node.moei.js')
 dummy.config.runtimeBind = 'require.main.require("moe/runtime").runtime';
+var rm = new (require('../compiler/requirements')).RequirementsManager(require)
+rm.bind('require', 'require');
+rm.bind('module', 'module');
+rm.bind('exports', 'exports');
+rm.addLibImport('moe/prelude', 'require.main.require("moe/prelude")');
+rm.bind('console', 'console');
+rm.bind('process', 'process');
+dummy.useRequireManager(rm);
 
 if(process.argv[2]) {
 	var path = require('path')
@@ -24,7 +31,7 @@ function startRepl(){
 		exports: exports,
 		exit: function(){rl.close()}
 	});
-	dummy.addDirectMap('exit', 'exit');
+	dummy.bind('exit', 'exit');
 	var initialScript = dummy.compile('\n\n');
 	var globalDump = initialScript.trees[0].variables;
 	var cGlobalDump = function(f){

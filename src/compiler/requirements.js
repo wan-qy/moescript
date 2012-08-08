@@ -4,7 +4,6 @@ var moe = require('../runtime')
 exports.RequirementsManager = function(_require){
 	var YES = {};
 	var globalVars = {};
-	var initModules = [];
 	var variableMaps = {};
 
 	_require = _require || require;
@@ -24,9 +23,14 @@ exports.RequirementsManager = function(_require){
 
 	var actions = [];
 
+	var addDirectMap = function(name, map){
+		actions.push(function(){
+			globalVars[name] = YES;
+			variableMaps[name] = map;
+		})
+	};
 	var addLibImport = function(libName, bind){
 		actions.push(function(){
-			initModules.push(libName);
 			var lib = _require(libName);
 			for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
 				globalVars[item] = YES;
@@ -36,15 +40,8 @@ exports.RequirementsManager = function(_require){
 	};
 	var addLibName = function(name, id){
 		actions.push(function(){
-			initModules.push(id)
 			globalVars[name] = YES;
 			variableMaps[name] = 'require(' + STRIZE(id) + ')'
-		})
-	};
-	var addDirectMap = function(name, map){
-		actions.push(function(){
-			globalVars[name] = YES;
-			variableMaps[name] = map;
 		})
 	};
 	var fInits = function(f){
@@ -58,9 +55,8 @@ exports.RequirementsManager = function(_require){
 
 
 	// Exports
+	this.bind = this.addDirectMap = addDirectMap;
 	this.addLibImport = addLibImport;
 	this.addLibName = addLibName;
-	this.addDirectMap = addDirectMap;
 	this.fInits = fInits;
-	this.wrappedLibRequirements = function(){return ['moe/runtime'].concat(initModules).map(STRIZE)};
 };
