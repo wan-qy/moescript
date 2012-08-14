@@ -145,6 +145,6 @@ var compile = exports.compile = function (source, config) {
 };
 
 exports.stdComposite = function(script, aux){
-	return 'var ' + script.aux.runtimeName + ' = ' + (aux.runtimeBind || 'require("moe/runtime").runtime' ) + '\n' +
+	return 'var ' + script.aux.runtimeName + ' = ' + (aux.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +
 		script.initializationSource + '\n' + script.generatedSource 
 };

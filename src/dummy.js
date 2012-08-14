@@ -4,6 +4,8 @@ var fs = require('fs');
 var moert   = require('./runtime');
 var compiler = require('./compiler/compiler');
 
+exports.runtime = moert.runtime
+
 var rm = new (require('./compiler/requirements')).RequirementsManager(require)
 rm.bind('require', 'require');
 rm.bind('module', 'module');

@@ -1,5 +1,6 @@
 Moescript
 ==============
+Sharp and cute ><
 
 Usage
 -----------------

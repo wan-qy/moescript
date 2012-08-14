@@ -149,9 +149,9 @@ When in doubt, F12.</pre>
 		}
 
 		module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function(require){
-			var eisa = require('moe/runtime');
-			var EISA_OWNS = eisa.runtime.OWNS;
-			var eisa_using = function(libs, f) {
+			var moert = require('moe/runtime');
+			var EISA_OWNS = moert.runtime.OWNS;
+			var moert_using = function(libs, f) {
 				var importings = [], immediates = [];
 				for (var i = 0; i < libs.length; i++) {
 					if (typeof libs[i] === 'string')
@@ -187,7 +187,7 @@ When in doubt, F12.</pre>
 				var infoout = G_TRACE('info');
 				var tracel = infoout.tracel;
 				var tracer = infoout.traceraw;
-				eisa_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
+				moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
 					function(initvs, inita){
 						try {
 							var lfc = require('moe/compiler/compiler');
@@ -202,7 +202,7 @@ When in doubt, F12.</pre>
 								script.initializationSource + '\n;' + script.generatedSource);
 							tracel('Started Master Execution.');
 							debugger;
-							func(eisa.runtime, initvs);
+							func(moert.runtime, initvs);
 							tracel('Master Execution finished.');
 						} catch(e){
 							terr('Error occurs:\n' + e + '\nF12 to read more');
