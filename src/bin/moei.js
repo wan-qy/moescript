@@ -89,7 +89,7 @@ function startRepl(){
 			}
 		} else {
 			try {
-				var ret = vm.runInContext(script.generatedSource, sandbox);
+				var ret = vm.runInContext(script.generatedCode, sandbox);
 				console.log(util.inspect(ret).replace(/^/gm, RETURNED));
 			} catch(e) {
 				console.log(util.inspect(e).replace(/^/gm, ERROR))
