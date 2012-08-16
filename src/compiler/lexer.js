@@ -228,10 +228,12 @@ var composeRex = function(r, o){
 	return new RegExp(source, (g ? 'g' : '') + (i ? 'i' : '') + (m ? 'm' : ''));
 };
 
-var LexerBackend = function(input, cfgMap, token_err){
+var LexerBackend = function(input, config){
 	var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
 	var output = {};
-	var optionMaps = cfgMap || {}
+	config = config || {};
+	var optionMaps = config.optionMaps || {}
+	var token_err = config.PE
 	var make = function (t, v, p, isn) {
 		ignoreComingNewline = false;
 		tokens[tokl++] = new Token(t, // type

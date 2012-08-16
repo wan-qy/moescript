@@ -5,6 +5,7 @@
 var moe = require('../runtime');
 var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
+var derive = moe.derive;
 
 var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
@@ -27,7 +28,7 @@ var GlobalVariableManager = require('./gvm').GlobalVariableManager;
 //============
 var lex = exports.lex = lfc_lexer.lex;
 var parse = exports.parse = lfc_parser.parse;
-
+//============
 var Generator = lfc_codegen.Generator;
 
 var inputNormalize = exports.inputNormalize = function(s){
@@ -100,34 +101,34 @@ var generateSourceMap = function(source, generated){
 
 var compile = exports.compile = function (source, config) {
 	source = inputNormalize(source)
-	config = config || {};
-	var cRuntimeName = config.runtimeName || C_TEMP('RUNTIME');
-	var cInitsName = config.initsName || C_TEMP('INITS');
-	var cInitVariables = config.initVariables || createInitVariables(config.globalVariables);
-	var cWarn = config.warn || function(){ };
+	config = derive(config || {});
 
-	var PW = moecrt.PWMeta(source);
-	var PE = moecrt.PEMeta(PW);
+	config.runtimeName = config.runtimeName || C_TEMP('RUNTIME');
+	config.initsName = config.initsName || C_TEMP('INITS');
+	config.initVariables = config.initVariables || createInitVariables(config.globalVariables);
+	config.makeT = moecrt.TMaker();
 
-	var makeT = moecrt.TMaker();
+	config.warn = config.warn || function(){ };
+	config.PW = moecrt.PWMeta(source);
+	config.PE = moecrt.PEMeta(config.PW);
 
 	//Parse
-	var ast = parse(lex(source, config.optionMaps, PE), source, {initInterator: cInitVariables, makeT: makeT});
-	var trees = lfc_resolver.resolve(ast, cInitVariables, PE, PW, cWarn, config);
+	var ast = parse(lex(source, config), source, config);
+	var trees = lfc_resolver.resolve(ast, config);
 	var enter = trees[0];
 
 	var initializationCode = "var undefined;\n" + function(){
 		var s = '';
 		for(var item in moe.runtime) if(OWNS(moe.runtime, item)) {
-			s += 'var ' + C_TEMP(item) + ' = ' + PART(cRuntimeName, item) + ';\n';
+			s += 'var ' + C_TEMP(item) + ' = ' + PART(config.runtimeName, item) + ';\n';
 		};
-		cInitVariables(function(v, n){
-			s += 'var ' + C_NAME(n) + ' = ' + (v || PART(cInitsName, n)) + ';\n';
+		config.initVariables(function(v, n){
+			s += 'var ' + C_NAME(n) + ' = ' + (v || PART(config.initsName, n)) + ';\n';
 		});
 		return s;
 	}();
 
-	var generator = Generator(trees, {makeT: makeT});
+	var generator = Generator(trees, config);
 	var generatedCode = generator(enter, true);
 
 	if(ast.options.smap){
@@ -143,11 +144,7 @@ var compile = exports.compile = function (source, config) {
 		trees: trees,
 		generatedCode: generatedCode,
 		initializationCode: initializationCode,
-		aux: {
-			runtimeName: cRuntimeName,
-			initsName: cInitsName,
-			initVariables: cInitVariables
-		}
+		aux: config
 	}
 };
 

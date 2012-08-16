@@ -7,7 +7,11 @@ var ScopedScript = moecrt.ScopedScript;
 
 var quenchRebinds = function(s){var t = s; while(t && t.rebind) t = t.parent; return t}
 
-exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
+exports.resolve = function(ast, config){
+	// Config satisifies <.initVariable()>, <.PE()>, <.PW()> and <.warn()>
+	var PE = config.PE;
+	var PW = config.PW;
+
 	var createScopes = function(overallAst){
 		var scopes = [];
 		var stack = [];
@@ -90,7 +94,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 		current.code = overallAst.code;
 		overallAst.tree = 1;
 
-		cInitVariables(function(v, n, constantQ){
+		config.initVariables(function(v, n, constantQ){
 			current.newVar(n, false, !constantQ);
 			current.varIsArg[n] = true
 		});
@@ -153,7 +157,7 @@ exports.resolve = function(ast, cInitVariables, PE, PW, cWarn, config){
 			if(!(scope.variables[each] > 0)){
 				if(!explicitQ) {
 					if(!/^[a-z][\d_$]?$/.test(each))
-						cWarn(PW('Undeclared variable "' + each + '".',
+						config.warn(PW('Undeclared variable "' + each + '".',
 							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
 					var s = scope;
 					s.newVar(each);
