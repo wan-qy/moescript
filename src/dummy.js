@@ -6,25 +6,25 @@ var compiler = require('./compiler/compiler');
 
 exports.runtime = moert.runtime
 
-var rm = new (require('./compiler/requirements')).RequirementsManager(require)
-rm.bind('require', 'require');
-rm.bind('module', 'module');
-rm.bind('exports', 'exports');
-rm.addLibImport('moe/prelude');
-rm.bind('console', 'console');
-rm.bind('process', 'process');
+var gvm = new (require('./compiler/gvm')).GlobalVariableManager(require)
+gvm.bind('require', 'require');
+gvm.bind('module', 'module');
+gvm.bind('exports', 'exports');
+gvm.addLibImport('moe/prelude');
+gvm.bind('console', 'console');
+gvm.bind('process', 'process');
 
 var config = {}
 exports.config = config;
 
-exports.useRequireManager = function(newrm){return rm = newrm};
-exports.bind = function(){rm.bind.apply(rm, arguments)};
-exports.addLibName = function(){rm.addLibName.apply(rm, arguments)};
+exports.useRequireManager = function(newrm){return gvm = newrm};
+exports.bind = function(){gvm.bind.apply(gvm, arguments)};
+exports.addLibName = function(){gvm.addLibName.apply(gvm, arguments)};
 
 var compile = exports.compile = function(source){
 	var script = compiler.compile(source, {
 		optiomMaps : {},
-		initVariables: rm.fInits,
+		globalVariables: gvm,
 		warn: function(s){ process.stderr.write(s + '\n') }
 	});
 	return {

@@ -21,6 +21,8 @@ var C_TEMP = lfc_codegen.C_TEMP;
 var PART = lfc_codegen.PART;
 var STRIZE = lfc_codegen.STRIZE;
 
+var GlobalVariableManager = require('./gvm').GlobalVariableManager;
+
 
 //============
 var lex = exports.lex = lfc_lexer.lex;
@@ -34,6 +36,19 @@ var inputNormalize = exports.inputNormalize = function(s){
 			.replace(/\r\n/g,   '\n')
 			.replace(/\r/g,     '\n');
 	return '\n' + s + '\n';
+};
+
+var createInitVariables = function(gvm){
+	if(!gvm){ return (function(){}) }
+	else if(gvm instanceof GlobalVariableManager){ return gvm.fInits }
+	else {
+		return function(map){
+			return function(f){
+				for(var term in map) if(OWNS(map, term))
+					f(map[term], term)
+			};
+		}(gvm)
+	}
 }
 
 var compile = exports.compile = function (source, config) {
@@ -41,16 +56,8 @@ var compile = exports.compile = function (source, config) {
 	config = config || {};
 	var cRuntimeName = config.runtimeName || C_TEMP('RUNTIME');
 	var cInitsName = config.initsName || C_TEMP('INITS');
-	var cInitVariables = config.initVariables || function(){ };
+	var cInitVariables = config.initVariables || createInitVariables(config.globalVariables);
 	var cWarn = config.warn || function(){ };
-	if(typeof cInitVariables !== 'function'){
-		cInitVariables = function(map){
-			return function(f){
-				for(var term in map) if(OWNS(map, term))
-					f(map[term], term)
-			};
-		}(cInitVariables)
-	};
 
 	var PW = moecrt.PWMeta(source);
 	var PE = moecrt.PEMeta(PW);

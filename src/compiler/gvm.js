@@ -1,7 +1,6 @@
-var path = require('path')
 var moe = require('../runtime')
 
-exports.RequirementsManager = function(_require){
+exports.GlobalVariableManager = function(_require){
 	var YES = {};
 	var globalVars = {};
 	var variableMaps = {};
@@ -34,14 +33,14 @@ exports.RequirementsManager = function(_require){
 			var lib = _require(libName);
 			for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
 				globalVars[item] = YES;
-				variableMaps[item] = (bind || 'require(' + STRIZE(libName) + ')') + '[' + STRIZE(item) + ']';
+				variableMaps[item] = (bind || 'require' + '(' + STRIZE(libName) + ')') + '[' + STRIZE(item) + ']';
 			}
 		})
 	};
 	var addLibName = function(name, id){
 		actions.push(function(){
 			globalVars[name] = YES;
-			variableMaps[name] = 'require(' + STRIZE(id) + ')'
+			variableMaps[name] = 'require' + '(' + STRIZE(id) + ')'
 		})
 	};
 	var fInits = function(f){

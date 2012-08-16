@@ -148,9 +148,10 @@ When in doubt, F12.</pre>
 				+ '</ol>'
 		}
 
-		module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function(require){
+		module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/compiler/gvm'], function(require){
 			var moert = require('moe/runtime');
 			var EISA_OWNS = moert.runtime.OWNS;
+			var GlobalVariableManager = require('moe/compiler/gvm').GlobalVariableManager;
 			var moert_using = function(libs, f) {
 				var importings = [], immediates = [];
 				for (var i = 0; i < libs.length; i++) {
@@ -159,27 +160,24 @@ When in doubt, F12.</pre>
 					else
 						immediates.push(libs[i]);
 				};
+				var gvm = new GlobalVariableManager;
 				module.provide(importings, function(require) {
-					var vals = {}, obts = {}, YES = {};
+					var vals = {};
 					for (var i = 0; i < importings.length; i++)
 						require.enumerate(libs[i], function(n, v) {
 							vals[n] = v;
-							obts[n] = YES
+							gvm.bind(n);
 						});
 					for (var i = 0; i < immediates.length; i++) {
 						var immlib = immediates[i];
 						for (var each in immlib)
 							if (EISA_OWNS(immlib, each)) {
 								vals[each] = immlib[each];
-								obts[each] = YES
+								gvm.bind(each);
 							};
 					};
-					var enumVars = function(f) {
-						for (var each in vals)
-							if (obts[each] === YES)
-								f(vals[each], each)
-					};
-					return f.call(vals, vals, enumVars);
+
+					return f.call(vals, vals, gvm);
 				});
 			};
 			run = document.getElementById('go').onclick = function () {
@@ -188,12 +186,11 @@ When in doubt, F12.</pre>
 				var tracel = infoout.tracel;
 				var tracer = infoout.traceraw;
 				moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
-					function(initvs, inita){
+					function(initvs, gvm){
 						try {
 							var lfc = require('moe/compiler/compiler');
-							var varMaps = function(f){inita(function(v, n){f(null, n)})};
 							var script = lfc.compile(document.getElementById('input').value, {
-								initVariables: varMaps,
+								globalVariables: gvm,
 								warn: tracel
 							});
 							tracer('Generated Source:' + source2html(script.generatedSource));

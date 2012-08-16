@@ -28,7 +28,7 @@ $(moePreludeMods): $(MOD)/prelude/%.js: src/prelude/%.js
 moert: dirs $(moeRTMods) $(moePreludeMods)
 
 moecMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js \
-			$(MOEC)/resolve.js $(MOEC)/requirements.js
+			$(MOEC)/resolve.js $(MOEC)/gvm.js
 moecNodeMods = $(MOD)/bin/opts.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
 
 $(moecMods): $(MOEC)/%: src/compiler/%

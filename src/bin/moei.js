@@ -1,13 +1,13 @@
 var dummy = require('moe/dummy')
 dummy.config.runtimeBind = 'require.main.require("moe/runtime").runtime';
-var rm = new (require('../compiler/requirements')).RequirementsManager(require)
-rm.bind('require', 'require');
-rm.bind('module', 'module');
-rm.bind('exports', 'exports');
-rm.addLibImport('moe/prelude', 'require.main.require("moe/prelude")');
-rm.bind('console', 'console');
-rm.bind('process', 'process');
-dummy.useRequireManager(rm);
+var gvm = new (require('../compiler/gvm')).GlobalVariableManager(require)
+gvm.bind('require', 'require');
+gvm.bind('module', 'module');
+gvm.bind('exports', 'exports');
+gvm.addLibImport('moe/prelude', 'require.main.require("moe/prelude")');
+gvm.bind('console', 'console');
+gvm.bind('process', 'process');
+dummy.useRequireManager(gvm);
 
 if(process.argv[2]) {
 	var path = require('path')

@@ -7,7 +7,7 @@ var fs = require('fs')
 
 var target;
 
-var rm = new (require('../compiler/requirements').RequirementsManager);
+var gvm = new (require('../compiler/gvm').GlobalVariableManager);
 
 var addLibName = function(line){
 	var m, name, libName
@@ -16,7 +16,7 @@ var addLibName = function(line){
 	} else {
 		name = libName = line
 	};
-	rm.addLibName(name, libName)
+	gvm.addLibName(name, libName)
 };
 var optmaps = {'with': addLibName};
 
@@ -24,19 +24,19 @@ var runtimeBind = '';
 var noPreludeQ  = false;
 var fWrite = console.log;
 
-rm.bind('require', 'require');
-rm.bind('module', 'module');
-rm.bind('exports', 'exports');
+gvm.bind('require', 'require');
+gvm.bind('module', 'module');
+gvm.bind('exports', 'exports');
 
 opts.parse([
 	{short: 'o', long: 'output', value: true, description: "Set output .js path",
 		callback: function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} }},
 	{short: 'g', long: 'global', value: true, description: "Declare a global variable",
-		callback: function(varName){ rm.bind(varName, varName) }},
+		callback: function(varName){ gvm.bind(varName, varName) }},
 	{short: 'b', long: 'bind', value: true, description: "Create a global variable with specific bind",
 		callback: function(s){
 			var m = s.match(/(\w+)\s*=\s*([\s\S]*)$/);
-			if(m){rm.bind(m[1], m[2])}
+			if(m){gvm.bind(m[1], m[2])}
 		}},
 	{long: 'runtime-bind', value: true, 
 		callback: function(expr){ runtimeBind = expr }},
@@ -46,11 +46,11 @@ opts.parse([
 	(fs.exists||path.exists)(value, function(existQ){
 		if(existQ){
 			if(!noPreludeQ) 
-				rm.addLibImport('./../prelude', '(require("moe/prelude"))');
+				gvm.addLibImport('./../prelude', '(require("moe/prelude"))');
 
 			var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
 				optionMaps: optmaps,
-				initVariables: rm.fInits,
+				globalVariables: gvm,
 				warn: function(s){ process.stderr.write(s + '\n') }
 			})
 			fWrite(compiler.stdComposite(script, {runtimeBind: runtimeBind}))
