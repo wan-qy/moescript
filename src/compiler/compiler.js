@@ -52,53 +52,6 @@ var createInitVariables = function(gvm){
 	}
 };
 
-var sourceSlice = function(source, p, q){
-	var slice = source.slice(p, q);
-	if(slice.trim()){
-		return slice.replace(/\s+$/, '').replace(/^/gm, '/// SEMB // ! // ') + '\n';
-	} else {
-		return ''
-	}
-};
-var rSmapBegin = /^[ \t]*\/\/\/ SMAP \/\/ \[ \/\/ (\d+);.*\n/gm
-var generateSourceMap = function(source, generated){
-	var a = [], s = [];
-	generated.replace(rSmapBegin, function(m, pos){
-		a.push(pos - 0);
-		return m;
-	});
-	a.push(source.length);
-
-	var remap = [0];
-	for(var j = 0; j < source.length; j++)
-		if(source.charAt(j) === '\n')
-			remap.push(j + 1);
-	remap.push(source.length);
-	//console.log(remap);
-
-	//console.log(a.slice(0));
-	// position "rounding"
-	var lastLine = 0;
-	for(var i = 0; i < a.length; i++){
-		while(a[i] >= remap[lastLine + 1]){
-			lastLine ++;
-		}
-		a[i] = remap[lastLine]
-	};
-	for(var i = a.length - 1; i > 1; i--){
-		if(a[i - 1] === a[i - 2])
-			a[i - 1] = a[i];
-	}
-
-	for(var i = 0; i < a.length - 1; i++) 
-		s[i] = sourceSlice(source, a[i], a[i + 1]);
-
-	i = 0;
-	return generated.replace(rSmapBegin, function(){
-		return s[i++];
-	});
-};
-
 var compile = exports.compile = function (source, config) {
 	source = inputNormalize(source)
 	config = derive(config || {});
@@ -114,10 +67,18 @@ var compile = exports.compile = function (source, config) {
 
 	//Parse
 	var ast = parse(lex(source, config), source, config);
+
+	config.options = ast.options;
+
 	var trees = lfc_resolver.resolve(ast, config);
 	var enter = trees[0];
 
-	var initializationCode = "var undefined;\n" + function(){
+	var generator = Generator(trees, config);
+	var generatedInfo = generator(enter, true);
+
+	generatedInfo.source = source;
+	generatedInfo.trees = trees;
+	generatedInfo.initializationCode = "var undefined;\n" + function(){
 		var s = '';
 		for(var item in moe.runtime) if(OWNS(moe.runtime, item)) {
 			s += 'var ' + C_TEMP(item) + ' = ' + PART(config.runtimeName, item) + ';\n';
@@ -127,26 +88,30 @@ var compile = exports.compile = function (source, config) {
 		});
 		return s;
 	}();
+	generatedInfo.aux = config;
+	generatedInfo.astOptions = ast.options;
 
-	var generator = Generator(trees, config);
-	var generatedCode = generator(enter, true);
-
-	if(ast.options.smap){
-
-	} else {
-		if(ast.options.debug){
-			generatedCode = generateSourceMap(source, generatedCode)
-		}
-		generatedCode = generatedCode.replace(/^\s*\/\/\/(?! SEMB).*\n/gm, '');
-	}
-
-	return {
-		trees: trees,
-		generatedCode: generatedCode,
-		initializationCode: initializationCode,
-		aux: config
-	}
+	return generatedInfo;
 };
+
+exports.createSmap = function(ci){
+	var source = ci.source;
+	var generated = ci.generatedCode;
+	var options = ci.astOptions;
+
+	if(options.smap){
+		// Do nothing.
+	} else {
+		if(options.debug){
+			generated = generateSourceMap(source, generated);
+		};
+		generated = generated.replace(/^\s*\/\/\/ SMAP \/\/.*\n/gm, '');
+	};
+
+	var res = derive(ci);
+	res.generated = generated;
+	return res;
+}
 
 exports.stdComposite = function(script, aux){
 	return 'var ' + script.aux.runtimeName + ' = ' + (aux.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +

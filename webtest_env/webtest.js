@@ -59,8 +59,11 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 						globalVariables: gvm,
 						warn: tracel
 					});
-					tracer('Generated Source:' + source2html(script.generatedCode));
-					tracer('Initialization Source:' + source2html(script.initializationCode));
+					tracer('Generated Code:' + source2html(script.generatedCode));
+					tracer('Smap points:' + source2html(script.smapPoints.map(function(p){
+						return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
+					}).join('\n')));
+					tracer('Initialization Code:' + source2html(script.initializationCode));
 					var func = Function(script.aux.runtimeName, script.aux.initsName, 
 						script.initializationCode + '\n;' + script.generatedCode);
 					tracel('Started Master Execution.');

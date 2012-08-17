@@ -1102,6 +1102,33 @@ exports.Generator = function(g_envs, g_config){
 		return flowM.joint();
 	}
 
+	var addSmapInfo = function(info){
+		var a = info.generatedCode.split('\n');
+		var smapPoints = [];
+		var buf = '';
+		var m;
+		for(var j = 0; j < a.length; j++){
+			var line = a[j];
+			if(m = line.match(/^\s*\/\/\/ SMAP \/\/ (.) \/\/ (\d+)/m)) {
+				var p = buf.length;
+				var q = m[2];
+				var type = m[1];
+				smapPoints.push({p: p, q: q, type: type})
+			} else if(line.trim()) {
+				buf += line + '\n';
+			}
+		};
+		return {
+			generatedCode: buf,
+			smapPoints: smapPoints
+		}
+	};
+	return function(){
+		var generatedCode = compileFunctionBody.apply(this, arguments);
 
-	return compileFunctionBody
+		// Create SMAP Array
+
+
+		return addSmapInfo({generatedCode: generatedCode})
+	}
 };
