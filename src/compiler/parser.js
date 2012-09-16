@@ -398,7 +398,11 @@ exports.parse = function (input, source, config) {
 		var arr = [];
 		var dfvArgQ = false;
 		while (tokenIs(ID)) {
-			arr[arr.length] = {name: lname()}
+			arr[arr.length] = {
+				begins: pos(),
+				name: lname(),
+				ends: pos()
+			};
 			if(tokenIs(ASSIGN, '=') || dfvArgQ){
 				dfvArgQ = true;
 				advance(ASSIGN, '=');

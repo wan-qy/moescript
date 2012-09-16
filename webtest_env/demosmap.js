@@ -56,7 +56,7 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			var point = smapPoints[j];
 			qs.push(point.q);
 			buf += '<span>' + SMAPEncode(code.slice(sofar, point.p)) + '</span><a href="#q' + point.q + '" class="smap-' + (point.type === '[' ? 'open' : 'close') + '">'
-			    + point.type + '</a>';
+			    + ' ' + '</a>';
 			sofar = point.p;
 		};
 		buf = 'Generated:<div>' + buf + '</div>\n\nOriginal:<div>'

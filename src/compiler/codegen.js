@@ -130,13 +130,17 @@ exports.Generator = function(g_envs, g_config){
 		return node;
 	};
 
+	var WPOS = function(node, s){
+		var r = s;
+		if(node.begins >= 0 && node.ends >= 0){
+			r = '/*\x1b [' + node.begins + '\x1b */' + r + '/*\x1b ]' + node.ends + '\x1b */';
+		};
+		return r;
+	}
+
 	var NTF = function(f){
 		return function(node){
-			var r = f.apply(this, arguments);
-			if(node.begins >= 0 && node.ends >= 0){
-				r = '/*\x1b [' + node.begins + '\x1b */' + r + '/*\x1b ]' + node.ends + '\x1b */';
-			};
-			return r;
+			return WPOS(node, f.apply(this, arguments));;
 		}
 	}
 
@@ -163,6 +167,7 @@ exports.Generator = function(g_envs, g_config){
 			if (!(tree.varIsArg[locals[i]])){
 				vars.push(C_NAME(locals[i]));
 			}
+
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = TEMP_BIND(tree, temps[i]);
 
@@ -176,7 +181,8 @@ exports.Generator = function(g_envs, g_config){
 		]);
 
 		for (var i = 0; i < pars.length; i++)
-			pars[i] = C_NAME(pars[i].name)
+			pars[i] = WPOS(pars[i], C_NAME(pars[i].name));
+		
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i]);
 
@@ -212,7 +218,7 @@ exports.Generator = function(g_envs, g_config){
 
 		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
 		for (var i = 0; i < pars.length; i++)
-			pars[i] = C_NAME(pars[i].name)
+			pars[i] = WPOS(pars[i], C_NAME(pars[i].name));
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
 
