@@ -199,15 +199,43 @@ exports.parse = function (input, source, config) {
 			return code.content[0].expression.func.code;
 		}
 		return code;
-	}
+	};
+
+	// NRF: Node returning function
+	var NRF = function(f){
+		return function(){
+			var begins = pos();
+			var r = f.apply(this, arguments);
+			var ends = pos();
+			if(r && r.type){
+				r.begins = begins;
+				r.ends = ends;
+			};
+			return r;
+		}
+	};
+
+	// NWF: Node wrapping function
+	var NWF = function(f){
+		return function(node){
+			var begins = node ? node.pos : pos();
+			var r = f.apply(this, arguments);
+			var ends = pos();
+			if(r && r.type){
+				r.begins = begins;
+				r.ends = ends;
+			};
+			return r;
+		}
+	};
 
 
 	// Here we go
 	// Identifier: like the javascript
-	var variable = function () {
+	var variable = NRF(function () {
 		var t = advance(ID, undefined, "A variable is required here.");
 		return new Node(NodeType.VARIABLE, { name: t.value, position: t.position });
-	};
+	});
 	var lname = function () {
 		var t = advance(ID);
 		return t.value;
@@ -217,14 +245,15 @@ exports.parse = function (input, source, config) {
 		else throw PE("A name is needed here.");
 		return t.value;
 	};
+
 	// literals: number, string
 	// number: stricter than javascript, 0.0E(-)0
 	// strings: single and double quote. Single quotes only support escaping '' into '
 	// Double quotes support \\ \n \" \t \uxxxx
-	var literal = function () {
+	var literal = NRF(function () {
 		var t = advance();
 		return new Node(NodeType.LITERAL, { value: t.value });
-	};
+	});
 	// constants
 	var consts = {
 		'true': 'true',
@@ -239,7 +268,7 @@ exports.parse = function (input, source, config) {
 		'not': 'NOT',
 		'in': 'IN'
 	};
-	var constant = function () {
+	var constant = NRF(function () {
 		var t = advance();
 		return new Node(nt.LITERAL, {
 			value: consts[t.value] ? {map: consts[t.value]} : {tid: rtConsts[t.value]},
@@ -247,23 +276,27 @@ exports.parse = function (input, source, config) {
 				           t.value === 'negate' ? nt.NEGATIVE :
 				           null)
 		});
-	};
+	});
+
 	// this pointer
-	var thisp = function () {
+	var thisp = NRF(function () {
 		var t = advance(ME);
 		return new Node(nt.THIS);
-	};
+	});
+
 	// 'my' construct: "my" Identifier
-	var thisprp = function () {
+	var thisprp = NRF(function () {
 		var t = advance(MY);
 		var n = name();
 		return MemberNode(new Node(nt.THIS), n);
-	};
+	});
+
 	// 'arguments' pointer
-	var argsp = function () {
+	var argsp = NRF(function () {
 		var t = advance(ARGUMENTS);
 		return new Node(nt.ARGUMENTS);
-	};
+	});
+
 	var generateDefaultParameters = function(p, c){
 		var last = null;
 		for(var i = 0; i < p.names.length; i++){
@@ -281,7 +314,8 @@ exports.parse = function (input, source, config) {
 		};
 		c.content.unshift(last);
 	};
-	var functionLiteral = function () {
+
+	var functionLiteral = NRF(function () {
 		var f, p;
 		if (tokenIs(OPEN, RDSTART)) {
 			p = parameters();
@@ -296,8 +330,9 @@ exports.parse = function (input, source, config) {
 			f = expressionBody(p);
 		};
 		return f;
-	};
-	var lambdaExpression = function(){
+	});
+
+	var lambdaExpression = NRF(function(){
 		if(tokenIs(ID)){
 			var p = new Node(nt.PARAMETERS, {names: [{name: lname()}]});
 		} else if(tokenIs(LAMBDA)) {
@@ -307,8 +342,9 @@ exports.parse = function (input, source, config) {
 		}
 		var f = completeLambdaExpression(p);
 		return f;
-	};
-	var expressionBody = function (p) {
+	});
+
+	var expressionBody = NRF(function (p) {
 		advance(OPEN, CRSTART);
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		if(tokenIs(PIPE)) { // {|args| } form
@@ -323,8 +359,9 @@ exports.parse = function (input, source, config) {
 		code = optimizeOnelineWhere(code);
 		advance(CLOSE, CREND);
 		return new Node(nt.FUNCTION, { parameters: parameters, code: code });
-	};
-	var blockBody = function (p) {
+	});
+
+	var blockBody = NRF(function (p) {
 		var t = advance();
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		var code = block();
@@ -333,15 +370,17 @@ exports.parse = function (input, source, config) {
 		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
-	};
-	var curryBody = function (p) {
+	});
+
+	var curryBody = NRF(function (p) {
 		var parameters = p;
 		var code = new Node(nt.SCRIPT, {
 			content: [new Node(nt.RETURN, { expression: functionLiteral() })]
 		});
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
-	};
-	var completeLambdaExpression = function (p) {
+	});
+
+	var completeLambdaExpression = NWF(function (p) {
 		var t = advance(LAMBDA);
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		var code = block();
@@ -353,7 +392,8 @@ exports.parse = function (input, source, config) {
 			parameters: parameters,
 			code: code
 		});
-	};
+	});
+
 	var parlist = function(){
 		var arr = [];
 		var dfvArgQ = false;
@@ -369,7 +409,8 @@ exports.parse = function (input, source, config) {
 		};
 		return arr;
 	};
-	var parameters = function () {
+
+	var parameters = NRF(function () {
 		var arr = [];
 		advance(OPEN, RDSTART);
 		if (!tokenIs(CLOSE, RDEND)) {
@@ -378,9 +419,10 @@ exports.parse = function (input, source, config) {
 		advance(CLOSE, RDEND);
 		ensure(!HAS_DUPL(arr), 'Parameter list contains duplicate');
 		return new Node(nt.PARAMETERS, { names: arr });
-	};
+	});
+
 	// object
-	var objectLiteral = function () {
+	var objectLiteral = NRF(function () {
 		advance(OPEN, SQSTART);
 		var node = new Node(nt.OBJECT);
 		if (tokenIs(CLOSE, SQEND)) {
@@ -398,7 +440,8 @@ exports.parse = function (input, source, config) {
 		}
 		advance(CLOSE, SQEND);
 		return node;
-	};
+	});
+
 	var groupOperatorForm = function(){
 		var opType = nt[advance(OPERATOR).value];
 		if(tokenIs(CLOSE, RDEND)) {
@@ -449,8 +492,9 @@ exports.parse = function (input, source, config) {
 		} else {
 			throw new PE('Unexpected Operator.')
 		}
-	}
-	var groupLike = function(){
+	};
+
+	var groupLike = NRF(function(){
 		if(nextIs(OPERATOR)){
 			advance(OPEN, RDSTART);
 			return groupOperatorForm();
@@ -490,8 +534,9 @@ exports.parse = function (input, source, config) {
 			return lambdaExpression()
 		} else {
 			return new Node(nt.GROUP, {operand: r})
-		}
-	};
+		};
+	});
+
 	var esp = [];
 	esp[ID] = variable;
 	esp[NUMBER] = esp[STRING] = literal;
@@ -553,13 +598,13 @@ exports.parse = function (input, source, config) {
 			return 1;
 		else return false;
 	};
-	var primary = function () {
+	var primary = NRF(function () {
 		ensure(token, 'Unable to get operand: missing token');
 		if(esp[token.type])
 			return esp[token.type](token.type)
 		else
 			throw PE("Unexpected token " + token + '.')
-	};
+	});
 	var memberitem = function (left) {
 		var right;
 		if(tokenIs(PROTOMEMBER)) { // P::Q prototype form
@@ -665,16 +710,16 @@ exports.parse = function (input, source, config) {
 		};
 		return nc;
 	};
-	var callItem = function(omit){
+	var callItem = NRF(function(omit){
 		var node = callExpression();
 		if(tokenIs(OPERATOR)){
 			return operatorPiece(node, callExpression);
 		} else {
 			return node;
 		}
-	};
+	});
 
-	var wrapCall = function(n){
+	var wrapCall = NWF(function(n){
 		if(n.type === nt.CALL){
 			if(n.func.type === nt.CALLWRAP && n.args.length === 1 && !n.names[0]) {
 				return callWrappers[n.func.value](n.args[0])
@@ -685,7 +730,7 @@ exports.parse = function (input, source, config) {
 			}
 		};
 		return n;
-	};
+	});
 	var callWrappers = [];
 	callWrappers[RESEND] = function(n){
 		if(n.type === nt.CALL){
@@ -780,10 +825,11 @@ exports.parse = function (input, source, config) {
 	};
 
 
-	var callExpression = function () {
+	var callExpression = NRF(function () {
 		return completeCallExpression(primary());
-	};
-	var completeOmissionCall = function(head){
+	});
+
+	var completeOmissionCall = NWF(function(head){
 		var argTypeDetect;
 		if(!(argTypeDetect = argStartQ())) return head;
 		// Named arguments detected
@@ -821,8 +867,9 @@ exports.parse = function (input, source, config) {
 				}
 			}
 		}
-	};
-	var unary = function(){return completeOmissionCall(callExpression())};
+	});
+
+	var unary = NRF(function(){return completeOmissionCall(callExpression())});
 	var operatorPiece = function(){
 		var L = 0, R = 1, N = 2;
 		var bp = {
@@ -891,20 +938,20 @@ exports.parse = function (input, source, config) {
 			return new Node(nt.GROUP, {operand: uber.right});
 		};
 	}();
-	var singleExpression = function(c){
+	var singleExpression = NWF(function(c){
 		if(tokenIs(OPERATOR)){ // f + g
 			c = operatorPiece(c, unary);
 		};
 		ensure(!exprStartQ(), 'Unexpected expression termination.');
 		return c;
-	};
-	var expression = function (c) {
+	});
+	var expression = NWF(function (c) {
 		var r = whenClausize(pipeClausize(singleExpression(c || unary())));
 		ensure(!exprStartQ(), 'Unexpected expression termination.');
 		return r;
-	};
+	});
 
-	var pipeClausize = function(node){
+	var pipeClausize = NWF(function(node){
 		// Pipeline calls
 		if(!tokenIs(PIPE)) return node;
 		advance();
@@ -932,8 +979,9 @@ exports.parse = function (input, source, config) {
 		} else {
 			return completePipelineCall(c)
 		};
-	};
-	var completePipelineCall = function(node){
+	});
+
+	var completePipelineCall = NWF(function(node){
 		var argTypeDetect = argStartQ();
 		if(!argTypeDetect) return node;
 		// Named arguments detected
@@ -954,9 +1002,9 @@ exports.parse = function (input, source, config) {
 				return pipeClausize(node);
 			}
 		}
-	};
+	});
 
-	var whenClausize = function(node){
+	var whenClausize = NWF(function(node){
 		// when affix
 		if(tokenIs(WHEN)){
 			advance(); advance(OPEN, RDSTART);
@@ -978,9 +1026,9 @@ exports.parse = function (input, source, config) {
 		} else {
 			return node;
 		}
-	};
+	});
 
-	var assignmentExpression = function(){
+	var assignmentExpression = NRF(function(){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
 			if(tokenIs(ASSIGN)) {
@@ -995,7 +1043,7 @@ exports.parse = function (input, source, config) {
 		} else {
 			return expression(c);
 		}
-	};
+	});
 	var formAssignment = function(left, oper, right, declVarQ, constantQ, whereClauseQ){
 		ensure( left.type === nt.VARIABLE 
 			 || left.type === nt.MEMBER 
@@ -1003,6 +1051,7 @@ exports.parse = function (input, source, config) {
 			 || left.type === nt.OBJECT
 			 || left.type === nt.UNIT,
 			"Invalid assignment/bind", left.position);
+		var begins = pos();
 		if(left.type === nt.OBJECT){
 			var objt = makeT();
 			var seed = new Node(nt.then, {
@@ -1038,18 +1087,16 @@ exports.parse = function (input, source, config) {
 				position: left.position,
 				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
 				constantQ: constantQ,
-				whereClauseQ: whereClauseQ
+				whereClauseQ: whereClauseQ,
+				begins: begins,
+				ends: pos()
 			})
 		}
 	};
 
-	var whereClausedExpression = function(singleLineQ){
-		var begins = pos()
-		var e = assignmentExpression();
-		e.begins = begins;
-		e.ends = pos();
-		return whereClausize(e, singleLineQ);
-	};
+	var whereClausedExpression = NRF(function(singleLineQ){
+		return whereClausize(assignmentExpression(), singleLineQ);
+	});
 	var whereClausize = function(node, singleLineQ){
 		var shift = 0;
 		// Clearify WHERE in oneline statements
@@ -1090,9 +1137,9 @@ exports.parse = function (input, source, config) {
 		advance(OUTDENT);
 		return stmts;
 	};
-	var whereClause = function(){
+	var whereClause = NRF(function(){
 		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true, true)})
-	};
+	});
 
 	var stover = function () {
 		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE || token.type === OUTDENT);
@@ -1302,7 +1349,7 @@ exports.parse = function (input, source, config) {
 	}();
 
 
-	var contExpression = function(){
+	var controlExpression = function(){
 		advance(OPEN, RDSTART);
 		if(tokenIs(OPERATOR))
 			return groupOperatorForm();
@@ -1327,7 +1374,7 @@ exports.parse = function (input, source, config) {
 	var ifstmt = function (singleLineQ) {
 		advance(IF);
 		var n = new Node(nt.IF);
-		n.condition = contExpression();
+		n.condition = controlExpression();
 		n.thenPart = block();
 		debugger;
 		if(singleLineQ) {
@@ -1352,7 +1399,7 @@ exports.parse = function (input, source, config) {
 	var whilestmt = function () {
 		advance(WHILE);
 		var n = new Node(nt.WHILE, {
-			condition: contExpression(),
+			condition: controlExpression(),
 			body: block()
 		});
 		return n;
@@ -1364,7 +1411,7 @@ exports.parse = function (input, source, config) {
 		});
 		stripSemicolons();
 		advance(UNTIL);
-		n.condition = contExpression();
+		n.condition = controlExpression();
 		return n;
 	};
 	var forstmt = function () {
@@ -1427,7 +1474,7 @@ exports.parse = function (input, source, config) {
 		n.conditions = [], n.bodies = [];
 		advance();
 		if (t) {
-			n.expression = contExpression();
+			n.expression = controlExpression();
 		};
 		advance(INDENT);
 		stripSemicolons();
@@ -1435,7 +1482,7 @@ exports.parse = function (input, source, config) {
 		while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
 			if (tokenIs(WHEN)) {
 				advance(WHEN);
-				var condition = contExpression();
+				var condition = controlExpression();
 				stripSemicolons();
 				if (tokenIs(WHEN)) {
 					n.conditions.push(condition);

@@ -2,6 +2,8 @@ var moe = require('../runtime');
 var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
+var walkRex = moecrt.walkRex;
+
 
 var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
@@ -121,22 +123,21 @@ var listParTemp = GListTmpType(ScopedScript.PARAMETERTEMP);
 exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
 	var makeT = g_config.makeT;
-	
-	var walkedPosition;
-	var walkedTo = function(position){
-		return '/// SMAP // @ // ' + position;
-	}
-	var smapLeft = function(position){
-		return '/// SMAP // [ // ' + position
-	}
-	var smapRight = function(position){
-		return '/// SMAP // ] // ' + position
-	}
 
 	var ungroup = function(node){
 		while(node.type === nt.GROUP)
 			node = node.operand;
 		return node;
+	};
+
+	var NTF = function(f){
+		return function(node){
+			var r = f.apply(this, arguments);
+			if(node.begins >= 0 && node.ends >= 0){
+				r = '/*\x1b [' + node.begins + '\x1b */' + r + '/*\x1b ]' + node.ends + '\x1b */';
+			};
+			return r;
+		}
 	}
 
 	"Common Functions";
@@ -247,17 +248,15 @@ exports.Generator = function(g_envs, g_config){
 		epSchemata[type] = f;
 	};
 
-	var transform = function (node) {
-		var r;
+	var transform = NTF(function (node) {
 		if (vmSchemata[node.type]) {
-			r = vmSchemata[node.type].call(node, node, env);
+			return vmSchemata[node.type].call(node, node, env);
 		} else if (epSchemata[node.type]) {
-			r = epSchemata[node.type].call(node, transform, env);
+			return epSchemata[node.type].call(node, transform, env);
 		} else {
 			throw node
 		};
-		return r;
-	};
+	});
 
 
 	"Common schematas";
@@ -623,9 +622,7 @@ exports.Generator = function(g_envs, g_config){
 		var a = [];
 		for (var i = 0; i < n.content.length; i++) {
 			if (n.content[i]){
-				a.push(smapLeft(n.content[i].begins));
 				a.push(transform(n.content[i]));
-				a.push(smapRight(n.content[i].ends));
 			}
 		}
 		return JOIN_STMTS(a)
@@ -706,7 +703,8 @@ exports.Generator = function(g_envs, g_config){
 		// Obstructive schemata
 		// Note that it is flow-dependent
 		var mSchemata = vmSchemata.slice(0);
-		var ct = function (node) {
+		var ct = NTF(function (node) {
+			var r;
 			if (!node.bindPoint)
 				return transform(node);
 			if (mSchemata[node.type]) {
@@ -716,7 +714,7 @@ exports.Generator = function(g_envs, g_config){
 			} else {
 				throw node;
 			}
-		};
+		});
 		var expPart = function(node){
 			return expPush(ct(node));
 		};
@@ -1084,10 +1082,8 @@ exports.Generator = function(g_envs, g_config){
 			var gens;
 			for (var i = 0; i < n.content.length; i++){
 				if (n.content[i]){
-					ps(smapLeft(n.content[i].begins));
 					gens = ct(n.content[i]);
 					if(gens) ps(gens);
-					ps(smapRight(n.content[i].ends));
 				}
 			};
 		});
@@ -1103,21 +1099,17 @@ exports.Generator = function(g_envs, g_config){
 	}
 
 	var addSmapInfo = function(info){
-		var a = info.generatedCode.split('\n');
 		var smapPoints = [];
 		var buf = '';
 		var m;
-		for(var j = 0; j < a.length; j++){
-			var line = a[j];
-			if(m = line.match(/^\s*\/\/\/ SMAP \/\/ (.) \/\/ (\d+)/m)) {
-				var p = buf.length;
-				var q = m[2];
-				var type = m[1];
-				smapPoints.push({p: p, q: q, type: type})
-			} else if(line.trim()) {
-				buf += line + '\n';
-			}
-		};
+		walkRex(/\/\*\x1b ([\[\]])(\d+)\x1b \*\//g, info.generatedCode, function(match, $1, $2){
+			var p = buf.length;
+			var q = $2 - 0;
+			var type = $1;
+			smapPoints.push({p: p, q: q, type: type});
+		}, function(match){
+			buf += match;
+		});
 		return {
 			generatedCode: buf,
 			smapPoints: smapPoints

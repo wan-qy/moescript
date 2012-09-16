@@ -63,7 +63,7 @@ var TRY = exports.TRY = TokenType('Try')
 var CATCH = exports.CATCH = TokenType('Catch')
 var FINALLY = exports.FINALLY = TokenType('Finally')
 
-var NEWLINE = TokenType('Newline')
+var NEWLINE = TokenType('Newline');
 
 
 var Token = exports.Token = function (t, v, p, s, i) {
@@ -200,33 +200,8 @@ var symbolType = function (m) {
 	return symbolTypes[m]
 };
 
-var walkRex = function(r, s, fMatch, fGap){
-	var l = r.lastIndex;
-	r.lastIndex = 0;
-	fMatch = fMatch || function(){};
-	fGap = fGap || function(){};
-	var match, last = 0;
-	while(match = r.exec(s)){
-		if(last < match.index) fGap(s.slice(last, match.index), last);
-		if(fMatch.apply(this, (match.push(match.index), match))) fGap.apply(this, match);
-		last = r.lastIndex;
-	};
-	if(last < s.length) fGap(s.slice(last), last);
-	r.lastIndex = l;
-	return s;
-};
-var composeRex = function(r, o){
-	var source = r.source;
-	var g = r.global;
-	var i = r.ignoreCase;
-	var m = r.multiline;
-	source = source.replace(/#\w+/g, function(word){
-		word = word.slice(1);
-		if(o[word] instanceof RegExp) return o[word].source
-		else return word
-	});
-	return new RegExp(source, (g ? 'g' : '') + (i ? 'i' : '') + (m ? 'm' : ''));
-};
+var walkRex = require('./compiler.rt').walkRex;
+var composeRex = require('./compiler.rt').composeRex;
 
 var LexerBackend = function(input, config){
 	var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};

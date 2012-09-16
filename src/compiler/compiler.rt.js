@@ -182,3 +182,31 @@ exports.MakeNode = function (type, props, position) {
 	p.position = position;
 	return p
 };
+
+var walkRex = exports.walkRex = function(r, s, fMatch, fGap){
+	var l = r.lastIndex;
+	r.lastIndex = 0;
+	fMatch = fMatch || function(){};
+	fGap = fGap || function(){};
+	var match, last = 0;
+	while(match = r.exec(s)){
+		if(last < match.index) fGap(s.slice(last, match.index), last);
+		if(fMatch.apply(this, (match.push(match.index), match))) fGap.apply(this, match);
+		last = r.lastIndex;
+	};
+	if(last < s.length) fGap(s.slice(last), last);
+	r.lastIndex = l;
+	return s;
+};
+var composeRex = exports.composeRex = function(r, o){
+	var source = r.source;
+	var g = r.global;
+	var i = r.ignoreCase;
+	var m = r.multiline;
+	source = source.replace(/#\w+/g, function(word){
+		word = word.slice(1);
+		if(o[word] instanceof RegExp) return o[word].source
+		else return word
+	});
+	return new RegExp(source, (g ? 'g' : '') + (i ? 'i' : '') + (m ? 'm' : ''));
+};

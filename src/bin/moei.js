@@ -9,9 +9,9 @@ gvm.bind('console', 'console');
 gvm.bind('process', 'process');
 dummy.useRequireManager(gvm);
 
-if(process.argv[2]) {
+if(process.argv[1]) {
 	var path = require('path')
-	return require(path.resolve(process.argv[2]))
+	return require(path.resolve(process.argv[1]))
 } else {
 	startRepl();
 }
@@ -103,6 +103,6 @@ function startRepl(){
 		process.exit(0)
 	});
 
-	console.log("Moescript moei version " + META.version + ' on Nodejs. By ' + META.author);
+	console.log("Moescript moei version " + META.version + ' on Nodejs.\nFrom ' + META.author + ' with love.');
 	prompt(NORMAL_PROMPT);
 }
