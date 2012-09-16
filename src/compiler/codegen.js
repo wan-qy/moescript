@@ -703,18 +703,21 @@ exports.Generator = function(g_envs, g_config){
 		// Obstructive schemata
 		// Note that it is flow-dependent
 		var mSchemata = vmSchemata.slice(0);
-		var ct = NTF(function (node) {
+		var ct = function (node) {
 			var r;
 			if (!node.bindPoint)
 				return transform(node);
 			if (mSchemata[node.type]) {
-				return mSchemata[node.type].call(node, node, env, g_envs);
+				if(node && node.begins >= 0 && node.ends >= 0) ps('/*\x1b [' + node.begins + '\x1b */');
+				var r = mSchemata[node.type].call(node, node, env, g_envs);
+				if(node && node.begins >= 0 && node.ends >= 0) ps('/*\x1b ]' + node.ends + '\x1b */');
+				return r;
 			} else if(epSchemata[node.type]) {
 				return epSchemata[node.type].call(node, expPart, env)
 			} else {
 				throw node;
 			}
-		});
+		};
 		var expPart = function(node){
 			return expPush(ct(node));
 		};

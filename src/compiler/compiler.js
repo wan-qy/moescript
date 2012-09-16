@@ -33,9 +33,9 @@ var Generator = lfc_codegen.Generator;
 
 var inputNormalize = exports.inputNormalize = function(s){
 	s = s.replace(/^\ufeff/, '')
-			.replace(/^\ufffe/, '')
-			.replace(/\r\n/g,   '\n')
-			.replace(/\r/g,     '\n');
+		 .replace(/^\ufffe/, '')
+		 .replace(/\r\n/g, '\n')
+		 .replace(/\r/g, '\n');
 	return '\n' + s + '\n';
 };
 
@@ -95,23 +95,7 @@ var compile = exports.compile = function (source, config) {
 };
 
 exports.createSmap = function(ci){
-	var source = ci.source;
-	var generated = ci.generatedCode;
-	var options = ci.astOptions;
-
-	if(options.smap){
-		// Do nothing.
-	} else {
-		if(options.debug){
-			generated = generateSourceMap(source, generated);
-		};
-		generated = generated.replace(/^\s*\/\/\/ SMAP \/\/.*\n/gm, '');
-	};
-
-	var res = derive(ci);
-	res.generated = generated;
-	return res;
-}
+};
 
 exports.stdComposite = function(script, aux){
 	return 'var ' + script.aux.runtimeName + ' = ' + (aux.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +

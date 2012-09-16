@@ -218,7 +218,7 @@ exports.parse = function (input, source, config) {
 	// NWF: Node wrapping function
 	var NWF = function(f){
 		return function(node){
-			var begins = node ? node.pos : pos();
+			var begins = node ? node.begins : pos();
 			var r = f.apply(this, arguments);
 			var ends = pos();
 			if(r && r.type){
@@ -252,6 +252,7 @@ exports.parse = function (input, source, config) {
 	// Double quotes support \\ \n \" \t \uxxxx
 	var literal = NRF(function () {
 		var t = advance();
+		debugger;
 		return new Node(NodeType.LITERAL, { value: t.value });
 	});
 	// constants
@@ -893,7 +894,7 @@ exports.parse = function (input, source, config) {
 			'..': N, '...': N,
 			'as': L
 		}
-		return function (start, progress) {
+		return NRF(function (start, progress) {
 			// operators.
 			// the "->" operator gets a "Rule" object
 			// the "is" and "as" operators are costumizable.
@@ -933,10 +934,10 @@ exports.parse = function (input, source, config) {
 						n = n.right;
 					node.left = n.right;
 					n.right = node;
-				}
+				};
 			};
 			return new Node(nt.GROUP, {operand: uber.right});
-		};
+		});;
 	}();
 	var singleExpression = NWF(function(c){
 		if(tokenIs(OPERATOR)){ // f + g
@@ -1051,7 +1052,6 @@ exports.parse = function (input, source, config) {
 			 || left.type === nt.OBJECT
 			 || left.type === nt.UNIT,
 			"Invalid assignment/bind", left.position);
-		var begins = pos();
 		if(left.type === nt.OBJECT){
 			var objt = makeT();
 			var seed = new Node(nt.then, {
@@ -1087,9 +1087,7 @@ exports.parse = function (input, source, config) {
 				position: left.position,
 				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
 				constantQ: constantQ,
-				whereClauseQ: whereClauseQ,
-				begins: begins,
-				ends: pos()
+				whereClauseQ: whereClauseQ
 			})
 		}
 	};
