@@ -252,7 +252,6 @@ exports.parse = function (input, source, config) {
 	// Double quotes support \\ \n \" \t \uxxxx
 	var literal = NRF(function () {
 		var t = advance();
-		debugger;
 		return new Node(NodeType.LITERAL, { value: t.value });
 	});
 	// constants
@@ -1374,7 +1373,6 @@ exports.parse = function (input, source, config) {
 		var n = new Node(nt.IF);
 		n.condition = controlExpression();
 		n.thenPart = block();
-		debugger;
 		if(singleLineQ) {
 			if(tokenIs(ELSE)){
 				advance(ELSE);

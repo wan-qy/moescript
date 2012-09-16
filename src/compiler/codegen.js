@@ -1102,10 +1102,14 @@ exports.Generator = function(g_envs, g_config){
 	}
 
 	var addSmapInfo = function(info){
+		var code = info.generatedCode.replace(/(?:;|\s|\/\*\x1b [\[\]]\d+\x1b \*\/)*;/g, 
+			function(m){
+				return (m.match(/\/\*\x1b [\[\]]\d+\x1b \*\//g) || []).join('') + ';';
+			});
+		code = code.replace(/\{((?:\s|\/\*\x1b [\[\]]\d+\x1b \*\/)*);/, '{$1');
 		var smapPoints = [];
 		var buf = '';
-		var m;
-		walkRex(/\/\*\x1b ([\[\]])(\d+)\x1b \*\//g, info.generatedCode, function(match, $1, $2){
+		walkRex(/\/\*\x1b ([\[\]])(\d+)\x1b \*\//g, code, function(match, $1, $2){
 			var p = buf.length;
 			var q = $2 - 0;
 			var type = $1;
