@@ -640,8 +640,10 @@ exports.parse = function (input, source, config) {
 				if (token.value === RDSTART) { // invocation f(a,b,c...)
 					var state = saveState();
 					var m_ = m;
-					try {
-						while(tokenIs(OPEN, RDSTART)) {
+					while(tokenIs(OPEN, RDSTART)) {
+						var stateSingleBracket = saveState();
+						var ms = m
+						try {
 							advance(OPEN, RDSTART);
 							m = new Node(nt.CALL, {
 								func: m
@@ -650,12 +652,12 @@ exports.parse = function (input, source, config) {
 							argList(m, true);
 							advance(CLOSE, RDEND);
 							m = wrapCall(m);
+						} catch (e) {
+							loadState(stateSingleBracket);
+							return ms;
 						};
-						if(tokenIs(ASSIGN, '=') || tokenIs(COLON)) { // a declaration
-							loadState(state);
-							return m_;
-						};
-					} catch (e) {
+					};
+					if(tokenIs(ASSIGN, '=') || tokenIs(COLON)) { // a declaration
 						loadState(state);
 						return m_;
 					};

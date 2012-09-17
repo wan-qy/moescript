@@ -11,6 +11,8 @@ def Array = exports.Array
 def Date = exports.Date
 def keysof = exports.keysof
 def RegExp = exports.RegExp
+def type = exports.type
+def instanceof = exports.instanceof
 
 def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
 def OWNS = moert.runtime.OWNS
@@ -167,38 +169,69 @@ def export("table") table(G) =
 
 // Async functions
 -- CPS schemata
-def cpsSchemata = derive MONAD_SCHEMATA_M
-def cpsSchemata.bind(f, cb) = f cb
+def export('Reaction') type Reaction(succeed = {pass}, fail = {pass}):
+	@succeed = succeed
+	@fail = fail
 
 -- function async: Creates async blocks
 def export('async') async(M) = 
-	if(M.build) (=> (do g)()) where g = M.build cpsSchemata
-	else        (=> do M)
+	if(M.build) return => 
+		(gr) =>
+			def schemata = derive MONAD_SCHEMATA_M
+			def schemata.bind(action, g) =
+				def r = new Reaction
+				def r.succeed(x) = g(x)
+				def r.fail(e)    = gr.fail(e)
+				action r
+			def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
+			def schemata.return(x) = gr.succeed(x);
+
+			M.build(schemata).apply(t, a)()
+		where a = arguments
+		      t = this
+	else return =>
+		(gr) => gr.succeed(M.apply(t, a))
+		where t = this
+		      a = arguments
+
+
+def export('start') start(g) = g (new Reaction)
+def async.try(M, MCatch)(gr) =
+	def r = new Reaction
+	def r.succeed(x) = gr.succeed(x)
+	def r.fail(e) =
+		async(MCatch)(e) new Reaction (x) :> gr.succeed(x)
+	async(M)()(r);
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
-def export('join') join(o, callback) = 
+def export('join') join(o)(react) = 
 	var nActivities = 0
 	var nDone = 0
+	var failed = false
 	var res = []  when(o is Array),
 	          [:] otherwise
 
-	def checkContinue(term)(val):
-		res[term] = val
-		nDone += 1
-		if(nDone >= nActivities) callback res
+	def checkContinue(term) = 
+		new Reaction s, f
+		where s(val) =
+			      res[term] = val
+			      nDone += 1
+			      if(not failed and nDone >= nActivities) react.succeed res
+			  f(err) =
+			      failed = true
+			      react.fail err
 
 	var keys = Object.keys o
-	if(not keys.length) callback res
+	if(not keys.length) react.succeed res
 	nActivities = keys.length
 
 	rangeForEach keys, (term) =>
 		res[term] = undefined
-		o[term].call null, checkContinue(term)
+		o[term]() checkContinue(term)
 
 -- function sleep: a wrap for global_.setTimeout
-def export('sleep') sleep(dt, callback) = 
-	global_.setTimeout(callback, dt)
-
+def export('sleep') sleep(dt)(reaction) =
+	global_.setTimeout({reaction.succeed()}, dt)
 
 
 // Pattern match functions
