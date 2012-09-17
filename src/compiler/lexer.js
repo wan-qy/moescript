@@ -15,6 +15,7 @@ var COLON = exports.COLON = TokenType('Colon')
 var COMMA = exports.COMMA = TokenType('Comma')
 var NUMBER = exports.NUMBER = TokenType('Number')
 var STRING = exports.STRING = TokenType('String')
+var REGEX = exports.REGEX = TokenType('Regex')
 var SEMICOLON = exports.SEMICOLON = TokenType('Semicolon')
 var OPEN = exports.OPEN = TokenType('Open')
 var CLOSE = exports.CLOSE = TokenType('Close')
@@ -269,10 +270,24 @@ var LexerBackend = function(input, config){
 				throw token_err("Unexpected symbol" + s + '.', n)
 		}
 	};
+	var regexLiteral = function(match, n){
+		var flags = match.match(/g?i?m?x?$/)[0];
+		var face = (match.charAt(1) === '`' ? match.slice(3, -(flags.length + 3)) : match.slice(1, -(flags.length + 1)));
+		if(flags.indexOf('x') >= 0){
+			// extended regular expression
+			flags = flags.replace(/x/g, '');
+			face = face.replace(/(\\.)|(\[(?:\\.|[^\[\]])*\])|(\/)|(\s|#.*)|([^\s\\\/\[])/g, function(m, escape, charclass, slash, ignore, normal){
+				if(slash) return '\\/';
+				else if(ignore) return '';
+				else return m;
+			});
+		}
+		return make(REGEX, new RegExp(face, flags), n);
+	};
 	var stringliteral = function(match, n){
 		var char0 = match.charAt(0);
 		if(char0 === "`")
-			return make(STRING, match.slice(1), n);
+			return regexLiteral(match, n);
 		if(char0 === "'")
 			if(match.charAt(1) === "'")
 				return make(STRING, match.slice(3, -3), n);
@@ -412,9 +427,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	var rComment = /(?:\/\/|--).*/;
 	var rOption = /^-![ \t]*(.+?)[ \t]*$/;
 	var rIdentifier = /[a-zA-Z_$][\w$]*/;
-	var rString = composeRex(/`#identifier|'''[\s\S]*?'''|'[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/, {
-		identifier: rIdentifier
-	});
+	var rString = composeRex(/(?:```[\s\S]*?```|`[^`\n]*(?:``[^`\n]*)*`)g?i?m?x?|'''[\s\S]*?'''|'[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/);
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
 	var rNewline = /\n[ \t]*/;

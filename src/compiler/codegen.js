@@ -180,11 +180,12 @@ exports.Generator = function(g_envs, g_config){
 			s
 		]);
 
-		for (var i = 0; i < pars.length; i++)
+		for (var i = 0; i < pars.length; i++) {
 			pars[i] = WPOS(pars[i], C_NAME(pars[i].name));
-		
-		for (var i = 0; i < temppars.length; i++)
+		};		
+		for (var i = 0; i < temppars.length; i++) {
 			temppars[i] = C_TEMP(temppars[i]);
+		};
 
 		if(ReplGlobalQ) return s.replace(/^    /gm, '');
 		s = $('function (%1){%2}',  pars.concat(temppars).join(','), s);
@@ -209,12 +210,14 @@ exports.Generator = function(g_envs, g_config){
 		var locals = UNIQ(tree.locals),
 			vars = [],
 			temps = listTemp(tree);
-		for (var i = 0; i < locals.length; i++)
+		for (var i = 0; i < locals.length; i++) {
 			if (!(tree.varIsArg[locals[i]])){
 				vars.push(C_NAME(locals[i]));
 			}
-		for (var i = 0; i < temps.length; i++)
+		};
+		for (var i = 0; i < temps.length; i++) {
 			temps[i] = TEMP_BIND(tree, temps[i]);
+		};
 
 		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
 		for (var i = 0; i < pars.length; i++)
@@ -279,6 +282,11 @@ exports.Generator = function(g_envs, g_config){
 			return '' + this.value;
 		} else if (this.value.tid){
 			return C_TEMP(this.value.tid);
+		} else if (this.value instanceof RegExp){
+			return '(/' + (this.value.source.replace(/(\\.)|(\[(?:\\.|[^\[\]])*\])|(\/)|([^\\\/\[])/g, function(m, escape, charclass, slash, normal){
+				if(slash) return '\\/'
+				else return m
+			})) + '/' + (this.value.global ? 'g' : '') + (this.value.ignoreCase ? 'i' : '') + (this.value.multiline ? 'm' : '') + ')';
 		} else return '' + this.value.map;
 	});
 	eSchemataDef(nt.GROUP, function(transform, env){

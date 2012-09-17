@@ -12,6 +12,7 @@ var COLON = lexer.COLON
 var COMMA = lexer.COMMA
 var NUMBER = lexer.NUMBER
 var STRING = lexer.STRING
+var REGEX = lexer.REGEX
 var SEMICOLON = lexer.SEMICOLON
 var OPEN = lexer.OPEN
 var CLOSE = lexer.CLOSE
@@ -194,6 +195,7 @@ exports.parse = function (input, source, config) {
 
 	var optimizeOnelineWhere = function(code){
 		if(code.content.length === 1                              // one statement
+			&& code.content[0]
 			&& code.content[0].type === nt.RETURN                // it is return
 			&& code.content[0].expression.type === nt.CALLBLOCK){ // and it is a WHERE
 			return code.content[0].expression.func.code;
@@ -543,7 +545,7 @@ exports.parse = function (input, source, config) {
 
 	var esp = [];
 	esp[ID] = variable;
-	esp[NUMBER] = esp[STRING] = literal;
+	esp[NUMBER] = esp[STRING] = esp[REGEX] = literal;
 	esp[CONSTANT] = esp[IN] = constant;
 	esp[ME] = thisp;
 	esp[MY] = thisprp;
