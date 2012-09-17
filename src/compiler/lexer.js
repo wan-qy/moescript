@@ -427,7 +427,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	var rComment = /(?:\/\/|--).*/;
 	var rOption = /^-![ \t]*(.+?)[ \t]*$/;
 	var rIdentifier = /[a-zA-Z_$][\w$]*/;
-	var rString = composeRex(/(?:```[\s\S]*?```|`[^`\n]*(?:``[^`\n]*)*`)g?i?m?x?|'''[\s\S]*?'''|'[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/);
+	var rString = composeRex(/(?:```[\s\S]*?```|`(?!``)[^`\n]*(?:``[^`\n]*)*`)g?i?m?x?|'''[\s\S]*?'''|'(?!'')[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/);
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
 	var rNewline = /\n[ \t]*/;
