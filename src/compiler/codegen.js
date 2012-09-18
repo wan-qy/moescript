@@ -1085,9 +1085,10 @@ exports.Generator = function(g_envs, g_config){
 	
 
 		mSchemataDef(nt.RETURN, function() {
-			ps($('return %1["return"](%2)',
+			ps($('return %1["return"](%2%3)',
 				C_TEMP('SCHEMATA'),
-				ct(this.expression)));
+				ct(this.expression),
+				(this.implicit ? '' : ', true')));
 			return '';
 		});
 
@@ -1103,6 +1104,7 @@ exports.Generator = function(g_envs, g_config){
 		});
 		mSchemataDef(nt.TRY, function() {
 			var l = label();
+			debugger;
 			ps($("return (" + PART(C_TEMP('SCHEMATA'), 'try') + "(%1, %2, %3))",
 				transform(this.attemption),
 				transform(this.catcher),

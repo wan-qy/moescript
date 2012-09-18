@@ -166,7 +166,8 @@ exports.parse = function (input, source, config) {
 			node.content[last] = new Node(nt.RETURN, {
 				expression: laststmt.expression,
 				begins: laststmt.begins,
-				ends: laststmt.ends
+				ends: laststmt.ends,
+				implicit: true
 			})
 		} else {
 			implicitReturnCpst(laststmt, false);
@@ -1119,7 +1120,7 @@ exports.parse = function (input, source, config) {
 				func: new Node(nt.FUNCTION, {
 						parameters: new Node(nt.PARAMETERS, {names: []}),
 						code: new Node(nt.SCRIPT, {content: stmts}),
-						rebind: true })}))
+						blockQ: true })}))
 		} else {
 			return node;
 		}
@@ -1558,11 +1559,11 @@ exports.parse = function (input, source, config) {
 		n.attemption = new Node(nt.FUNCTION, {
 			parameters: new Node(nt.PARAMETERS, {names: []}),
 			code: n.attemption,
-			rebind: true });
+			blockQ: true });
 		n.catcher = new Node(nt.FUNCTION, {
 			parameters: new Node(nt.PARAMETERS, {names: [{name: n.eid}]}),
 			code: n.catcher,
-			rebind: true });
+			blockQ: true });
 		return n;
 	}
 

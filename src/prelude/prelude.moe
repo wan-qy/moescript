@@ -173,36 +173,63 @@ def export('Reaction') type Reaction(succeed = {pass}, fail = {pass}):
 	@succeed = succeed
 	@fail = fail
 
+def createAsyncSchemata(rLocal, rLongJump = rLocal) = 
+	def schemata = derive MONAD_SCHEMATA_M
+
+	def schemata.bind(action, g) =
+		def r = new Reaction
+		def r.succeed(x) = g(x)
+		def r.fail(e)    = rLocal.fail(e)
+		action r
+
+	def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
+
+	def schemata.try(MAttempt, MCatch, g) =
+		def catchReaction = new Reaction
+		def catchReaction.succeed(x) = g x
+		def catchReaction.fail(e) = rLocal.fail e
+
+		def catchSchemata = createAsyncSchemata catchReaction, rLongJump
+		def catchSchemata.return(x, breakQ) =
+			if(breakQ) rLongJump.succeed x
+			else catchReaction.succeed x
+		
+		def r = new Reaction
+		def r.succeed(x) = g x
+		def r.fail(e) =
+			MCatch.build(catchSchemata)(e)()
+
+		def trySchemata = createAsyncSchemata r, rLongJump
+		def trySchemata.return(x, breakQ) =
+			if(breakQ) rLongJump.succeed x    -- If it is a man-made RETURN, create a long jump
+			else r.succeed x
+
+		try
+			MAttempt.build(trySchemata)()();
+		catch(ex)
+			r.fail(ex)
+
+	def schemata.return(x) = rLocal.succeed(x);
+
+	schemata
+
 -- function async: Creates async blocks
 def export('async') async(M) = 
-	if(M.build) return => 
-		(gr) =>
-			def schemata = derive MONAD_SCHEMATA_M
-			def schemata.bind(action, g) =
-				def r = new Reaction
-				def r.succeed(x) = g(x)
-				def r.fail(e)    = gr.fail(e)
-				action r
-			def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
-			def schemata.try(MAttempt, MCatch, g) =
-				def r = new Reaction
-				def r.succeed(x) = g(x)
-				def r.fail(e) =
-					async(MCatch)(e) new Reaction ((x) :> g(x)), ((e) :> gr.fail(e))
+	if(M.build)
+		function() => 
+			(reaction) => M.build(createAsyncSchemata(reaction)).apply(t, a)()
+			where a = arguments
+			      t = this
+	else
+		function() =>
+			(reaction) =>
 				try
-					async(MAttempt)()(r);
-				catch(ex)
-					r.fail(ex)
-
-			def schemata.return(x) = gr.succeed(x);
-
-			M.build(schemata).apply(t, a)()
-		where a = arguments
-		      t = this
-	else return =>
-		(gr) => gr.succeed(M.apply(t, a))
-		where t = this
-		      a = arguments
+					r = M.apply t, a
+				catch(e)
+					return reaction.fail e
+				reaction.succeed r
+			where t = this
+			      a = arguments
 
 
 def export('start') start(g) = g (new Reaction)

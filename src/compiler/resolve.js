@@ -5,7 +5,7 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
-var quenchRebinds = function(s){var t = s; while(t && t.rebind) t = t.parent; return t}
+var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
 
 exports.resolve = function(ast, config){
 	// Config satisifies <.initVariable()>, <.PE()>, <.PW()> and <.warn()>
@@ -28,7 +28,7 @@ exports.resolve = function(ast, config){
 					current.nest.push(s.id);
 				};
 				s.parameters = node.parameters;
-				s.rebind = node.rebind;
+				s.blockQ = node.blockQ;
 				s.noVarDecl = node.noVarDecl;
 				for (var i = 0; i < s.parameters.names.length; i++) {
 					s.newVar(s.parameters.names[i].name, true)
@@ -46,8 +46,8 @@ exports.resolve = function(ast, config){
 
 				node.parameters = node.code = null;
 
-				generateBindRequirement(s);
-				node.mPrim = node.rebind && s.mPrim;
+				generateBindRequirement(s, scopes);
+				node.mPrim = node.blockQ && s.mPrim;
 				node.tree = s.id;
 			} else if(node.type === nt.LABEL) {
 				var label = node.name;
@@ -79,7 +79,7 @@ exports.resolve = function(ast, config){
 					current.useVar(node.name, node.position)
 				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN){
 					var e = current;
-					while(e.rebind && e.parent) e = e.parent;
+					while(e.blockQ && e.parent) e = e.parent;
 					e[node.type === nt.THIS ? 'thisOccurs' : 
 					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 'argnOccurs'] = true;
 				} else if(node.type === nt.TEMPVAR && !node.builtin){
@@ -103,7 +103,7 @@ exports.resolve = function(ast, config){
 		return scopes;
 	};
 
-	var generateBindRequirement = function(scope){
+	var generateBindRequirement = function(scope, scopes){
 		var mPrimQ = false;
 		var fWalk = function (node) {
 			if(!node || !node.type) return false;
@@ -116,10 +116,21 @@ exports.resolve = function(ast, config){
 			if(hasBindPointQ) node.bindPoint = true;
 			return hasBindPointQ;
 		};
+		var fComplete = function(node) {
+			if(!node || !node.type) return false;
+			if(node.type === nt.FUNCTION && scopes[node.tree - 1].blockQ) {
+				scopes[node.tree - 1].mPrim = true;
+				scopes[node.tree - 1].code.bindPoint = true;
+				moecrt.walkNode(scopes[node.tree - 1].code, fComplete);
+				node.bindPoint = true
+			};
+			return (node.bindPoint = moecrt.walkNode(node, fComplete) || node.bindPoint);
+		};
 		moecrt.walkNode(scope.code, fWalk);
 		if(mPrimQ) {
 			scope.mPrim = true;
-			scope.code.bindPoint = true
+			scope.code.bindPoint = true;
+			moecrt.walkNode(scope.code, fComplete);
 		};
 	};
 

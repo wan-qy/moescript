@@ -79,9 +79,7 @@ var RETURNVALUE = function(x) {
 }
 //: MONAD_SCHEMATA_M
 var MONAD_SCHEMATA_M = {
-	'return': function(t, a, v) {
-		return v;
-	},
+	'return': function(x) { return x },
 	'bindYield': function() { return arguments[0].apply(arguments[1], SLICE(arguments, 2)) },
 	'bind': function(v, cb){ return cb(v) }
 }
