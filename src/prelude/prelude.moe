@@ -264,6 +264,16 @@ def export('join') join(o)(react) =
 def export('sleep') sleep(dt)(reaction) =
 	global_.setTimeout({reaction.succeed()}, dt)
 
+def asyncStdTransformSchemata = derive MONAD_SCHEMATA_M
+def asyncStdTransformSchemata.bindYield(f, t) =
+	def a = arguments
+	def cb = a[a.length - 1]
+	cb (reaction) =>
+		def callback(err, x) = reaction.fail(err)   when(err),
+		                       reaction.succeed(x)  otherwise
+		f.apply t, a.slice(2, (-1)).concat([callback])
+
+def async.std(M)(reaction) = M.build(asyncStdTransformSchemata)()()(reaction)
 
 // Pattern match functions
 -- function matcher: form a matcher function
