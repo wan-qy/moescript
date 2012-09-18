@@ -264,7 +264,6 @@ exports.parse = function (input, source, config) {
 		'undefined': 'undefined'
 	};
 	var rtConsts = {
-		'try': 'TRY',
 		'throw': 'THROW',
 		'negate': 'NEGATE',
 		'not': 'NOT',
@@ -1230,11 +1229,14 @@ exports.parse = function (input, source, config) {
 				return labelstmt(singleLineQ);
 			case BREAK:
 				return brkstmt(singleLineQ);
+			case TRY:
+				return trystmt(singleLineQ);
 			case END:
 			case ELSE:
 			case OTHERWISE:
 			case WHEN:
 			case CLOSE:
+			case CATCH:
 				throw PE('Unexpected statement symbol.');
 			case VAR:
 				advance();
@@ -1532,6 +1534,37 @@ exports.parse = function (input, source, config) {
 			return new Node(nt.BREAK, { destination: null });
 		}
 	};
+
+	var trystmt = function(singleLineQ){
+		advance(TRY);
+		var n = new Node(nt.TRY);
+		n.attemption = block();
+		if(singleLineQ) {
+			advance(CATCH);
+			advance(OPEN, RDSTART);
+			n.eid = variable().name;
+			advance(CLOSE, RDEND);
+			n.catcher = blocky(statement(SINGLE_LINE));
+		} else {
+			var newlinedCatch = tokenIs(SEMICOLON);
+			stripSemicolons();
+			advance(CATCH);
+			advance(OPEN, RDSTART);
+			n.eid = variable().name;
+			advance(CLOSE, RDEND);
+			n.catcher = block();
+		};
+		// form CALLBLOCK's
+		n.attemption = new Node(nt.FUNCTION, {
+			parameters: new Node(nt.PARAMETERS, {names: []}),
+			code: n.attemption,
+			rebind: true });
+		n.catcher = new Node(nt.FUNCTION, {
+			parameters: new Node(nt.PARAMETERS, {names: [{name: n.eid}]}),
+			code: n.catcher,
+			rebind: true });
+		return n;
+	}
 
 	///
 	stripSemicolons();

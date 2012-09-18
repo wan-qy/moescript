@@ -184,6 +184,16 @@ def export('async') async(M) =
 				def r.fail(e)    = gr.fail(e)
 				action r
 			def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
+			def schemata.try(MAttempt, MCatch, g) =
+				def r = new Reaction
+				def r.succeed(x) = g(x)
+				def r.fail(e) =
+					async(MCatch)(e) new Reaction ((x) :> g(x)), ((e) :> gr.fail(e))
+				try
+					async(MAttempt)()(r);
+				catch(ex)
+					r.fail(ex)
+
 			def schemata.return(x) = gr.succeed(x);
 
 			M.build(schemata).apply(t, a)()
@@ -196,12 +206,6 @@ def export('async') async(M) =
 
 
 def export('start') start(g) = g (new Reaction)
-def async.try(M, MCatch)(gr) =
-	def r = new Reaction
-	def r.succeed(x) = gr.succeed(x)
-	def r.fail(e) =
-		async(MCatch)(e) new Reaction (x) :> gr.succeed(x)
-	async(M)()(r);
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
 def export('join') join(o)(react) = 

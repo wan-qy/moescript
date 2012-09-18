@@ -90,43 +90,6 @@ var MONAD_SCHEMATA_M = {
 var THROW = function(x) {
 	throw x || "[?] Unexpected error"
 };
-var TRY = function(f) {
-	var ret, fcatch, ffinally, ffail;
-	for (var i = arguments.length - 1; i; i--) {
-		if (arguments[i] instanceof NamedArguments) {
-			fcatch = arguments[i]['catch'];
-			ffinally = arguments[i]['finally'];
-			ffail = arguments[i]['fail'];
-			break;
-		}
-	};
-	
-	if (!fcatch) fcatch = function(e) {};
-
-	var success = false;
-	var arg;
-	for (var j = 0, argn = arguments.length; j < argn; j++) {
-		if (typeof (arg = arguments[j]) === "function") {
-			try {
-				ret = arg();
-				success = true
-			} catch(e) {
-				success = false
-				fcatch(e);
-			};
-			if (success) {
-				if(ffinally) ffinally();
-				return ret
-			}
-		}
-	};
-	try {
-		if (ffail) ffail();
-		return undefined;
-	} finally {
-		if(ffinally) ffinally();
-	}
-};
 var NEGATE = function(x){return -x}
 var NOT = function(x){return !x}
 
@@ -434,7 +397,6 @@ moe.runtime = moe.rt = {
 	RMETHOD: RMETHOD,
 	SLICE: SLICE,
 	THROW: THROW,
-	TRY: TRY,
 	NEGATE: NEGATE,
 	NOT: NOT,
 	IN: IN,

@@ -335,7 +335,7 @@ exports.Generator = function(g_envs, g_config){
 	eSchemataDef(nt.FUNCTION, function (n, e) {
 		var	f = g_envs[this.tree - 1];
 		var s = (f.mPrim ? compileMPrim : compileFunctionBody)(f);
-		return s;
+		return '(' + s + ')';
 	});
 
 	eSchemataDef(nt.MEMBER, function (transform) {
@@ -626,6 +626,13 @@ exports.Generator = function(g_envs, g_config){
 	});
 	vmSchemataDef(nt.LABEL, function () {
 		return C_LABELNAME(this.name) + ':{' + transform(this.body) + '}';
+	});
+
+	vmSchemataDef(nt.TRY, function(){
+		return $('try{%1}catch(%2){%3}',
+			transform(g_envs[this.attemption.tree - 1].code),
+			C_NAME(this.eid),
+			transform(g_envs[this.catcher.tree - 1].code))
 	});
 	
 	// vmSchemataDef(nt.TRY, function(){
@@ -1093,6 +1100,15 @@ exports.Generator = function(g_envs, g_config){
 		mSchemataDef(nt.BREAK, function () {
 			ps(GOTO(this.destination ? scopeLabels[this.destination] : lNearest));
 			return ''
+		});
+		mSchemataDef(nt.TRY, function() {
+			var l = label();
+			ps($("return (" + PART(C_TEMP('SCHEMATA'), 'try') + "(%1, %2, %3))",
+				transform(this.attemption),
+				transform(this.catcher),
+				C_BLOCK(l)));
+			LABEL(l);
+			return '';
 		});
 
 		mSchemataDef(nt.SCRIPT, function (n) {
