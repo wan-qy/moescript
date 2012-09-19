@@ -713,7 +713,8 @@ exports.Generator = function(g_envs, g_config){
 	};
 
 	"Obstructive Protos Transformer";
-	var transformMPrim = function(tree){
+	var transformMPrim = function(tree, aux){
+		var aux = aux || {};
 		// Get a flow manager
 		var flowM = mPrimFlow(ct);
 		var ps = flowM.ps,
@@ -760,8 +761,8 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		// Labels
-		var lNearest = 0;
-		var scopeLabels = {};
+		var lNearest = aux.lNearest || 0;
+		var scopeLabels = aux.scopeLabels || {};
 
 		mSchemataDef(nt.ASSIGN, function () {
 			if(this.left.type === nt.MEMBER) {
@@ -1107,8 +1108,10 @@ exports.Generator = function(g_envs, g_config){
 		mSchemataDef(nt.TRY, function() {
 			var bTry = makeT();
 			var bCatch = makeT();
-			var sAttemption = transformMPrim({code: {type: nt.SCRIPT, content: this.attemption.content, bindPoint: true}});
-			var sCatcher = transformMPrim({code: {type: nt.SCRIPT, content: this.catcher.content, bindPoint: true}});
+			var sAttemption = transformMPrim({code: {type: nt.SCRIPT, content: this.attemption.content, bindPoint: true}}, 
+				{lNearest: lNearest, scopeLabels: scopeLabels});
+			var sCatcher = transformMPrim({code: {type: nt.SCRIPT, content: this.catcher.content, bindPoint: true}}, 
+				{lNearest: lNearest, scopeLabels: scopeLabels});
 
 			var l = label();
 			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sAttemption.s + '; return ' + sAttemption.enter + '}');
