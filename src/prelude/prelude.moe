@@ -193,18 +193,12 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 				g x
 
 		def trySchemata = createAsyncSchemata r, rLongJump
-		def trySchemata.return(x, breakQ) =
-			if(breakQ) rLongJump null, x    -- If it is a man-made RETURN, create a long jump
-			else       r null, x
 
 		def rCatch(err, x) =
 			if(err)	rLocal err, undefined
 			else    g x
 
 		def catchSchemata = createAsyncSchemata rCatch, rLongJump
-		def catchSchemata.return(x, breakQ) =
-			if(breakQ) rLongJump null, x
-			else       rCatch null, x
 
 		try
 			MAttempt(trySchemata)();

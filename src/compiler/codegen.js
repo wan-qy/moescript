@@ -763,6 +763,7 @@ exports.Generator = function(g_envs, g_config){
 		// Labels
 		var lNearest = aux.lNearest || 0;
 		var scopeLabels = aux.scopeLabels || {};
+		var lReturn = aux.lReturn || label();
 
 		mSchemataDef(nt.ASSIGN, function () {
 			if(this.left.type === nt.MEMBER) {
@@ -1088,10 +1089,9 @@ exports.Generator = function(g_envs, g_config){
 	
 
 		mSchemataDef(nt.RETURN, function() {
-			ps($('return %1["return"](%2%3)',
-				C_TEMP('SCHEMATA'),
-				ct(this.expression),
-				(this.implicit ? '' : ', true')));
+			ps($('return %1(%2)',
+				C_BLOCK(lReturn),
+				ct(this.expression)));
 			return '';
 		});
 
@@ -1109,9 +1109,9 @@ exports.Generator = function(g_envs, g_config){
 			var bTry = makeT();
 			var bCatch = makeT();
 			var sAttemption = transformMPrim({code: {type: nt.SCRIPT, content: this.attemption.content, bindPoint: true}}, 
-				{lNearest: lNearest, scopeLabels: scopeLabels});
+				{lNearest: lNearest, scopeLabels: scopeLabels, lReturn: lReturn, nested: true});
 			var sCatcher = transformMPrim({code: {type: nt.SCRIPT, content: this.catcher.content, bindPoint: true}}, 
-				{lNearest: lNearest, scopeLabels: scopeLabels});
+				{lNearest: lNearest, scopeLabels: scopeLabels, lReturn: lReturn, nested: true});
 
 			var l = label();
 			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sAttemption.s + '; return ' + sAttemption.enter + '}');
@@ -1138,6 +1138,10 @@ exports.Generator = function(g_envs, g_config){
 		LABEL(label());
 		ct(tree.code);
 		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '()');
+		if(!aux.nested){
+			LABEL(lReturn);
+			ps('return ' + PART(C_TEMP('SCHEMATA'), 'return') + '(' + C_TEMP(lReturn) + ')');
+		};
 		LABEL(label());
 		return flowM.joint();
 	}
