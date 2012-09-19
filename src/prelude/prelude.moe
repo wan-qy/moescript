@@ -180,9 +180,7 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 			if(err) rLocal err, undefined
 			else    g x
 
-	def schemata.bindYield(f, t) = 
-		f.apply t, (arguments.slice(2, (-1)).concat [{|err, x| rLocal err, undefined when(err), g x otherwise}])
-		where g = arguments[arguments.length - 1]
+	def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
 
 	def schemata.try(MAttempt, MCatch, g) =
 		def r(err, x) =
@@ -218,28 +216,28 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 	schemata
 
 -- function async: Creates async blocks
-def export('asyncAction') asyncAction(reaction)(M) = 
+def export('async') async(M) = 
 	if(M.build)
-		return => 
-			M.build(createAsyncSchemata(reaction)).apply(t, a)()
+		function() => 
+			(reaction) => M.build(createAsyncSchemata(reaction)).apply(t, a)()
 			where a = arguments
 			      t = this
 	else
-		return =>
-			try
-				r = M.apply t, a
-			catch(e)
-				return reaction e, undefined
-			reaction null, r
+		function() =>
+			(reaction) =>
+				try
+					r = M.apply t, a
+				catch(e)
+					return reaction e, undefined
+				reaction null, r
 			where t = this
 			      a = arguments
 
-def export('async') async = asyncAction {pass}
 
 def export('start') start(g) = g {pass}
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
-def export('join') join(o, reaction) = 
+def export('join') join(o)(reaction) = 
 	var nActivities = 0
 	var nDone = 0
 	var failed = false
@@ -247,14 +245,14 @@ def export('join') join(o, reaction) =
 	          [:] otherwise
 
 	def checkContinue(term) = 
-		Reaction s, f where 
-			s(val) =
-				res[term] = val
-				nDone += 1
-				if(not failed and nDone >= nActivities) reaction null, res
-			f(err) =
-				failed = true
-				reaction err, undefined
+		Reaction s, f
+		where s(val) =
+			      res[term] = val
+			      nDone += 1
+			      if(not failed and nDone >= nActivities) reaction null, res
+			  f(err) =
+			      failed = true
+			      reaction err, undefined
 
 	var keys = Object.keys o
 	if(not keys.length) reaction null, res
@@ -262,10 +260,10 @@ def export('join') join(o, reaction) =
 
 	rangeForEach keys, (term) =>
 		res[term] = undefined
-		o[term] checkContinue(term)
+		o[term]() checkContinue(term)
 
 -- function sleep: a wrap for global_.setTimeout
-def export('sleep') sleep(dt, reaction) =
+def export('sleep') sleep(dt)(reaction) =
 	global_.setTimeout({reaction()}, dt)
 
 
