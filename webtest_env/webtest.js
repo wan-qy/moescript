@@ -76,7 +76,7 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 	};
 });
 var resizeInput = function(){
-	$('input').style.height = ($('input').scrollHeight - 8) + 'px';
+	$('input').style.height = ($('input').scrollHeight - 16) + 'px';
 }
 var last_blanks = '';
 var exec = false;

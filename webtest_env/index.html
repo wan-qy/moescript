@@ -3,88 +3,13 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<style type="text/css">
-
-		body {
-			margin: 0;
-			padding: 0;
-			background: #f5f5ff;
-			overflow: hidden;
-		}
-		#master {
-			width: 600px;
-			position: absolute;
-			top: 0;
-			left:0;
-			bottom:0;
-			padding: 10px;
-			background: white;
-			overflow: auto;
-			border-right: #e5e5ee 1px solid;
-		}
-		pre {
-			font-size: 12px;
-		}
-		#info {
-			color: #009;
-			position: absolute;
-			left: 620px;
-			right: 0;
-			top: 0;
-			bottom: 0;
-			margin: 0;
-			padding: 10px;
-			overflow: auto;
-		}
-		#info ol li {
-			white-space: pre-wrap;
-		}
-		#info ol li em {
-			color: red
-		}
-		#output {
-			font-weight: bolder;
-			font-size: 14px;
-		}
-		#input {
-			font-family: monospace;
-			font-size: 14px;
-			width: 590px;
-			display: block;
-			padding: 4px;
-			border: 1px solid #ddd;
-			line-height: 1.2em;
-			min-height: 8em;
-			max-height: 26em;
-			margin: 0;
-			overflow-x: hidden;
-			border-radius: 4px;
-		}
-		#input:focus {
-			outline: none;
-			border-color: rgba(51,153,255,0.75);
-			box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
-		}
-		#go {
-			background: #2F96B4;
-			color: white;
-			border-radius: 0.3em;
-			padding: 0.3em 0.7em;
-			border: none;
-			cursor: pointer;
-			text-shadow: rgba(0, 0, 0, 0.2) 0 -1px;
-		}
-		#err {
-			color: red
-		}
-
-	</style>
+	<style type="text/css">@import url(webtest.css);</style>
 	<title>Moescript web test</title>
 </head>
 <body>
 
 	<div id="master">
-		<button id="go">Start script</button> When in doubt, F12.
+		<div id="toolbar"><button id="go">Start script</button> When in doubt, F12.</div>
 		<textarea id="input"></textarea>
 		<pre id="output"></pre>
 		<pre id="err"></pre>
