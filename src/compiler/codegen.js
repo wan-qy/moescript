@@ -629,10 +629,12 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	vmSchemataDef(nt.TRY, function(){
-		return $('try{%1}catch(%2){%3}',
-			transform(g_envs[this.attemption.tree - 1].code),
-			C_NAME(this.eid),
-			transform(g_envs[this.catcher.tree - 1].code))
+		var t = makeT();
+		return $('try{%1}catch(%2){%3;%4}',
+			transform(this.attemption),
+			C_TEMP(t),
+			C_NAME(this.eid.name) + '=' + C_TEMP(t),
+			transform(this.catcher))
 	});
 	
 	// vmSchemataDef(nt.TRY, function(){
@@ -1103,12 +1105,16 @@ exports.Generator = function(g_envs, g_config){
 			return ''
 		});
 		mSchemataDef(nt.TRY, function() {
+			var bTry = makeT();
+			var bCatch = makeT();
+			var sAttemption = transformMPrim({code: {type: nt.SCRIPT, content: this.attemption.content, bindPoint: true}});
+			var sCatcher = transformMPrim({code: {type: nt.SCRIPT, content: this.catcher.content, bindPoint: true}});
+
 			var l = label();
-			debugger;
-			ps($("return (" + PART(C_TEMP('SCHEMATA'), 'try') + "(%1, %2, %3))",
-				transform(this.attemption),
-				transform(this.catcher),
-				C_BLOCK(l)));
+			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sAttemption.s + '; return ' + sAttemption.enter + '}');
+			ps(C_TEMP(bCatch) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sCatcher.s +
+				'; return function(x){' + C_NAME(this.eid.name) + '= x; ' + sCatcher.enter + '()}}');
+			ps('return ' + PART(C_TEMP('SCHEMATA'), 'try') + '(' + C_TEMP(bTry) + ',' + C_TEMP(bCatch) + ',' + C_BLOCK(l) + ')');
 			LABEL(l);
 			return '';
 		});

@@ -168,48 +168,50 @@ def export("table") table(G) =
 
 
 // Async functions
--- CPS schemata
-def export('Reaction') type Reaction(succeed = {pass}, fail = {pass}):
-	@succeed = succeed
-	@fail = fail
-
+def Reaction(s, f)(err, x) =
+	if(err) f(err, undefined)
+	else    s(null, x)
+-- Async schemata
 def createAsyncSchemata(rLocal, rLongJump = rLocal) = 
 	def schemata = derive MONAD_SCHEMATA_M
 
 	def schemata.bind(action, g) =
-		def r = new Reaction
-		def r.succeed(x) = g(x)
-		def r.fail(e)    = rLocal.fail(e)
-		action r
+		action (err, x) =>
+			if(err) rLocal err, undefined
+			else    g x
 
 	def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
 
 	def schemata.try(MAttempt, MCatch, g) =
-		def catchReaction = new Reaction
-		def catchReaction.succeed(x) = g x
-		def catchReaction.fail(e) = rLocal.fail e
-
-		def catchSchemata = createAsyncSchemata catchReaction, rLongJump
-		def catchSchemata.return(x, breakQ) =
-			if(breakQ) rLongJump.succeed x
-			else catchReaction.succeed x
-		
-		def r = new Reaction
-		def r.succeed(x) = g x
-		def r.fail(e) =
-			MCatch.build(catchSchemata)(e)()
+		def r(err, x) =
+			if(err)
+				try
+					MCatch(catchSchemata)(err)
+				catch(ex)
+					rCatch(ex, undefined)
+			else
+				g x
 
 		def trySchemata = createAsyncSchemata r, rLongJump
 		def trySchemata.return(x, breakQ) =
-			if(breakQ) rLongJump.succeed x    -- If it is a man-made RETURN, create a long jump
-			else r.succeed x
+			if(breakQ) rLongJump null, x    -- If it is a man-made RETURN, create a long jump
+			else       r null, x
+
+		def rCatch(err, x) =
+			if(err)	rLocal err, undefined
+			else    g x
+
+		def catchSchemata = createAsyncSchemata rCatch, rLongJump
+		def catchSchemata.return(x, breakQ) =
+			if(breakQ) rLongJump null, x
+			else       rCatch null, x
 
 		try
-			MAttempt.build(trySchemata)()();
+			MAttempt(trySchemata)();
 		catch(ex)
-			r.fail(ex)
+			r ex, undefined
 
-	def schemata.return(x) = rLocal.succeed(x);
+	def schemata.return(x) = rLocal null, x
 
 	schemata
 
@@ -226,16 +228,16 @@ def export('async') async(M) =
 				try
 					r = M.apply t, a
 				catch(e)
-					return reaction.fail e
-				reaction.succeed r
+					return reaction e, undefined
+				reaction null, r
 			where t = this
 			      a = arguments
 
 
-def export('start') start(g) = g (new Reaction)
+def export('start') start(g) = g {pass}
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
-def export('join') join(o)(react) = 
+def export('join') join(o)(reaction) = 
 	var nActivities = 0
 	var nDone = 0
 	var failed = false
@@ -243,17 +245,17 @@ def export('join') join(o)(react) =
 	          [:] otherwise
 
 	def checkContinue(term) = 
-		new Reaction s, f
+		Reaction s, f
 		where s(val) =
 			      res[term] = val
 			      nDone += 1
-			      if(not failed and nDone >= nActivities) react.succeed res
+			      if(not failed and nDone >= nActivities) reaction null, res
 			  f(err) =
 			      failed = true
-			      react.fail err
+			      reaction err, undefined
 
 	var keys = Object.keys o
-	if(not keys.length) react.succeed res
+	if(not keys.length) reaction null, res
 	nActivities = keys.length
 
 	rangeForEach keys, (term) =>
@@ -262,18 +264,9 @@ def export('join') join(o)(react) =
 
 -- function sleep: a wrap for global_.setTimeout
 def export('sleep') sleep(dt)(reaction) =
-	global_.setTimeout({reaction.succeed()}, dt)
+	global_.setTimeout({reaction()}, dt)
 
-def asyncStdTransformSchemata = derive MONAD_SCHEMATA_M
-def asyncStdTransformSchemata.bindYield(f, t) =
-	def a = arguments
-	def cb = a[a.length - 1]
-	cb (reaction) =>
-		def callback(err, x) = reaction.fail(err)   when(err),
-		                       reaction.succeed(x)  otherwise
-		f.apply t, a.slice(2, (-1)).concat([callback])
 
-def async.std(M)(reaction) = M.build(asyncStdTransformSchemata)()()(reaction)
 
 // Pattern match functions
 -- function matcher: form a matcher function

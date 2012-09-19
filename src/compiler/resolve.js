@@ -116,21 +116,10 @@ exports.resolve = function(ast, config){
 			if(hasBindPointQ) node.bindPoint = true;
 			return hasBindPointQ;
 		};
-		var fComplete = function(node) {
-			if(!node || !node.type) return false;
-			if(node.type === nt.FUNCTION && scopes[node.tree - 1].blockQ) {
-				scopes[node.tree - 1].mPrim = true;
-				scopes[node.tree - 1].code.bindPoint = true;
-				moecrt.walkNode(scopes[node.tree - 1].code, fComplete);
-				node.bindPoint = true
-			};
-			return (node.bindPoint = moecrt.walkNode(node, fComplete) || node.bindPoint);
-		};
 		moecrt.walkNode(scope.code, fWalk);
 		if(mPrimQ) {
 			scope.mPrim = true;
 			scope.code.bindPoint = true;
-			moecrt.walkNode(scope.code, fComplete);
 		};
 	};
 

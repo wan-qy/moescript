@@ -1543,7 +1543,7 @@ exports.parse = function (input, source, config) {
 		if(singleLineQ) {
 			advance(CATCH);
 			advance(OPEN, RDSTART);
-			n.eid = variable().name;
+			n.eid = variable();
 			advance(CLOSE, RDEND);
 			n.catcher = blocky(statement(SINGLE_LINE));
 		} else {
@@ -1551,19 +1551,11 @@ exports.parse = function (input, source, config) {
 			stripSemicolons();
 			advance(CATCH);
 			advance(OPEN, RDSTART);
-			n.eid = variable().name;
+			n.eid = variable();
 			advance(CLOSE, RDEND);
 			n.catcher = block();
 		};
-		// form CALLBLOCK's
-		n.attemption = new Node(nt.FUNCTION, {
-			parameters: new Node(nt.PARAMETERS, {names: []}),
-			code: n.attemption,
-			blockQ: true });
-		n.catcher = new Node(nt.FUNCTION, {
-			parameters: new Node(nt.PARAMETERS, {names: [{name: n.eid}]}),
-			code: n.catcher,
-			blockQ: true });
+		n.declareVariable = n.eid.name;
 		return n;
 	}
 
