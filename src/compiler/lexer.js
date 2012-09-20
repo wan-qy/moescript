@@ -273,7 +273,8 @@ var LexerBackend = function(input, config){
 	};
 	var regexLiteral = function(match, n){
 		var flags = match.match(/g?i?m?x?$/)[0];
-		var face = (match.charAt(1) === '`' ? match.slice(3, -(flags.length + 3)) : match.slice(1, -(flags.length + 1)));
+		var face = match.charAt(1) === '`' ? match.slice(3, -(flags.length + 3)) : 
+				match.slice(1, -(flags.length + 1)).replace(/``/g, '`');
 		if(flags.indexOf('x') >= 0){
 			// extended regular expression
 			flags = flags.replace(/x/g, '');
