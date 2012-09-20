@@ -228,7 +228,7 @@ def export('async') async(M) =
 			      a = arguments
 
 
-def export('start') start(g) = g {pass}
+def export('start') start(g) = g {|err, x| if(err) throw err}
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
 def export('join') join(o)(reaction) = 
