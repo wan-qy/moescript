@@ -155,7 +155,7 @@ exports.parse = function (input, source, config) {
 	};
 
 	// Implicit return generation
-	var implicitReturn = function(node){
+	var geenerateImplicitReturn = function(node){
 		if(!node || !node.content || node.type !== nt.SCRIPT) return node;
 		var last = node.content.length - 1;
 		while(last >= 0 && node.content[last] && node.content[last].type === nt.BREAK) last--;
@@ -170,12 +170,12 @@ exports.parse = function (input, source, config) {
 				implicit: true
 			})
 		} else {
-			implicitReturnCpst(laststmt, false);
+			geenerateImplicitReturnForStructure(laststmt, false);
 		}
 		return node;
 	};
-	var implicitReturnCpst = function(node, caseQ){
-		var ir = implicitReturn;
+	var geenerateImplicitReturnForStructure = function(node, caseQ){
+		var ir = geenerateImplicitReturn;
 		var lasttype = node.type;
 		if(lasttype === nt.SCRIPT){
 			ir(node);
@@ -191,7 +191,10 @@ exports.parse = function (input, source, config) {
 			if(node.otherwise){
 				ir(node.otherwise);
 			};
-		};
+		} else if(lasttype === nt.TRY) {
+			ir(node.attemption);
+			ir(node.catcher);
+		}
 	};
 
 	var optimizeOnelineWhere = function(code){
@@ -357,7 +360,7 @@ exports.parse = function (input, source, config) {
 			advance(PIPE);
 		};
 		var code = onelineStatements();
-		implicitReturn(code);
+		geenerateImplicitReturn(code);
 		code = optimizeOnelineWhere(code);
 		advance(CLOSE, CREND);
 		return new Node(nt.FUNCTION, { parameters: parameters, code: code });
@@ -368,7 +371,7 @@ exports.parse = function (input, source, config) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		var code = block();
 		if(t.type === ASSIGN && t.value === '=')
-			implicitReturn(code);
+			geenerateImplicitReturn(code);
 		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
@@ -387,7 +390,7 @@ exports.parse = function (input, source, config) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		var code = block();
 		if(t.value === '=>')
-			implicitReturn(code);
+			geenerateImplicitReturn(code);
 		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {
@@ -1248,9 +1251,6 @@ exports.parse = function (input, source, config) {
 			case PASS:
 				advance(PASS);
 				return;
-// I will complete it when I found how to catch exceptions in monads.
-//			case TRY:
-//				return trystmt();
 			default:
 				return new Node(nt.EXPRSTMT, {expression: whereClausedExpression(singleLineQ), exprStmtQ : true});
 		};
@@ -1550,12 +1550,17 @@ exports.parse = function (input, source, config) {
 			var newlinedCatch = tokenIs(SEMICOLON);
 			stripSemicolons();
 			advance(CATCH);
-			advance(OPEN, RDSTART);
-			n.eid = variable();
-			advance(CLOSE, RDEND);
-			n.catcher = block();
+			if(tokenIs(TRY)){
+				n.catcher = blocky(trystmt());
+				n.eid = null;
+			} else {
+				advance(OPEN, RDSTART);
+				n.eid = variable();
+				advance(CLOSE, RDEND);
+				n.catcher = block();
+			}
 		};
-		n.declareVariable = n.eid.name;
+		if(n.eid) n.declareVariable = n.eid.name;
 		return n;
 	}
 

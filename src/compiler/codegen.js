@@ -633,7 +633,7 @@ exports.Generator = function(g_envs, g_config){
 		return $('try{%1}catch(%2){%3;%4}',
 			transform(this.attemption),
 			C_TEMP(t),
-			C_NAME(this.eid.name) + '=' + C_TEMP(t),
+			(this.eid ? C_NAME(this.eid.name) + '=' + C_TEMP(t) : ''),
 			transform(this.catcher))
 	});
 	
@@ -1116,7 +1116,7 @@ exports.Generator = function(g_envs, g_config){
 			var l = label();
 			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sAttemption.s + '; return ' + sAttemption.enter + '}');
 			ps(C_TEMP(bCatch) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sCatcher.s +
-				'; return function(x){' + C_NAME(this.eid.name) + '= x; ' + sCatcher.enter + '()}}');
+				'; return function(x){' + (this.eid ? C_NAME(this.eid.name) + '= x; ' : '') + sCatcher.enter + '()}}');
 			ps('return ' + PART(C_TEMP('SCHEMATA'), 'try') + '(' + C_TEMP(bTry) + ',' + C_TEMP(bCatch) + ',' + C_BLOCK(l) + ')');
 			LABEL(l);
 			return '';

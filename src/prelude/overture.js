@@ -203,7 +203,7 @@ reg('Primitive', function(){
 }());
 
 // trace and tracel
-if(typeof console === undefined){
+if(typeof console === 'undefined'){
 	console = {
 		log: function(){}
 	}
@@ -215,7 +215,7 @@ var trace = function(xs){
 	console.log(s);
 	return arguments[arguments.length - 1];
 };
-if(typeof process !== undefined && process.stderr){
+if(typeof process !== 'undefined' && process.stderr){
 	// Use STDERR in node
 	trace = function(xs){
 		var s = '';
