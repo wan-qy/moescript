@@ -99,3 +99,8 @@ force:
 
 __all: webtest
 	rm -rf $(MOD)/prelude
+
+publish:
+	git push origin master:master
+	git push cafe   master:master
+	git push mirror master:master
