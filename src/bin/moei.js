@@ -7,6 +7,11 @@ gvm.bind('exports', 'exports');
 gvm.addLibImport('moe/prelude', 'require.main.require("moe/prelude")');
 gvm.bind('console', 'console');
 gvm.bind('process', 'process');
+gvm.bind('Buffer', 'Buffer');
+gvm.bind('setTimeout', 'setTimeout');
+gvm.bind('clearTimeout', 'clearTimeout');
+gvm.bind('setInterval', 'setInterval');
+gvm.bind('clearInterval', 'clearInterval');
 dummy.useRequireManager(gvm);
 
 if(process.argv[1]) {

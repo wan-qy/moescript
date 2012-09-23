@@ -215,6 +215,16 @@ var trace = function(xs){
 	console.log(s);
 	return arguments[arguments.length - 1];
 };
+if(typeof process !== undefined && process.stderr){
+	// Use STDERR in node
+	trace = function(xs){
+		var s = '';
+		for (var i = 0; i < arguments.length; i++)
+			s += arguments[i];
+		process.stderr.write(s + '\n');
+		return arguments[arguments.length - 1];		
+	}
+}
 reg('trace', trace);
 
 reg('instanceof', function(f){
