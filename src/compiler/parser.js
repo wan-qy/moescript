@@ -1566,14 +1566,31 @@ exports.parse = function (input, source, config) {
 
 	///
 	stripSemicolons();
+
+	var options = {};
+
+	while(tokenIs(EXCLAM)) {
+		advance();
+		var optid = name();
+		var args = [];
+		while(token && token.isName || tokenIs(STRING)) args.push(advance().value);
+
+		if(config.optionMaps && config.optionMaps[optid])
+			config.optionMaps[optid](args, options)
+		else if(optid === 'option' && args[0])
+			options[args[0]] = (args.length > 1 ? args[1] : true)
+
+		stripSemicolons();
+	};
 	var ws_code = statements();
 	stripSemicolons();
+
 	return {
 		tree: new Node(nt.FUNCTION, {
 			parameters: new Node(nt.PARAMETERS, { names: [] }),
 			code: ws_code
 		}),
-		options: input.options,
+		options: options,
 		module: input.module
 	};
 };

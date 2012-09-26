@@ -8,21 +8,56 @@ var walkRex = moecrt.walkRex;
 var UNIQ = moe.runtime.UNIQ;
 var OWNS = moe.runtime.OWNS;
 
-"Code Emission Util Functions"
-var TO_ENCCD = function (name) {
-	return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
-		return '$' + m.charCodeAt(0).toString(36) + '$'
-	});
-};
+"Code Emission Util Functions";
+var TO_ENCCD = function(){
+	var COMPARE_CODES = function(P, Q){
+		if(P.code === Q.code) return P.j - Q.j
+		else return P.code - Q.code
+	};
+	var DIGITS = 'abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+	var encNum = function(x){
+		var buff = '' + (x % 10);
+		x = ~~(x / 10);
+		while(x > 0){
+			buff += DIGITS[x % 53]
+			x = ~~(x / 53)
+		};
+		return buff;
+	};
+	var encodeNonBasics = function(s, a){
+		if(a.length < 1) return s;
+		var buf = '';
+		a = a.sort(COMPARE_CODES);
+		var code = a[0];	
+		buf += encNum((code.j << 16) + code.ch);
+		for(var i = 1; i < a.length; i++){
+			if(a[i].ch === code.ch && a[i].j - code.j < 0x10000){
+				buf += encNum(a[i].j - code.j).toString(36);
+			} else {
+				buf += encNum(((a[i].j) << 16) + (a[i].ch)).toString(36);
+			}
+			code = a[i];
+		};
+		return '$' + s + '$' + buf;
+	};
+	return function(s){
+		var nonBasics = [];
+		s = s.replace(/\W/g, function(ch, j){
+			nonBasics.push({ch: ch.charCodeAt(0), j: j + 1});
+			return '';
+		});
+		return encodeNonBasics(s, nonBasics);
+	}
+}();
 var STRIZE = exports.STRIZE = function(){
 	var CTRLCHR = function (c) {
-		var n = c.charCodeAt(0);
-		return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
+		var x = c.charCodeAt(0).toString(16), q = x.length;
+		return '\\u' + (q < 4 ? '0' + (q < 3 ? '0' + (q < 2 ? '0' + x : x) : x) : x);
 	};
 	return function (s) {
 		return '"' + (s || '')
-			.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-			.replace(/[\x00-\x1f\x7f]/g, CTRLCHR)
+			.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')
+			.replace(/[\x00-\x1f\x7f-\uffff]/g, CTRLCHR)
 			.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 	};
 }();
@@ -283,10 +318,15 @@ exports.Generator = function(g_envs, g_config){
 		} else if (this.value.tid){
 			return C_TEMP(this.value.tid);
 		} else if (this.value instanceof RegExp){
-			return '(/' + (this.value.source.replace(/(\\.)|(\[(?:\\.|[^\[\]])*\])|(\/)|([^\\\/\[])/g, function(m, escape, charclass, slash, normal){
-				if(slash) return '\\/'
-				else return m
-			})) + '/' + (this.value.global ? 'g' : '') + (this.value.ignoreCase ? 'i' : '') + (this.value.multiline ? 'm' : '') + ')';
+			return '(/' + (this.value.source.replace(/\n/g, '\\n').replace(/(\\.)|(\[(?:\\.|[^\[\]])*\])|(\/)|([^\\\/\[])/g, 
+				function(m, escape, charclass, slash, normal){
+					if(slash) return '\\/'
+					else return m
+				})) 
+				+ '/' 
+				+ (this.value.global ? 'g' : '') 
+				+ (this.value.ignoreCase ? 'i' : '') 
+				+ (this.value.multiline ? 'm' : '') + ')';
 		} else return '' + this.value.map;
 	});
 	eSchemataDef(nt.GROUP, function(transform, env){
