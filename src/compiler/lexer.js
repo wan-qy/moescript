@@ -262,7 +262,7 @@ var LexerBackend = function(input, config){
 		return '\\u' + (q < 4 ? '0' + (q < 3 ? '0' + (q < 2 ? '0' + x : x) : x) : x);
 	};
 	var regexLiteral = function(match, n){
-		var flags = match.match(/g?i?m?x?$/)[0];
+		var flags = match.match(/[gimx]*$/)[0];
 		var face = match.slice(1, -(flags.length + 1));
 		if(flags.indexOf('x') >= 0){
 			// extended regular expression
@@ -285,17 +285,13 @@ var LexerBackend = function(input, config){
 		};
 		return make(REGEX, r, n);
 	};
-	var stringliteral = function(match, n){
-		var char0 = match.charAt(0);
-		if(char0 === "`")
-			return regexLiteral(match, n);
-		if(char0 === "'")
-			if(match.charAt(1) === "'")
-				return make(STRING, match.slice(3, -3), n);
-			else
-				return make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
-		if(char0 === '"') {
-			return make(STRING, lfUnescape(match.slice(1, -1)), n);
+	var stringliteral = function(match, n, $4){
+		switch(match.charAt(0)) {
+			case("`"): return regexLiteral(match, n);
+			case("'"): return make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
+			case('"'): return make(STRING, lfUnescape(match.slice(1, -1)), n);
+			default: // Lua style strings
+				return make(STRING, match.slice($4.length + 2, -($4.length + 2)))
 		}
 	};
 	var LayoutComputer = function(start, make){
@@ -407,7 +403,7 @@ var LexerBackend = function(input, config){
 			make(type, match, n, true);
 			ignoreComingNewline = type === OPERATOR
 		},
-		str: function(type, match, n){stringliteral(match, n)},
+		str: function(type, match, n, $4){stringliteral(match, n, $4)},
 		number: function(type, match, n){make(NUMBER, (match.replace(/^0+([1-9])/, '$1') - 0), n)},
 		symbol: function(type, match, n){p_symbol(type, match, n)},
 		newline: function(type, match, n){make(NEWLINE, match.slice(1), n)},
@@ -434,11 +430,11 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 		mark: UNICODE_MARKS,
 		number: UNICODE_NUMBERS
 	});
-	var rString = composeRex(/(?:`[^\\`]*(?:\\.[^\\`]*)*`)g?i?m?x?|'''[\s\S]*?'''|'(?!'')[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/);
+	var rString = /(?:`[^\\`]*(?:\\.[^\\`]*)*`)[gimx]*|'(?!'')[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
 	var rNewline = /\n[ \t]*/;
-	var rToken = composeRex(/(#comment)|(#identifier)|(#string)|(#number)|(#symbol)|(#newline)/gm, {
+	var rToken = composeRex(/(#comment)|(#identifier)|(#string)|(\[(=+)\[[\s\S]*?\]\5\])|(#number)|(#symbol)|(#newline)/gm, {
 		comment: rComment,
 		identifier: rIdentifier,
 		string: rString,
@@ -447,7 +443,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 		newline: rNewline
 	});
 	walkRex(rToken, input,
-		function (match, comment, nme, strlit, number, symbol, newline, n) {
+		function (match, comment, nme, strlit, heredoc, $5, number, symbol, newline, n) {
 			after_space = false;
 			if(comment){
 				backend.comment(COMMENT, match, n)
@@ -455,6 +451,8 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 				backend.nme(nameType(match), match, n);
 			} else if (strlit) {
 				backend.str(STRING, match, n);
+			} else if (heredoc) {
+				backend.str(STRING, match, n, $5);
 			} else if (number) {
 				backend.number(NUMBER, match, n);
 			} else if (symbol) {
