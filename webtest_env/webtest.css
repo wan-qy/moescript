@@ -37,7 +37,6 @@ body {
 	font-size: 16px;
 }
 #input {
-	font-family: monospace;
 	font-size: 16px;
 	display: block;
 	width: 100%;
@@ -96,6 +95,10 @@ body {
 }
 #err {
 	color: red
+}
+
+pre, textarea {
+	font-family: "MSharp Mono DL", "Msharp Mono BG", monospace;
 }
 
 ::-webkit-scrollbar {

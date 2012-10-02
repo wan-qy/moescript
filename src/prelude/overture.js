@@ -17,8 +17,6 @@ reg('JSON', (function(){return this})().JSON);
 reg('endl', '\n');
 reg('global_', (function(){return this})())
 
-//: PrimitiveTypes
-reg('math', derive(Math));
 
 //: operator
 reg('operator', {
@@ -39,6 +37,18 @@ reg('operator', {
 	and:	function (a, b) { return a && b},
 	or: 	function (a, b) { return a || b}
 });
+
+// Math functions
+reg('math', function(){
+	var m = derive(Math);
+	m.randInt = function(p, q){
+		if(arguments.length < 2){
+			q = p; p = 0;
+		};
+		return Math.floor(p + Math.random() * (q - p))
+	};
+	return m;
+}());
 
 var _Type = function(p, f){
 	var Aut = function(){};
