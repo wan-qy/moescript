@@ -1207,12 +1207,9 @@ exports.Generator = function(g_envs, g_config){
 			smapPoints: smapPoints
 		}
 	};
+
 	return function(){
 		var generatedCode = compileFunctionBody.apply(this, arguments);
-
-		// Create SMAP Array
-
-
 		return addSmapInfo({generatedCode: generatedCode})
 	}
 };

@@ -108,5 +108,5 @@ try {
 	}(), false);
 } catch(e) {};
 window.onload = function(){
-	resizeInput()
+	resizeInput();
 };

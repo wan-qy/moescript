@@ -54,9 +54,10 @@ def export('time') time(args, f) =
 def export('inspect') inspect(x, targetDepth = 3) = inspectObject x, [], 0, targetDepth
 where	
 	rIdentifier = '^[a-zA-Z_$][\w$]*$' as RegExp
+
 	tPropName(s) = 
-		s                     when(rIdentifier.test s),
-		Primitive.stringify s otherwise
+		s when(rIdentifier.test s), Primitive.stringify s otherwise
+
 	inspectProperties(x, stack, depth, targetDepth) =
 		var a = [];
 		for(p <- keysof x)
@@ -71,13 +72,13 @@ where
 			else
 				a.push (tPropName p + ': ' + inspectObject(prop, stack, depth + 1, targetDepth))
 
-		return ' ' + (a.join ",\n  ") + ' ' when(depth == 0), 
-		       a.join ", "                  otherwise
+		return ' ' + (a.join ",\n  ") + ' ' when(depth == 0), a.join ", " otherwise
+
 	inspectObject(x, stack, depth, targetDepth) = piecewise
-			when(depth >= targetDepth) '[...]'
-			when(x is Primitive)       Primitive.stringify x
-			when(x is Function)        "{ [Function]\n " + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + '}'
-			otherwise                  '[' + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + ']'
+		when(depth >= targetDepth) '[...]'
+		when(x is Primitive)       Primitive.stringify x
+		when(x is Function)        "{ [Function]\n " + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + '}'
+		otherwise                  '[' + inspectProperties(x, (stack.concat [x]), depth, targetDepth) + ']'
 
 
 
@@ -180,7 +181,13 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 			if(err) rLocal err, undefined
 			else    g x
 
-	def schemata.bindYield(f, t) = schemata.bind f.apply(t, arguments.slice(2, (-1))), arguments[arguments.length - 1]
+	def schemata.bindYield(f, t) =
+		f.apply t, arguments.slice(2, (-1)).concat([reaction])
+		where
+			reaction(err, x) = 
+				if(err) rLocal err, undefined
+				else    g x
+			g = arguments[arguments.length - 1]
 
 	def schemata.try(MAttempt, MCatch, g) =
 		def r(err, x) =
@@ -213,30 +220,31 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 def export('async') async(M) = 
 	if(M.build)
 		function() => 
-			(reaction) => M.build(createAsyncSchemata(reaction)).apply(t, a)()
-			where a = arguments
-			      t = this
+			M.build(createAsyncSchemata(reaction)).apply(t, a)()
+			where { a = arguments.slice 0, (-1); t = this; reaction = arguments[arguments.length - 1] }
 	else
 		function() =>
-			(reaction) =>
-				try
-					r = M.apply t, a
-				catch(e)
-					return reaction e, undefined
-				reaction null, r
-			where t = this
-			      a = arguments
+			def t = this
+			def a = arguments.slice 0, (-1)
+			def reaction = arguments[arguments.length - 1]
+			try
+				r = M.apply t, a
+			catch(e)
+				return reaction e, undefined
+			reaction null, r
 
+def async.defaultReaction(err, x) =
+	if(err) throw err
+	else    x
 
-def export('start') start(g) = g {|err, x| if(err) throw err}
+def export('start') start(g) = g.apply this, arguments.slice(1).concat([async.defaultReaction])
 
 -- function join: Start mulitple tasks parallelly, callback when all of them completed.
-def export('join') join(o)(reaction) = 
+def export('join') join(o, reaction) = 
 	var nActivities = 0
 	var nDone = 0
 	var failed = false
-	var res = []  when(o is Array),
-	          [:] otherwise
+	var res = [] when(o is Array), [:] otherwise
 
 	def checkContinue(term) = 
 		Reaction s, f
@@ -254,11 +262,10 @@ def export('join') join(o)(reaction) =
 
 	rangeForEach keys, (term) =>
 		res[term] = undefined
-		o[term]() checkContinue(term)
+		o[term] checkContinue(term)
 
 -- function sleep: a wrap for global_.setTimeout
-def export('sleep') sleep(dt)(reaction) =
-	global_.setTimeout({reaction()}, dt)
+def export('sleep') sleep(dt, reaction) = global_.setTimeout({reaction()}, dt)
 
 
 
@@ -276,8 +283,7 @@ def matcher(G) =
 
 -- function match: form a matcher
 def export('match') match(x, G) =
-	matcher x    when(not G),
-	matcher(G) x otherwise
+	matcher x when(not G), matcher(G) x otherwise
 
 -- function extractor: form an extractor
 def export('extractor') extractor(formFunc) =
@@ -288,15 +294,15 @@ def export('extractor') extractor(formFunc) =
 
 -- function Both: Both extractor, matches when all the branches matches
 def export('Both') Both() = 
-	var extractors = arguments;
-	return extractor function(got, miss) =
+	extractor (got, miss) =>
 		extractors.reduceRight ((total, extractor) => extractor.formMatch total, miss), got
+	where extractors = arguments
 
 -- function Either: Either extractor, matches when one of the branches matches
 def export('Either') Either() = 
-	var extractors = arguments;
-	return extractor function(got, miss) =
+	extractor (got, miss) =>
 		extractors.reduceRight ((total, extractor) => extractor.formMatch got, total), miss
+	where extractors = arguments
 
 -- function empty: detect whether x is falsy or empty Array
 def export('empty') export('Empty') extractor Empty(got, miss)(x) = 

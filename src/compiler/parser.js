@@ -1106,9 +1106,10 @@ exports.parse = function (input, source, config) {
 		return whereClausize(assignmentExpression(), singleLineQ);
 	});
 	var whereClausize = function(node, singleLineQ){
-		var shift = 0;
 		// Clearify WHERE in oneline statements
 		if(singleLineQ && !(tokenIs(WHERE))) return node;
+
+		var shift = 0;
 		while(shiftIs(shift, SEMICOLON)) shift++;
 		if(shiftIs(shift, WHERE)) {
 			stripSemicolons();
@@ -1130,20 +1131,31 @@ exports.parse = function (input, source, config) {
 	};
 	var whereClauses = function(){
 		var stmts = [];
-		if(!tokenIs(INDENT)){
-			stmts.push(whereClause());
-			var s = 0;
-			if(!(tokenIs(INDENT) || tokenIs(SEMICOLON, "Implicit") && nextIs(INDENT)))
-				return stmts;
-		};
-		stripSemicolons();
-		advance(INDENT);
-		while(token && !tokenIs(OUTDENT)){
-			stmts.push(whereClause());
+		if(tokenIs(OPEN, CRSTART)) {
+			advance();
+			do {
+				while(tokenIs(SEMICOLON, "Explicit")) advance();
+				if (tokenIs(CLOSE)) break;
+				stmts.push(whereClause());
+			} while(token && !(tokenIs(CLOSE, CREND)));
+			advance(CLOSE, CREND);
+			return stmts;
+		} else {
+			if(!tokenIs(INDENT)){
+				stmts.push(whereClause());
+				var s = 0;
+				if(!(tokenIs(INDENT) || tokenIs(SEMICOLON, "Implicit") && nextIs(INDENT)))
+					return stmts;
+			};
 			stripSemicolons();
-		};
-		advance(OUTDENT);
-		return stmts;
+			advance(INDENT);
+			while(token && !tokenIs(OUTDENT)){
+				stmts.push(whereClause());
+				stripSemicolons();
+			};
+			advance(OUTDENT);
+			return stmts;
+		}
 	};
 	var whereClause = NRF(function(){
 		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true, true)})
