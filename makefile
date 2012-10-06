@@ -75,13 +75,12 @@ $(webMods): $(WEBMOD)/%.js: $(MOD)/%.js
 	$(nessatEXE) $< $@ $(NODEMODDIR)/
 webMods: $(webMods)
 
-webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html $(WEBTEST)/inputbox.js \
+webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html \
 			$(WEBTEST)/webtest.css $(WEBTEST)/demosmap.js $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
 $(webtestENV):
 	cp $< $@
 $(WEBTEST)/index.html:  webtest_env/index.html
 $(WEBTEST)/smapdemo.html:  webtest_env/smapdemo.html
-$(WEBTEST)/inputbox.js: webtest_env/inputbox.js
 $(WEBTEST)/webtest.js: webtest_env/webtest.js
 $(WEBTEST)/demosmap.js: webtest_env/demosmap.js
 $(WEBTEST)/webtest.css: webtest_env/webtest.css

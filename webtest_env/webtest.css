@@ -44,7 +44,7 @@ body {
 	padding: 0.5em;
 	border: none;
 	border-bottom: 1px solid black;
-	line-height: 1.5;
+	line-height: 1.5em;
 	min-height: 8em;
 	overflow-x: hidden;
 	tab-size: 2em;
@@ -99,6 +99,10 @@ body {
 
 pre, textarea {
 	font-family: "MSharp Mono DL", "Msharp Mono BG", monospace;
+	tab-size: 4;
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	-ms-tab-size: 4;
 }
 
 ::-webkit-scrollbar {

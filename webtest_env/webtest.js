@@ -75,12 +75,74 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 		});
 	};
 });
-var resizeInput = function(){
-	$('input').style.height = ($('input').scrollHeight - 16) + 'px';
-}
-var last_blanks = '';
-var exec = false;
-try {
+
+(function(){
+	var IE = !!document.selection;
+
+	function getCaretPos(txtarea){
+		var strPos = 0;
+		if (IE) { 
+			txtarea.focus();
+			var range = document.selection.createRange();
+			range.moveStart('character', -txtarea.value.length);
+			strPos = range.text.length;
+		} else { 
+			strPos = txtarea.selectionStart 
+		};
+		return strPos;
+	}
+
+	function insertAtCaret(txtarea, text) {
+		var scrollPos = txtarea.scrollTop;
+		var strPos = getCaretPos(txtarea);
+
+		var front = txtarea.value.slice(0, strPos);  
+		var back = txtarea.value.slice(strPos); 
+		txtarea.value = front + text + back;
+		strPos = strPos + text.length;
+		if (IE) { 
+			txtarea.focus();
+			var range = document.selection.createRange();
+			range.moveStart ('character', -txtarea.value.length);
+			range.moveStart ('character', strPos);
+			range.moveEnd ('character', 0);
+			range.select();
+		} else {
+			txtarea.selectionStart = strPos;
+			txtarea.selectionEnd = strPos;
+			txtarea.focus();
+		}
+		txtarea.scrollTop = scrollPos;
+	}
+
+	function getCurrentLineBlanks(obj) {
+		var pos = getCaretPos(obj);
+		var str = obj.value;
+		var i = pos-1;
+		while (i>=0) {
+			if (str.charAt(i) == '\n')
+				break;
+			i--;
+		}
+		i++;
+		var blanks = "";
+		while (i < str.length) {
+			var c = str.charAt(i);
+			if (c == ' ' || c == '\t')
+				blanks += c;
+			else
+				break;
+			i++;
+		}
+		return blanks;
+	}
+
+	var resizeInput = function(){
+		$('input').style.height = ($('input').scrollHeight - 16) + 'px';
+	}
+	var last_blanks = '';
+	var exec = false;
+
 	$('input').addEventListener('keydown', function(e){
 		if((e.shiftKey || e.ctrlKey) && (e.key === 'Enter' || e.keyCode === 13)){
 			e.preventDefault();exec = true;
@@ -89,24 +151,26 @@ try {
 			last_blanks = getCurrentLineBlanks($('input'));
 		} else if(e.key === 'Tab' || e.keyCode === 9){
 			e.preventDefault();
-			insertAtCursor($('input'), '    ');
+			insertAtCaret($('input'), '\t');
 		}
 	}, false);
-	$('input').addEventListener('keyup',function(){
-		var len = 0;
+	$('input').addEventListener('keyup', function(){
+		var lRecord = 0
 		return function(e){
-			var l = $('input').value.length;
-			if(l <= len)
-				$('input').style.height = 0;
-			len = l;
+			var ln = $('input').value.length;
+			if(ln < lRecord){
+				$('input').style.height = '0';
+			};
+			lRecord = ln;
 			if(e.key === 'Enter' || e.keyCode === 13){
-				if(!exec) insertAtCursor($('input'), last_blanks);
+				if(!exec) insertAtCaret($('input'), last_blanks);
 				exec = false;
 			}
 			resizeInput();
 		}
 	}(), false);
-} catch(e) {};
-window.onload = function(){
-	resizeInput();
-};
+	
+	window.onload = function(){
+		resizeInput();
+	};
+})();
