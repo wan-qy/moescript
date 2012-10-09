@@ -1203,9 +1203,12 @@ exports.parse = function (input, source, config) {
 			var script = new Node(nt.SCRIPT, {content: []});
 			var s;
 			do {
-				stripSemicolons();
+				var slQ = stripSemicolons();
 				if (tokenIs(OUTDENT)) break;
-				script.content.push(statement());
+				if(slQ)
+					script.content.push(statement(SINGLE_LINE));
+				else
+					script.content.push(statement());
 			} while(aStatementEnded && token);
 			aStatementEnded = false;
 			return script;
@@ -1386,9 +1389,10 @@ exports.parse = function (input, source, config) {
 		return r;
 	};
 	var stripSemicolons = function () {
-		var hasLinebreaks = false
-		while (tokenIs(SEMICOLON)) hasLinebreaks = (advance().value == "Implicit") || hasLinebreaks;
-		return hasLinebreaks;
+		var SLQ = false
+		while (tokenIs(SEMICOLON)) 
+			SLQ = (advance().value == "Explicit")
+		return SLQ;
 	};
 
 	var ifstmt = function (singleLineQ) {
@@ -1402,7 +1406,7 @@ exports.parse = function (input, source, config) {
 				n.elsePart = blocky(statement(SINGLE_LINE));
 			};
 		} else {
-			var newlinedElse = tokenIs(SEMICOLON);
+			var newlinedElse = !tokenIs(ELSE);
 			stripSemicolons();
 			if(tokenIs(ELSE)){
 				advance(ELSE);
