@@ -10,52 +10,31 @@ DIST = dist
 NODEMODDIR = dist/node_modules
 MOD = $(NODEMODDIR)/moe
 MOEC = $(MOD)/compiler
-dirs:
-	$(MKDIR) $(DIST)
-	$(MKDIR) $(MOD)
-	$(MKDIR) $(MOD)/bin
-	$(MKDIR) $(MOD)/prelude
-	$(MKDIR) $(MOEC)
+
+DIRS = dist/ dist/node_modules/ $(MOD)/ $(MOD)/bin/ $(MOEC)/
+
+$(DIRS):
+	$(MKDIR) $@
+dirs: $(DIST)/ $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 
-moeRTMods = $(MOD)/runtime.js $(MOD)/dummy.js
-$(moeRTMods): $(MOD)/%.js: src/%.js
-	cp $< $@
-moePreludeMods = $(MOD)/prelude/overture.js
-$(moePreludeMods): $(MOD)/prelude/%.js: src/prelude/%.js
-	cp $< $@
+runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
+compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/gvm.js
+commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
+metadatas = $(MOD)/package.json $(MOEC)/package.json
 
-moert: dirs $(moeRTMods) $(moePreludeMods)
+moecCompoments = $(runtimeMods) $(compilerMods) $(commandLineMods) $(metadatas)
 
-moecMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js \
-			$(MOEC)/resolve.js $(MOEC)/gvm.js
-moecNodeMods = $(MOD)/bin/opts.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
-
-$(moecMods): $(MOEC)/%: src/compiler/%
-	cp $< $@
-$(moecNodeMods): $(MOD)/bin/%: src/bin/%
-	cp $< $@
-$(MOEC)/package.json: src/compiler/package.json
+$(moecCompoments): $(MOD)/%: src/%
 	cp $< $@
 
-moecPackageMeta: $(MOD)/package.json
-$(MOD)/package.json: src/package.json
-	cp $< $@
+moec: dirs $(moecCompoments)
 
-moecLib: $(moecMods) $(MOEC)/package.json
-moecNodeLib: $(moecNodeMods)
-moecMain: moecLib moecNodeLib
-moec: moert moecMain moecPackageMeta
+PRELUDE_CONFIG = --bare -g exports -g moert --runtime-bind moert.runtime
+$(MOD)/prelude.js: src/prelude/overture.js src/prelude/prelude.moe moec
+	node $(MOD)/bin/moec $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
 
-preludeMoecEXE = node $(MOD)/bin/moec --no-prelude -g moert --runtime-bind moert.runtime 
-
-moeFullPreludeMods = $(MOD)/prelude/prelude.js
-$(moeFullPreludeMods): $(MOD)/%.js: src/%.moe
-	$(preludeMoecEXE) -o $@ $<
-
-moePrelude: $(moeFullPreludeMods)
-	node tools/preludesquash $(MOD)/prelude.js $(moePreludeMods) $(moeFullPreludeMods)
-
+moePrelude: $(MOD)/prelude.js
 
 ### Web test environment
 ### Always updates all scripts
@@ -70,24 +49,15 @@ webtestDir:
 
 nessatEXE = node tools/nessat
 
-webMods = $(subst $(MOD)/,$(WEBMOD)/,$(moeRTMods) $(moecMods) $(MOD)/prelude.js)
+webMods = $(subst $(MOD)/,$(WEBMOD)/,$(runtimeMods) $(compilerMods) $(MOD)/prelude.js)
 $(webMods): $(WEBMOD)/%.js: $(MOD)/%.js
 	$(nessatEXE) $< $@ $(NODEMODDIR)/
-webMods: $(webMods)
 
-webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html \
-			$(WEBTEST)/webtest.css $(WEBTEST)/demosmap.js $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
-$(webtestENV):
+webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html $(WEBTEST)/webtest.css $(WEBTEST)/demosmap.js $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
+$(webtestENV): $(WEBTEST)/% : webtest_env/%
 	cp $< $@
-$(WEBTEST)/index.html:  webtest_env/index.html
-$(WEBTEST)/smapdemo.html:  webtest_env/smapdemo.html
-$(WEBTEST)/webtest.js: webtest_env/webtest.js
-$(WEBTEST)/demosmap.js: webtest_env/demosmap.js
-$(WEBTEST)/webtest.css: webtest_env/webtest.css
-$(WEBTEST)/mod.rt.js:   src/webrt/mod.rt.js
-webtestENV: $(webtestENV)
 
-webtest: moec moePrelude webtestDir webMods webtestENV
+webtest: moec moePrelude webtestDir $(webMods) $(webtestENV)
 
 clean:
 	rm -rf dist
@@ -98,7 +68,6 @@ force:
 	make everything
 
 __all: webtest
-	rm -rf $(MOD)/prelude
 
 publish:
 	git push origin master:master

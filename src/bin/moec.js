@@ -1,5 +1,6 @@
 var path = require('path')
-var opts = require('./opts')
+var opts = require('./options').opts
+var argv = require('./options').argv
 var moe = require('../runtime')
 var compiler = require('../compiler')
 var util = require('util')
@@ -22,40 +23,49 @@ var optmaps = {'with': addLibName};
 
 var runtimeBind = '';
 var noPreludeQ  = false;
+var bareQ = false;
 var fWrite = console.log;
 
 gvm.bind('require', 'require');
 gvm.bind('module', 'module');
 gvm.bind('exports', 'exports');
 
-opts.parse([
-	{short: 'o', long: 'output', value: true, description: "Set output .js path",
-		callback: function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} }},
-	{short: 'g', long: 'global', value: true, description: "Declare a global variable",
-		callback: function(varName){ gvm.bind(varName, varName) }},
-	{short: 'b', long: 'bind', value: true, description: "Create a global variable with specific bind",
-		callback: function(s){
-			var m = s.match(/(\w+)\s*=\s*([\s\S]*)$/);
-			if(m){gvm.bind(m[1], m[2])}
-		}},
-	{long: 'runtime-bind', value: true, 
-		callback: function(expr){ runtimeBind = expr }},
-	{long: 'no-prelude', value: false,
-		callback: function(){noPreludeQ = true}}
-], [{name: 'source_path', required: true, callback: function(value){
-	(fs.exists||path.exists)(value, function(existQ){
-		if(existQ){
-			if(!noPreludeQ) 
-				gvm.addLibImport('./../prelude', '(require("moe/prelude"))');
+var codeSegments = [];
 
-			var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
-				optionMaps: optmaps,
-				globalVariables: gvm,
-				warn: function(s){ process.stderr.write(s + '\n') }
-			})
-			fWrite(compiler.stdComposite(script, {runtimeBind: runtimeBind}))
-		} else {
-			util.debug('File ' + value + ' does not exist.')
-		}
-	})
-}}])
+var doFile = function(value){
+	if(fs.existsSync(value)){
+		if(!noPreludeQ) gvm.addLibImport('./../prelude', '(require("moe/prelude"))');
+
+		var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
+			optionMaps: optmaps,
+			globalVariables: gvm,
+			warn: function(s){ process.stderr.write(s + '\n') }
+		});
+		codeSegments.push(compiler.stdComposite(script, {runtimeBind: runtimeBind}));
+	} else {
+		util.debug('File ' + value + ' does not exist.');
+	}
+}
+
+opts()
+	.on('-o', '--output',
+		function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} })
+	.on('-b', '--bind',
+		function(s, x){ gvm.bind(s, x) })
+	.on('-g', '--global',
+		function(varName){ gvm.bind(varName, varName) })
+	.on('--clear-binds', 
+		function(){ gvm = new (require('../compiler/gvm').GlobalVariableManager) })
+	.on('--no-prelude', 
+		function(){ noPreludeQ = true }) .on('--use-prelude', function(){ noPreludeQ = false })
+	.on('--bare', 
+		function(){ this.config['--clear-binds'].call(this), this.config['--no-prelude'].call(this)})
+	.on('--runtime-bind', 
+		function(expr){ runtimeBind = expr })
+	.on('--include-js', 
+		function(file){ codeSegments.push(compiler.inputNormalize(fs.readFileSync(file, 'utf-8'))) })
+	.on('--file', '-f', doFile)
+	.file(doFile)
+	.parse(argv());
+
+fWrite(codeSegments.join('\n\n'));
