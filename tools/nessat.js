@@ -1,5 +1,5 @@
 // NESSAT
-// Converts a node module into JS module.
+// Converts a node module into a web module.
 var path = require('path')
 var distinct = function(list){ 
 	var a=[],b=[]; 
@@ -12,24 +12,21 @@ var distinct = function(list){
 		} 
 	} 
 	return a; 
-} 
+};
 
-
-var vm = require('vm');
 var fs = require('fs');
 var output = process.argv[3]
 var input = process.argv[2];
 
-var modID = input.slice((process.argv[4] || '').length).replace(/\.js$/, '');
-var modDir = modID.replace(/[^\/]+$/, '');
+var moduleBase = input.slice((process.argv[4] || '').length).replace(/\.js$/, '');
 
 var source = fs.readFileSync(input, "utf-8");
 var requirements = [];
 
-source = source.replace(/require\(('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\)/g, function(term){
+source = source.replace(/require\(\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*\)/g, function(term){
 	var s = eval(term.slice(8, -1));
 	if(s.match(/^\./)) {
-		s = path.join(path.dirname(modID), s).replace(/\\/g, '/')
+		s = path.join(path.dirname(moduleBase), s).replace(/\\/g, '/');
 	}
 	requirements.push(s);
 	return 'require(' + JSON.stringify(s) + ')'
@@ -37,5 +34,6 @@ source = source.replace(/require\(('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\)/g, fun
 
 requirements = distinct(requirements);
 
-fs.writeFileSync(output, "NECESSARIA_module.define(" + JSON.stringify(modID) + "," + JSON.stringify(requirements) + 
-	",function(require, exports, module){\n" + source + '\n})');
+fs.writeFileSync(output,
+	"NECESSARIA_module.define(" + JSON.stringify(moduleBase) + "," + JSON.stringify(requirements) + 
+		",function(require, exports, module){\n" + source + '\n})');

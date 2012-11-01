@@ -6,7 +6,7 @@ endif
 
 everything: __all
 
-MOD = dist
+MOD = dist/moe
 MOEC = $(MOD)/compiler
 
 DIRS = $(MOD)/ $(MOD)/bin/ $(MOEC)/
@@ -49,7 +49,7 @@ nessatEXE = node tools/nessat
 
 webMods = $(subst $(MOD)/,$(WEBMOD)/,$(runtimeMods) $(compilerMods) $(MOD)/prelude.js)
 $(webMods): $(WEBMOD)/%.js: $(MOD)/%.js
-	$(nessatEXE) $< $@ $(NODEMODDIR)/
+	$(nessatEXE) $< $@ dist/
 
 webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html $(WEBTEST)/webtest.css $(WEBTEST)/demosmap.js $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
 $(webtestENV): $(WEBTEST)/% : webtest_env/%
@@ -71,5 +71,3 @@ publish:
 	git push origin master:master
 	git push cafe   master:master
 	git push mirror master:master
-npmpublish: force
-	cd $(MOD) && npm publish
