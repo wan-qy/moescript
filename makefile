@@ -6,12 +6,10 @@ endif
 
 everything: __all
 
-DIST = dist
-NODEMODDIR = dist/node_modules
-MOD = $(NODEMODDIR)/moe
+MOD = dist
 MOEC = $(MOD)/compiler
 
-DIRS = dist/ dist/node_modules/ $(MOD)/ $(MOD)/bin/ $(MOEC)/
+DIRS = $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 $(DIRS):
 	$(MKDIR) $@
