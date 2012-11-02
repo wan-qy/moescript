@@ -5,63 +5,63 @@ var moe = require('../runtime');
 var moecrt = require('./compiler.rt');
 var lexer = require('./lexer');
 
-var COMMENT = lexer.COMMENT
-var ID = lexer.ID
-var OPERATOR = lexer.OPERATOR
-var COLON = lexer.COLON
-var COMMA = lexer.COMMA
-var NUMBER = lexer.NUMBER
-var STRING = lexer.STRING
-var REGEX = lexer.REGEX
-var SEMICOLON = lexer.SEMICOLON
-var OPEN = lexer.OPEN
-var CLOSE = lexer.CLOSE
-var DOT = lexer.DOT
-var IF = lexer.IF
-var FOR = lexer.FOR
-var WHILE = lexer.WHILE
-var REPEAT = lexer.REPEAT
-var UNTIL = lexer.UNTIL
-var ARGUMENTS = lexer.ARGUMENTS
-var CASE = lexer.CASE
-var PIECEWISE = lexer.PIECEWISE
-var WHEN = lexer.WHEN
-var FUNCTION = lexer.FUNCTION
-var RETURN = lexer.RETURN
-var BREAK = lexer.BREAK
-var LABEL = lexer.LABEL
-var END = lexer.END
-var ELSE = lexer.ELSE
-var OTHERWISE = lexer.OTHERWISE
-var PIPE = lexer.PIPE
-var VAR = lexer.VAR
-var SHARP = lexer.SHARP
-var DO = lexer.DO
-var TASK = lexer.TASK
-var LAMBDA = lexer.LAMBDA
-var PASS = lexer.PASS
-var EXCLAM = lexer.EXCLAM
-var WAIT = lexer.WAIT
-var USING = lexer.USING
-var WHERE = lexer.WHERE
-var DEF = lexer.DEF
-var RESEND = lexer.RESEND
-var NEW = lexer.NEW
-var INDENT = lexer.INDENT
-var OUTDENT = lexer.OUTDENT
-var CONSTANT = lexer.CONSTANT
-var ME = lexer.ME
-var MY = lexer.MY
-var IN = lexer.IN
-var PROTOMEMBER = lexer.PROTOMEMBER
-var ASSIGN = lexer.ASSIGN
-var BIND = lexer.BIND
-var BACKSLASH = lexer.BACKSLASH
-var TRY = lexer.TRY
-var CATCH = lexer.CATCH
-var FINALLY = lexer.FINALLY
+var COMMENT = lexer.COMMENT;
+var ID = lexer.ID;
+var OPERATOR = lexer.OPERATOR;
+var COLON = lexer.COLON;
+var COMMA = lexer.COMMA;
+var NUMBER = lexer.NUMBER;
+var STRING = lexer.STRING;
+var REGEX = lexer.REGEX;
+var SEMICOLON = lexer.SEMICOLON;
+var OPEN = lexer.OPEN;
+var CLOSE = lexer.CLOSE;
+var DOT = lexer.DOT;
+var IF = lexer.IF;
+var FOR = lexer.FOR;
+var WHILE = lexer.WHILE;
+var REPEAT = lexer.REPEAT;
+var UNTIL = lexer.UNTIL;
+var ARGUMENTS = lexer.ARGUMENTS;
+var CASE = lexer.CASE;
+var PIECEWISE = lexer.PIECEWISE;
+var WHEN = lexer.WHEN;
+var FUNCTION = lexer.FUNCTION;
+var RETURN = lexer.RETURN;
+var BREAK = lexer.BREAK;
+var LABEL = lexer.LABEL;
+var END = lexer.END;
+var ELSE = lexer.ELSE;
+var OTHERWISE = lexer.OTHERWISE;
+var PIPE = lexer.PIPE;
+var VAR = lexer.VAR;
+var SHARP = lexer.SHARP;
+var DO = lexer.DO;
+var TASK = lexer.TASK;
+var LAMBDA = lexer.LAMBDA;
+var PASS = lexer.PASS;
+var EXCLAM = lexer.EXCLAM;
+var WAIT = lexer.WAIT;
+var USING = lexer.USING;
+var WHERE = lexer.WHERE;
+var DEF = lexer.DEF;
+var RESEND = lexer.RESEND;
+var NEW = lexer.NEW;
+var INDENT = lexer.INDENT;
+var OUTDENT = lexer.OUTDENT;
+var CONSTANT = lexer.CONSTANT;
+var ME = lexer.ME;
+var MY = lexer.MY;
+var IN = lexer.IN;
+var PROTOMEMBER = lexer.PROTOMEMBER;
+var ASSIGN = lexer.ASSIGN;
+var BIND = lexer.BIND;
+var BACKSLASH = lexer.BACKSLASH;
+var TRY = lexer.TRY;
+var CATCH = lexer.CATCH;
+var FINALLY = lexer.FINALLY;
 
-var Token = lexer.Token
+var Token = lexer.Token;
 
 var SQSTART = '[', SQEND = ']',
 	RDSTART = '(', RDEND = ')',
@@ -71,21 +71,24 @@ var NodeType = moecrt.NodeType;
 var MakeNode = moecrt.MakeNode;
 var HAS_DUPL = function (arr) {
 	var b = arr.slice(0).sort();
-	for (var i = 0; i < b.length - 1; i++)
-		if (b[i] && b[i] == b[i + 1])
-			return true;
+	for (var i = 0; i < b.length - 1; i++) if (b[i] && b[i] == b[i + 1]) {
+		return true;
+	}
 };
-exports.parse = function (input, source, config) {
-	var tokens = input.tokens,
-		token = tokens[0],
-		next = tokens[1],
-		j = 0,
-		len = tokens.length,
-		nt = NodeType,
-		token_type = token ? token.type : undefined,
-		token_value = token ? token.value : undefined
-	var makeT = config.makeT,
-		initInterator = config.initInterator;
+
+// parse: parses token list to AST tree
+exports.parse = function (tokens, source, config) {
+	var token = tokens[0];
+	var next = tokens[1];
+	var j = 0;
+	var len = tokens.length;
+	var nt = NodeType;
+	var token_type = token ? token.type : undefined;
+	var token_value = token ? token.value : undefined;
+
+	var makeT = config.makeT;
+	var initInterator = config.initInterator;
+
 	// Token processor
 	var moveTo = function (position) {
 		var t = token;
@@ -1606,7 +1609,6 @@ exports.parse = function (input, source, config) {
 			parameters: new Node(nt.PARAMETERS, { names: [] }),
 			code: ws_code
 		}),
-		options: options,
-		module: input.module
+		options: options
 	};
 };

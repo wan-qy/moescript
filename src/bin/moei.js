@@ -1,22 +1,9 @@
-var dummy = require('moe/dummy')
-dummy.config.runtimeBind = 'require.main.require("moe/runtime").runtime';
-var gvm = new (require('../compiler/gvm')).GlobalVariableManager(require)
-gvm.bind('require', 'require');
-gvm.bind('module', 'module');
-gvm.bind('exports', 'exports');
-gvm.addLibImport('moe/prelude', 'require.main.require("moe/prelude")');
-gvm.bind('console', 'console');
-gvm.bind('process', 'process');
-gvm.bind('Buffer', 'Buffer');
-gvm.bind('setTimeout', 'setTimeout');
-gvm.bind('clearTimeout', 'clearTimeout');
-gvm.bind('setInterval', 'setInterval');
-gvm.bind('clearInterval', 'clearInterval');
-dummy.useRequireManager(gvm);
+var dummy = require('../dummy');
+var C_STRING = require('../compiler/compiler.rt').C_STRING;
+var path  = require('path');
 
 if(process.argv[1]) {
-	var path = require('path')
-	return require(path.resolve(process.argv[1]))
+	return require(path.resolve(process.argv[1]));
 } else {
 	startRepl();
 }

@@ -11,16 +11,16 @@ var OWNS = moe.runtime.OWNS;
 "Code Emission Util Functions";
 var TO_ENCCD = function(){
 	var COMPARE_CODES = function(P, Q){
-		if(P.code === Q.code) return P.j - Q.j
-		else return P.code - Q.code
+		if(P.code === Q.code) return P.j - Q.j;
+		else return P.code - Q.code;
 	};
 	var DIGITS = 'abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 	var encNum = function(x){
 		var buff = '' + (x % 10);
 		x = ~~(x / 10);
 		while(x > 0){
-			buff += DIGITS[x % 53]
-			x = ~~(x / 53)
+			buff += DIGITS[x % 53];
+			x = ~~(x / 53);
 		};
 		return buff;
 	};
@@ -49,18 +49,7 @@ var TO_ENCCD = function(){
 		return encodeNonBasics(s, nonBasics);
 	}
 }();
-var STRIZE = exports.STRIZE = function(){
-	var CTRLCHR = function (c) {
-		var x = c.charCodeAt(0).toString(16), q = x.length;
-		return '\\u' + (q < 4 ? '0' + (q < 3 ? '0' + (q < 2 ? '0' + x : x) : x) : x);
-	};
-	return function (s) {
-		return '"' + (s || '')
-			.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')
-			.replace(/[\x00-\x1f\x7f-\uffff]/g, CTRLCHR)
-			.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
-	};
-}();
+
 
 var C_NAME = exports.C_NAME = function (name) { return TO_ENCCD(name) + '$' },
 	C_LABELNAME = function (name) { return TO_ENCCD(name) + '$L' },
@@ -68,7 +57,8 @@ var C_NAME = exports.C_NAME = function (name) { return TO_ENCCD(name) + '$' },
 	T_THIS = function (env) { return '_$_THIS' },
 	T_ARGN = function(){ return '_$_ARGND' },
 	T_ARGS = function(){ return '_$_ARGS' },
-	C_BLOCK = function(label){ return 'block_' + label }
+	C_BLOCK = function(label){ return 'block_' + label },
+	C_STRING = moecrt.C_STRING;
 
 var INDENT = function(s){ return s.replace(/^/gm, '    ') };
 
@@ -83,16 +73,16 @@ var JOIN_STMTS = function (statements) {
 }
 
 var THIS_BIND = function (env) {
-	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : ''
+	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : '';
 };
 var ARGS_BIND = function (env, ReplGlobalQ) {
 	if(ReplGlobalQ) return 'var ' + T_ARGS() + ' = ' + '[]';
-	else return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = ' + C_TEMP('SLICE') + '(arguments, 0)' : ''
+	else return (env.argsOccurs) ? 'var ' + T_ARGS() + ' = ' + C_TEMP('SLICE') + '(arguments, 0)' : '';
 };
 var ARGN_BIND = function (env, ReplGlobalQ) {
 	if(ReplGlobalQ) return 'var ' + T_ARGN() + ' = ' + '{}';
 	else return (env.argnOccurs) ? 
-		'var ' + T_ARGN() + ' = ' + C_TEMP('CNARG') + '(arguments[arguments.length - 1])' : ''
+		'var ' + T_ARGN() + ' = ' + C_TEMP('CNARG') + '(arguments[arguments.length - 1])' : '';
 };
 var TEMP_BIND = function (env, tempName) {
 	return C_TEMP(tempName);
@@ -132,7 +122,7 @@ var PART = exports.PART = function(left, right){
 	// Left: expression
 	// Right: name
 	if (!IDENTIFIER_Q.test(right) || SPECIALNAMES[right] === 1)
-		return left + '[' + STRIZE(right) + ']';
+		return left + '[' + C_STRING(right) + ']';
 	else 
 		return left + '.' + right;
 };
@@ -312,7 +302,7 @@ exports.Generator = function(g_envs, g_config){
 	});
 	eSchemataDef(nt.LITERAL, function () {
 		if (typeof this.value === 'string') {
-			return STRIZE(this.value);
+			return C_STRING(this.value);
 		} else if (typeof this.value === 'number'){
 			return '' + this.value;
 		} else if (this.value.tid){
@@ -359,9 +349,9 @@ exports.Generator = function(g_envs, g_config){
 			var right = transform(ungroup(this.args[i]))
 			if (typeof this.names[i] === "string") {
 				hasNameQ = true;
-				inits.push(STRIZE(this.names[i]) + ': ' + right);
+				inits.push(C_STRING(this.names[i]) + ': ' + right);
 			} else {
-				inits.push(STRIZE('' + x) + ': ' + right);
+				inits.push(C_STRING('' + x) + ': ' + right);
 				x++;
 			};
 			terms.push(right);
@@ -476,7 +466,7 @@ exports.Generator = function(g_envs, g_config){
 		for (var i = (pipelineQ ? 1 : 0); i < this.args.length; i++) {
 			if (this.names[i]) {
 				var tn = flowPush(flow, env, transform(ungroup(this.args[i])));
-				olits.push(STRIZE(this.names[i]));
+				olits.push(C_STRING(this.names[i]));
 				olits.push(tn);
 				hasNameQ = true;
 			} else {
@@ -496,7 +486,7 @@ exports.Generator = function(g_envs, g_config){
 		
 		for (var i = 0; i < this.args.length; i++) {
 			if (this.names[i]) {
-				olits.push(STRIZE(this.names[i]));
+				olits.push(C_STRING(this.names[i]));
 				olits.push(transform(ungroup(this.args[i])));
 				hasNameQ = true;
 			} else {
@@ -826,7 +816,7 @@ exports.Generator = function(g_envs, g_config){
 			
 			for (var i = (skip || 0); i < node.args.length; i++) {
 				if (node.names[i]) {
-					olits.push(STRIZE(node.names[i]));
+					olits.push(C_STRING(node.names[i]));
 					olits.push(expPart(node.args[i]));
 					hasNameQ = true
 				} else {

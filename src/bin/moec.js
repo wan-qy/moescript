@@ -36,12 +36,13 @@ var doFile = function(value){
 	if(fs.existsSync(value)){
 		if(!noPreludeQ) gvm.addLibImport('./../prelude', '(require("moe/prelude"))');
 
-		var script = compiler.compile(fs.readFileSync(value, 'utf-8'), {
+		gvm.runtimeBind = runtimeBind;
+
+		var script = compiler.compile(fs.readFileSync(value, 'utf-8'), gvm, {
 			optionMaps: optmaps,
-			globalVariables: gvm,
 			warn: function(s){ process.stderr.write(s + '\n') }
 		});
-		codeSegments.push(compiler.stdComposite(script, {runtimeBind: runtimeBind}));
+		codeSegments.push(compiler.stdComposite(script, gvm));
 	} else {
 		util.debug('File ' + value + ' does not exist.');
 	}

@@ -1,55 +1,41 @@
-var moe = require('../runtime')
+var moe = require('../runtime');
+var moecrt = require('./compiler.rt');
+var OWNS = moe.runtime.OWNS;
+var moec_codegen = require('./codegen');
+var C_NAME = moec_codegen.C_NAME;
+var C_TEMP = moec_codegen.C_TEMP;
+var PART = moec_codegen.PART;
+var C_STRING = moecrt.C_STRING;
 
-exports.GlobalVariableManager = function(_require){
+var GlobalVariableManager = exports.GlobalVariableManager = function(_require){
 	var YES = {};
 	var globalVars = {};
 	var variableMaps = {};
 
 	_require = _require || require;
 
-	var STRIZE = function(){
-		var CTRLCHR = function (c) {
-			var n = c.charCodeAt(0);
-			return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
-		};
-		return function (s) {
-			return '"' + (s || '')
-				.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-				.replace(/[\x00-\x1f\x7f]/g, CTRLCHR)
-				.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
-		};
-	}();
-
-	var actions = [];
 
 	var addDirectMap = function(name, map){
-		actions.push(function(){
-			globalVars[name] = YES;
-			variableMaps[name] = map;
-		})
+		globalVars[name] = YES;
+		variableMaps[name] = map;
 	};
 	var addLibImport = function(libName, bind){
-		actions.push(function(){
-			var lib = _require(libName);
-			for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && moe.runtime.OWNS(lib, item)) {
-				globalVars[item] = YES;
-				variableMaps[item] = (bind || 'require' + '(' + STRIZE(libName) + ')') + '[' + STRIZE(item) + ']';
-			}
-		})
+		var lib = _require(libName);
+		for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && OWNS(lib, item)) {
+			globalVars[item] = YES;
+			variableMaps[item] = (bind || 'require' + '(' + C_STRING(libName) + ')') + '[' + C_STRING(item) + ']';
+		}
 	};
 	var addLibName = function(name, id){
-		actions.push(function(){
-			globalVars[name] = YES;
-			variableMaps[name] = 'require' + '(' + STRIZE(id) + ')'
-		})
+		globalVars[name] = YES;
+		variableMaps[name] = 'require' + '(' + C_STRING(id) + ')'
 	};
 	var fInits = function(f){
-		if(actions.length) for(var i = 0; i < actions.length; i++) actions[i]()
-		actions = []
-		for(var item in globalVars) 
+		for(var item in globalVars) {
 			if(globalVars[item] === YES){
 				f(variableMaps[item], item);
 			}
+		}
 	};
 
 
@@ -58,4 +44,23 @@ exports.GlobalVariableManager = function(_require){
 	this.addLibImport = addLibImport;
 	this.addLibName = addLibName;
 	this.fInits = fInits;
+	this.runtimeName = C_TEMP('RUNTIME');
+	this.initsName = C_TEMP('INITS');
+	this.createInitializationCode = function(){
+		var s = "var undefined;\n";
+		for(var item in moe.runtime) if(OWNS(moe.runtime, item)) {
+			s += 'var ' + C_TEMP(item) + ' = ' + PART(this.runtimeName, item) + ';\n';
+		};
+		this.fInits(function(v, n){
+			s += 'var ' + C_NAME(n) + ' = ' + v + ';\n';
+		});
+		return s;
+	}
 };
+
+GlobalVariableManager.fromSimpleMap = function(map){
+	if(map instanceof GlobalVariableManager) return map;
+	var gvm = new GlobalVariableManager();
+	for(var term in map) if(OWNS(map, term)) gvm.bind(term, map[term]);
+	return gvm;
+}

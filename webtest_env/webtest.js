@@ -16,8 +16,10 @@ var source2html = function(s){
 
 module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/compiler/gvm'], function(require){
 	var moert = require('moe/runtime');
-	var EISA_OWNS = moert.runtime.OWNS;
+	var OWNS = moert.runtime.OWNS;
 	var GlobalVariableManager = require('moe/compiler/gvm').GlobalVariableManager;
+	var C_STRING = require('moe/compiler/compiler.rt').C_STRING;
+
 	var moert_using = function(libs, f) {
 		var importings = [], immediates = [];
 		for (var i = 0; i < libs.length; i++) {
@@ -32,14 +34,14 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			for (var i = 0; i < importings.length; i++)
 				require.enumerate(libs[i], function(n, v) {
 					vals[n] = v;
-					gvm.bind(n);
+					gvm.bind(n, 'this[' + C_STRING(n) + ']');
 				});
 			for (var i = 0; i < immediates.length; i++) {
 				var immlib = immediates[i];
-				for (var each in immlib)
-					if (EISA_OWNS(immlib, each)) {
-						vals[each] = immlib[each];
-						gvm.bind(each);
+				for (var n in immlib)
+					if (OWNS(immlib, n)) {
+						vals[n] = immlib[n];
+						gvm.bind(n, 'this[' + C_STRING(n) + ']');
 					};
 			};
 
@@ -54,8 +56,8 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
 			function(initvs, gvm){
 				try {
-					var lfc = require('moe/compiler/compiler');
-					var script = lfc.compile(document.getElementById('input').value, {
+					var moec = require('moe/compiler/compiler');
+					var script = moec.compile(document.getElementById('input').value, {
 						globalVariables: gvm,
 						warn: tracel
 					});
@@ -63,11 +65,11 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 					tracer('Smap points:' + source2html(script.smapPoints.map(function(p){
 						return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
 					}).join('\n')));
-					tracer('Initialization Code:' + source2html(script.initializationCode));
-					var func = Function(script.aux.runtimeName, script.aux.initsName, 
-						script.initializationCode + '\n;' + script.generatedCode);
+					var initCode = gvm.createInitializationCode();
+					tracer('Initialization Code:' + source2html(initCode));
+					var func = Function(gvm.runtimeName, initCode + '\n;' + script.generatedCode);
 					tracel('Started Master Execution.');
-					func(moert.runtime, initvs);
+					func.call(initvs, moert.runtime);
 					tracel('Master Execution finished.');
 				} catch(e){
 					terr('Error occurs:\n' + e + '\nF12 to read more');

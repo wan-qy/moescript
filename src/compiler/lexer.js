@@ -207,7 +207,6 @@ var composeRex = require('./compiler.rt').composeRex;
 
 var LexerBackend = function(input, config){
 	var tokens = [], tokl = 0, SPACEQ = {' ': true, '\t': true};
-	var output = {};
 	config = config || {};
 	var token_err = config.PE
 	var make = function (t, v, p, isn) {
@@ -412,8 +411,7 @@ var LexerBackend = function(input, config){
 				throw token_err("Unexpected character.", pos + m.match(/^\s*/)[0].length);
 		},
 		output: function(){
-			output.tokens = layout(tokens);
-			return output;
+			return layout(tokens);
 		}
 	}
 };
@@ -466,6 +464,6 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 };
 
 var lex = exports.lex = function(input, cfgMap, token_err){
-	input += '\n\n\n'
-	return LexMeta(input, LexerBackend(input, cfgMap, token_err))
+	input += '\n\n\n';
+	return LexMeta(input, LexerBackend(input, cfgMap, token_err));
 }

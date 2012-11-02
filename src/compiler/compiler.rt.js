@@ -183,7 +183,7 @@ exports.MakeNode = function (type, props, position) {
 	return p
 };
 
-var walkRex = exports.walkRex = function(r, s, fMatch, fGap){
+exports.walkRex = function(r, s, fMatch, fGap){
 	var l = r.lastIndex;
 	r.lastIndex = 0;
 	fMatch = fMatch || function(){};
@@ -198,7 +198,7 @@ var walkRex = exports.walkRex = function(r, s, fMatch, fGap){
 	r.lastIndex = l;
 	return s;
 };
-var composeRex = exports.composeRex = function(r, o){
+exports.composeRex = function(r, o){
 	var source = r.source;
 	var g = r.global;
 	var i = r.ignoreCase;
@@ -210,3 +210,15 @@ var composeRex = exports.composeRex = function(r, o){
 	});
 	return new RegExp(source, (g ? 'g' : '') + (i ? 'i' : '') + (m ? 'm' : ''));
 };
+exports.C_STRING = function(){
+	var CTRLCHR = function (c) {
+		var x = c.charCodeAt(0).toString(16), q = x.length;
+		return '\\u' + (q < 4 ? '0' + (q < 3 ? '0' + (q < 2 ? '0' + x : x) : x) : x);
+	};
+	return function (s) {
+		return '"' + (s || '')
+			.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')
+			.replace(/[\x00-\x1f\x7f-\uffff]/g, CTRLCHR)
+			.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
+	};
+}();

@@ -194,7 +194,7 @@ reg('RegExp', internalClassWrapper(RegExp, function(){
 }));
 reg('Primitive', function(){
 	var P = function(){};
-	var STRIZE = exports.STRIZE = function(){
+	var C_STRING = function(){
 		var CTRLCHR = function (c) {
 			var n = c.charCodeAt(0);
 			return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
@@ -208,7 +208,7 @@ reg('Primitive', function(){
 	}();
 	P.be = function(x){return !x || typeof x === 'number' || typeof x === 'string' || typeof x === 'boolean'};
 	P.stringify = function(x){
-		if(typeof x === 'string') return STRIZE(x)
+		if(typeof x === 'string') return C_STRING(x)
 		else return '' + x
 	};
 	return P;
