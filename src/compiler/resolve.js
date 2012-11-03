@@ -7,7 +7,7 @@ var ScopedScript = moecrt.ScopedScript;
 
 var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
 
-exports.resolve = function(ast, gvm, config){
+exports.resolve = function(ast, ts, config){
 	// Config satisifies <.initVariable()>, <.PE()>, <.PW()> and <.warn()>
 	var PE = config.PE;
 	var PW = config.PW;
@@ -94,7 +94,7 @@ exports.resolve = function(ast, gvm, config){
 		current.code = overallAst.code;
 		overallAst.tree = 1;
 
-		gvm.fInits(function(v, n, constantQ){
+		ts.fInits(function(v, n, constantQ){
 			current.newVar(n, false, !constantQ);
 			current.varIsArg[n] = true
 		});

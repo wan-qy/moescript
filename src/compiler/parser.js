@@ -1586,7 +1586,7 @@ exports.parse = function (tokens, source, config) {
 	///
 	stripSemicolons();
 
-	var options = {};
+	var options = config.options || {};
 
 	while(tokenIs(EXCLAM)) {
 		advance();

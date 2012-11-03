@@ -17,7 +17,7 @@ dirs: $(DIST)/ $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 
 runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
-compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/gvm.js
+compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js
 commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
 metadatas = $(MOD)/package.json $(MOEC)/package.json
 
@@ -28,7 +28,7 @@ $(moecCompoments): $(MOD)/%: src/%
 
 moec: dirs $(moecCompoments)
 
-PRELUDE_CONFIG = --bare -g exports -g moert --runtime-bind moert.runtime
+PRELUDE_CONFIG = --explicit --bare -g exports -g moert --runtime-bind moert.runtime
 $(MOD)/prelude.js: src/prelude/overture.js src/prelude/prelude.moe moec
 	node $(MOD)/bin/moec $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
 

@@ -22,8 +22,47 @@ var C_NAME = moec_codegen.C_NAME;
 var C_TEMP = moec_codegen.C_TEMP;
 var PART = moec_codegen.PART;
 
-var GlobalVariableManager = require('./gvm').GlobalVariableManager;
+var TopScope = function(){
+	this.maps = {};
 
+	this.fInits = function(f){
+		var maps = this.maps;
+		for(var item in maps) if(typeof maps[item] == 'string'){
+			f(maps[item], item);
+		}
+	};
+
+	this.runtimeName = C_TEMP('RUNTIME');
+	this.initsName = C_TEMP('INITS');
+};
+TopScope.prototype.bind = function(n, s){
+	return (this.maps[n] = s);
+};
+TopScope.prototype.partBind = function(n, obj, prop){
+	return this.bind(n, PART(obj, prop));
+};
+TopScope.prototype.libRequireBind = function(lib, bind){
+	for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && OWNS(lib, item)) {
+		this.bind(item, PART(bind, item));
+	}
+};
+TopScope.prototype.createInitializationCode = function(){
+	var s = "var undefined;\n";
+	for(var item in moe.runtime) if(OWNS(moe.runtime, item)) {
+		s += 'var ' + C_TEMP(item) + ' = ' + PART(this.runtimeName, item) + ';\n';
+	};
+	this.fInits(function(v, n){
+		s += 'var ' + C_NAME(n) + ' = ' + v + ';\n';
+	});
+	return s;
+}
+
+TopScope.fromSimpleMap = function(map){
+	if(map instanceof TopScope) return map;
+	var ts = new TopScope();
+	for(var term in map) if(OWNS(map, term)) ts.bind(term, map[term]);
+	return ts;
+};
 
 //============
 var lex = exports.lex = moec_lexer.lex;
@@ -32,16 +71,13 @@ var parse = exports.parse = moec_parser.parse;
 var Generator = moec_codegen.Generator;
 
 var inputNormalize = exports.inputNormalize = function(s){
-	s = s.replace(/^\ufeff/, '')
-		 .replace(/^\ufffe/, '')
-		 .replace(/\r\n/g, '\n')
-		 .replace(/\r/g, '\n');
+	s = s.replace(/^\ufeff/, '').replace(/^\ufffe/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 	return '\n' + s + '\n';
 };
 
-var compile = function (source, gvm, config) {
+var compile = function (source, ts, config) {
 	source = inputNormalize(source);
-	gvm = GlobalVariableManager.fromSimpleMap(gvm);
+	ts = TopScope.fromSimpleMap(ts);
 	
 	config = derive(config || {});
 	config.makeT = moecrt.TMaker();
@@ -49,18 +85,20 @@ var compile = function (source, gvm, config) {
 	config.PW = moecrt.PWMeta(source);
 	config.PE = moecrt.PEMeta(config.PW);
 
-	//Parse
+	// Parse
 	var ast = parse(lex(source, config), source, config);
 	config.options = ast.options;
-
-	var trees = moec_resolver.resolve(ast, gvm, config);
+	
+	// Scopes formation + variable resolve
+	var trees = moec_resolver.resolve(ast, ts, config);
 	var enter = trees[0];
 
+	// Generate code
 	var generator = Generator(trees, config);
 	var generatedInfo = generator(enter, true);
 
 	generatedInfo.source = source;
-	generatedInfo.gvm = gvm;
+	generatedInfo.ts = ts;
 	generatedInfo.trees = trees;
 	generatedInfo.aux = config;
 	generatedInfo.astOptions = ast.options;
@@ -70,13 +108,13 @@ var compile = function (source, gvm, config) {
 
 
 exports.compile = compile;
-exports.GlobalVariableManager = GlobalVariableManager;
+exports.TopScope = TopScope;
 exports.createSmap = function(){
 	// TODO
 };
 
-exports.stdComposite = function(info, gvm){
-	gvm = gvm || info.gvm;
-	return 'var ' + gvm.runtimeName + ' = ' + (gvm.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +
-		gvm.createInitializationCode() + '\n' + info.generatedCode;
+exports.stdComposite = function(info, ts){
+	ts = ts || info.ts;
+	return 'var ' + ts.runtimeName + ' = ' + (ts.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +
+		ts.createInitializationCode() + '\n' + info.generatedCode;
 };

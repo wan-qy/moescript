@@ -41,8 +41,8 @@ def export('list') list = object =>
 	def @last(a) = a[a.length - 1]
 	def cat(a, b) = a.concat b
 	def @flat(a) = a.reduce cat, []
-	def @fill(range, x) = table { i <- range; x }
-	def @tolist(range) = table { x <- range; x }
+	def @fill(range, x) = table { var i <- range; x }
+	def @tolist(range) = table { var x <- range; x }
 	def @shuffle(a) = 
 		def b = a.slice 0
 		for(i <- 0..b.length)
@@ -240,6 +240,7 @@ def export('async') async(M) =
 			def t = this
 			def a = arguments.slice 0, (-1)
 			def reaction = arguments[arguments.length - 1]
+			var r
 			try
 				r = M.apply t, a
 			catch(e)

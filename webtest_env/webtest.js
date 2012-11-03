@@ -14,11 +14,11 @@ var source2html = function(s){
 		+ '</ol>'
 }
 
-module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/compiler/gvm'], function(require){
+module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function(require){
 	var moert = require('moe/runtime');
 	var OWNS = moert.runtime.OWNS;
 	var moec = require('moe/compiler/compiler');
-	var GlobalVariableManager = moec.GlobalVariableManager;
+	var TopScope = moec.TopScope;
 	var C_STRING = require('moe/compiler/compiler.rt').C_STRING;
 
 	var moert_using = function(libs, f) {
@@ -29,24 +29,24 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			else
 				immediates.push(libs[i]);
 		};
-		var gvm = new GlobalVariableManager;
+		var ts = new TopScope;
 		module.provide(importings, function(require) {
 			var vals = {};
 			for (var i = 0; i < importings.length; i++)
 				require.enumerate(libs[i], function(n, v) {
 					vals[n] = v;
-					gvm.partBind(n, 'this', n);
+					ts.partBind(n, 'this', n);
 				});
 			for (var i = 0; i < immediates.length; i++) {
 				var immlib = immediates[i];
 				for (var n in immlib)
 					if (OWNS(immlib, n)) {
 						vals[n] = immlib[n];
-						gvm.partBind(n, 'this', n);
+						ts.partBind(n, 'this', n);
 					};
 			};
 
-			return f.call(vals, gvm);
+			return f.call(vals, ts);
 		});
 	};
 
@@ -57,13 +57,13 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 		var tracer = infoout.traceraw;
 
 		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
-			function(gvm){
+			function(ts){
 				try {
 					var script = moec.compile(document.getElementById('input').value, {
-						globalVariables: gvm,
+						globalVariables: ts,
 						warn: tracel
 					});
-					var initCode = gvm.createInitializationCode();
+					var initCode = ts.createInitializationCode();
 					
 					tracer('Generated Code:' + source2html(script.generatedCode));
 					tracer('Smap points:' + source2html(script.smapPoints.map(function(p){
@@ -71,7 +71,7 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 					}).join('\n')));
 					tracer('Initialization Code:' + source2html(initCode));
 
-					var func = Function(gvm.runtimeName, initCode + '\n;' + script.generatedCode);
+					var func = Function(ts.runtimeName, initCode + '\n;' + script.generatedCode);
 					func.call(this, moert.runtime);
 				} catch(e){
 					terr('Error occurs:\n' + e + '\nF12 to read more');
