@@ -15,18 +15,21 @@ var GlobalVariableManager = exports.GlobalVariableManager = function(_require){
 	_require = _require || require;
 
 
-	var addDirectMap = function(name, map){
+	var bind = function(name, map){
 		globalVars[name] = YES;
 		variableMaps[name] = map;
 	};
-	var addLibImport = function(libName, bind){
+	var partBind = function(name, obj, prop){
+		return bind.call(this, name, '(' + obj + ')[' + C_STRING(prop) + ']')
+	};
+	var libRequireBind = function(libName, bind){
 		var lib = _require(libName);
 		for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && OWNS(lib, item)) {
 			globalVars[item] = YES;
 			variableMaps[item] = (bind || 'require' + '(' + C_STRING(libName) + ')') + '[' + C_STRING(item) + ']';
 		}
 	};
-	var addLibName = function(name, id){
+	var libBind = function(name, id){
 		globalVars[name] = YES;
 		variableMaps[name] = 'require' + '(' + C_STRING(id) + ')'
 	};
@@ -40,9 +43,10 @@ var GlobalVariableManager = exports.GlobalVariableManager = function(_require){
 
 
 	// Exports
-	this.bind = this.addDirectMap = addDirectMap;
-	this.addLibImport = addLibImport;
-	this.addLibName = addLibName;
+	this.bind = bind;
+	this.partBind = partBind;
+	this.libRequireBind = libRequireBind;
+	this.libBind = libBind;
 	this.fInits = fInits;
 	this.runtimeName = C_TEMP('RUNTIME');
 	this.initsName = C_TEMP('INITS');

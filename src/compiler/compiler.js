@@ -39,7 +39,7 @@ var inputNormalize = exports.inputNormalize = function(s){
 	return '\n' + s + '\n';
 };
 
-var compile = exports.compile = function (source, gvm, config) {
+var compile = function (source, gvm, config) {
 	source = inputNormalize(source);
 	gvm = GlobalVariableManager.fromSimpleMap(gvm);
 	
@@ -68,7 +68,12 @@ var compile = exports.compile = function (source, gvm, config) {
 	return generatedInfo;
 };
 
-exports.createSmap = function(ci){};
+
+exports.compile = compile;
+exports.GlobalVariableManager = GlobalVariableManager;
+exports.createSmap = function(){
+	// TODO
+};
 
 exports.stdComposite = function(info, gvm){
 	gvm = gvm || info.gvm;

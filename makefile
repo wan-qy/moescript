@@ -51,7 +51,7 @@ webMods = $(subst $(MOD)/,$(WEBMOD)/,$(runtimeMods) $(compilerMods) $(MOD)/prelu
 $(webMods): $(WEBMOD)/%.js: $(MOD)/%.js
 	$(nessatEXE) $< $@ dist/
 
-webtestENV = $(WEBTEST)/index.html $(WEBTEST)/smapdemo.html $(WEBTEST)/webtest.css $(WEBTEST)/demosmap.js $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
+webtestENV = $(WEBTEST)/index.html $(WEBTEST)/webtest.css $(WEBTEST)/webtest.js $(WEBTEST)/mod.rt.js
 $(webtestENV): $(WEBTEST)/% : webtest_env/%
 	cp $< $@
 

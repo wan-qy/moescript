@@ -22,17 +22,17 @@ var initGvm = function(){
 	gvm.bind('setInterval', 'setInterval');
 	gvm.bind('clearInterval', 'clearInterval');
 
-	gvm.addLibImport('./prelude', 'require(' + C_STRING(path.resolve(path.dirname(module.filename), './prelude')) + ')');
+	gvm.libRequireBind('./prelude', 'require(' + C_STRING(path.resolve(path.dirname(module.filename), './prelude')) + ')');
 	gvm.runtimeBind = 'require(' + C_STRING(path.resolve(path.dirname(module.filename), './runtime')) + ').runtime';
 };
 
 var gvm;
 
-exports.useRequireManager = function(newrm){return gvm = newrm};
-exports.bind = function(){gvm.bind.apply(gvm, arguments)};
-exports.addLibName = function(){gvm.addLibName.apply(gvm, arguments)};
+exports.useRequireManager = function(newrm){ return gvm = newrm };
+exports.bind = function(){ gvm.bind.apply(gvm, arguments) };
+exports.libBind = function(){ gvm.libBind.apply(gvm, arguments) };
 
-var compile = exports.compile = function(source){
+var compile = function(source){
 	if(!gvm) initGvm();
 
 	var script = compiler.compile(source, gvm, {
@@ -40,12 +40,8 @@ var compile = exports.compile = function(source){
 		warn: function(s){ process.stderr.write(s + '\n') }
 	});
 	return compiler.stdComposite(script, gvm);
-}
-
-var getCompiled = function(fileName){
-	return compile(fs.readFileSync(fileName, 'utf-8'));
 };
 
 require.extensions['.moe'] = function(module, fileName){
-	module._compile(getCompiled(fileName), fileName);
+	module._compile(compile(fs.readFileSync(fileName, 'utf-8')), fileName);
 };

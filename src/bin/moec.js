@@ -10,16 +10,16 @@ var target;
 
 var gvm = new (require('../compiler/gvm').GlobalVariableManager);
 
-var addLibName = function(line){
+var libBind = function(line){
 	var m, name, libName
 	if(m = line.match(/^\s*(\w+)\s*=\s*/)){
 		name = m[1], libName = line.slice(m[0].length)
 	} else {
 		name = libName = line
 	};
-	gvm.addLibName(name, libName)
+	gvm.libBind(name, libName)
 };
-var optmaps = {'with': addLibName};
+var optmaps = {'with': libBind};
 
 var runtimeBind = '';
 var noPreludeQ  = false;
@@ -34,7 +34,7 @@ var codeSegments = [];
 
 var doFile = function(value){
 	if(fs.existsSync(value)){
-		if(!noPreludeQ) gvm.addLibImport('./../prelude', '(require("moe/prelude"))');
+		if(!noPreludeQ) gvm.libRequireBind('./../prelude', '(require("moe/prelude"))');
 
 		gvm.runtimeBind = runtimeBind;
 

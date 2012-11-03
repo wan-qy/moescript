@@ -17,7 +17,8 @@ var source2html = function(s){
 module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/compiler/gvm'], function(require){
 	var moert = require('moe/runtime');
 	var OWNS = moert.runtime.OWNS;
-	var GlobalVariableManager = require('moe/compiler/gvm').GlobalVariableManager;
+	var moec = require('moe/compiler/compiler');
+	var GlobalVariableManager = moec.GlobalVariableManager;
 	var C_STRING = require('moe/compiler/compiler.rt').C_STRING;
 
 	var moert_using = function(libs, f) {
@@ -34,43 +35,44 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			for (var i = 0; i < importings.length; i++)
 				require.enumerate(libs[i], function(n, v) {
 					vals[n] = v;
-					gvm.bind(n, 'this[' + C_STRING(n) + ']');
+					gvm.partBind(n, 'this', n);
 				});
 			for (var i = 0; i < immediates.length; i++) {
 				var immlib = immediates[i];
 				for (var n in immlib)
 					if (OWNS(immlib, n)) {
 						vals[n] = immlib[n];
-						gvm.bind(n, 'this[' + C_STRING(n) + ']');
+						gvm.partBind(n, 'this', n);
 					};
 			};
 
-			return f.call(vals, vals, gvm);
+			return f.call(vals, gvm);
 		});
 	};
-	run = document.getElementById('go').onclick = function () {
+
+	run = function () {
 		clrscr();
 		var infoout = G_TRACE('info');
 		var tracel = infoout.tracel;
 		var tracer = infoout.traceraw;
+
 		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
-			function(initvs, gvm){
+			function(gvm){
 				try {
-					var moec = require('moe/compiler/compiler');
 					var script = moec.compile(document.getElementById('input').value, {
 						globalVariables: gvm,
 						warn: tracel
 					});
+					var initCode = gvm.createInitializationCode();
+					
 					tracer('Generated Code:' + source2html(script.generatedCode));
 					tracer('Smap points:' + source2html(script.smapPoints.map(function(p){
 						return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
 					}).join('\n')));
-					var initCode = gvm.createInitializationCode();
 					tracer('Initialization Code:' + source2html(initCode));
+
 					var func = Function(gvm.runtimeName, initCode + '\n;' + script.generatedCode);
-					tracel('Started Master Execution.');
-					func.call(initvs, moert.runtime);
-					tracel('Master Execution finished.');
+					func.call(this, moert.runtime);
 				} catch(e){
 					terr('Error occurs:\n' + e + '\nF12 to read more');
 				}
@@ -148,7 +150,7 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 	$('input').addEventListener('keydown', function(e){
 		if((e.shiftKey || e.ctrlKey) && (e.key === 'Enter' || e.keyCode === 13)){
 			e.preventDefault();exec = true;
-			return setTimeout(function(){run();},0);
+			return setTimeout(run, 0);
 		} else if(e.key === 'Enter' || e.keyCode === 13){
 			last_blanks = getCurrentLineBlanks($('input'));
 		} else if(e.key === 'Tab' || e.keyCode === 9){
@@ -171,6 +173,10 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			resizeInput();
 		}
 	}(), false);
+
+	$('go').addEventListener('click', function(){
+		setTimeout(run, 0)
+	})
 	
 	window.onload = function(){
 		resizeInput();
