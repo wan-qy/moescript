@@ -70,4 +70,3 @@ __all: webtest
 publish:
 	git push origin master:master
 	git push cafe   master:master
-	git push mirror master:master
