@@ -59,8 +59,7 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
 			function(ts){
 				try {
-					var script = moec.compile(document.getElementById('input').value, {
-						globalVariables: ts,
+					var script = moec.compile(document.getElementById('input').value, ts, {
 						warn: tracel
 					});
 					var initCode = ts.createInitializationCode();

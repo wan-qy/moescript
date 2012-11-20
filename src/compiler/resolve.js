@@ -89,16 +89,19 @@ exports.resolve = function(ast, ts, config){
 			}
 		};
 
-		var current = scopes[0] = stack[0] = new ScopedScript(1);
-		current.parameters = overallAst.parameters;
-		current.code = overallAst.code;
+		var enterScope = scopes[0] = stack[0] = new ScopedScript(1);
+		enterScope.parameters = overallAst.parameters;
+		enterScope.code = overallAst.code;
 		overallAst.tree = 1;
 
+		debugger;
 		ts.fInits(function(v, n, constantQ){
-			current.newVar(n, false, !constantQ);
-			current.varIsArg[n] = true
+			enterScope.newVar(n, false, !constantQ);
+			enterScope.useVar(n, 0);
+			enterScope.varIsArg[n] = true;
 		});
 
+		var current = enterScope;
 		moecrt.walkNode(overallAst, fWalk);
 		return scopes;
 	};
