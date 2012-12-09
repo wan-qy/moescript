@@ -80,17 +80,16 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 });
 
 (function(){
-	var IE = !!document.selection;
 
 	function getCaretPos(txtarea){
 		var strPos = 0;
-		if (IE) { 
+		if (txtarea.selectionStart >= 0) { 
+			strPos = txtarea.selectionStart 
+		} else { 
 			txtarea.focus();
 			var range = document.selection.createRange();
 			range.moveStart('character', -txtarea.value.length);
 			strPos = range.text.length;
-		} else { 
-			strPos = txtarea.selectionStart 
 		};
 		return strPos;
 	}
@@ -103,17 +102,17 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 		var back = txtarea.value.slice(strPos); 
 		txtarea.value = front + text + back;
 		strPos = strPos + text.length;
-		if (IE) { 
+		if (txtarea.selectionStart >= 0) { 
+			txtarea.selectionStart = strPos;
+			txtarea.selectionEnd = strPos;
+			txtarea.focus();
+		} else {
 			txtarea.focus();
 			var range = document.selection.createRange();
 			range.moveStart ('character', -txtarea.value.length);
 			range.moveStart ('character', strPos);
 			range.moveEnd ('character', 0);
 			range.select();
-		} else {
-			txtarea.selectionStart = strPos;
-			txtarea.selectionEnd = strPos;
-			txtarea.focus();
 		}
 		txtarea.scrollTop = scrollPos;
 	}

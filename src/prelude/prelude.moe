@@ -52,6 +52,14 @@ def export('list') list = object =>
 			b[j] = t
 		return b
 
+def export('pcl') pac(f) =
+	() => f.apply this, args.concat(arguments)
+	where args = arguments.slice 1
+def export('pcr') pac(f) =
+	() => f.apply this, arguments.concat(args)
+	where args = arguments.slice 1
+
+
 -- function time: record run time of an function
 def export('time') time(args, f) = 
 	def start = new Date
