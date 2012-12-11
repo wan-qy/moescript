@@ -1470,23 +1470,32 @@ exports.parse = function (tokens, source, config) {
 					body: body
 				});
 		} else {
-			var t = makeT();
+			var tEnum = makeT();
+//			var emittedBind;
+//			if(bind.type === nt.VARIABLE){
+//				emittedBind = bind;
+//			} else {
+				var tEmit = makeT();
+				var emittedBind = new Node(nt.TEMPVAR, {name: tEmit});
+				var bindStep = formAssignment(bind, '=', emittedBind, true);
+				body.content.unshift(new Node(nt.EXPRSTMT, { expression: bindStep }));
+//			}
 			return new Node(nt.OLD_FOR, {
-				start: formAssignment(bind, '=', new Node(nt.CALL, {
-					func: MemberNode(
-						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
+				start: formAssignment(
+					emittedBind,
+					'=',
+					new Node(nt.CALL, {
+						func: MemberNode(formAssignment(new Node(nt.TEMPVAR, {name: tEnum}), '=', new Node(nt.CALL, {
 							func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
 							args: [range],
 							names: [null]
-						})), 
-						'emit'
-					),
-					args: [],
-					names: []
-				}), true),
-				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
-				step: formAssignment(bind, '=', new Node(nt.CALL, {
-					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
+						})), 'emit'),
+						args: [],
+						names: []
+					}), true),
+				condition: MemberNode(new Node(nt.TEMPVAR, {name: tEnum}), 'active'),
+				step: formAssignment(emittedBind, '=', new Node(nt.CALL, {
+					func: MemberNode(new Node(nt.TEMPVAR, {name: tEnum}), 'emit'),
 					args: [],
 					names: []
 				})),

@@ -169,6 +169,12 @@ def export("select") Enumerable select(I, condition):
 		if(condition a)
 			return <- a
 
+-- function pairs: Enumerate value-name pairs in an object
+-- pairs: (Object) -> Enumerable [Object, String]
+def export("pairsof") Enumerable pairsof(o):
+	for(j <- keysof o)
+		return <- [o[j], j]
+
 -- function table: Creates lists using list comprehension monad.
 -- table: MonadicPrimitive(* -> T) -> [T]
 def export("table") table(G) =
@@ -285,6 +291,18 @@ def export('join') join(o, reaction) =
 	rangeForEach keys, (term) =>
 		res[term] = undefined
 		o[term] checkContinue(term)
+
+def export('qjoin') async qjoin(nQueues, tasks) =
+	var q = []
+	for(i <- 0..nQueues) q[i] = []
+	for(i <- 0..tasks.length)
+		q[i % nQueues].push tasks[i]
+	for(i <- 0..nQueues)
+		q[i] = async =>
+			for(j <- 0..queue.length)
+				queue[j] ! ()
+		where queue = q[i]
+	join ! q;
 
 -- function sleep: a wrap for global_.setTimeout
 def export('sleep') sleep(dt, reaction) = global_.setTimeout({reaction()}, dt)
