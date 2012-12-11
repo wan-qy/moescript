@@ -174,6 +174,7 @@ def export("select") Enumerable select(I, condition):
 def export("pairsof") Enumerable pairsof(o):
 	for(j <- keysof o)
 		return <- [o[j], j]
+	return []
 
 -- function table: Creates lists using list comprehension monad.
 -- table: MonadicPrimitive(* -> T) -> [T]
