@@ -1495,11 +1495,11 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var piecewise = function (t) {
-		var n = new Node(t ? nt.CASE : nt.PIECEWISE);
+	var piecewise = function (caseQ) {
+		var n = new Node(caseQ ? nt.CASE : nt.PIECEWISE);
 		n.conditions = [], n.bodies = [];
 		advance();
-		if (t) {
+		if (caseQ) {
 			n.expression = controlExpression();
 		};
 		advance(INDENT);

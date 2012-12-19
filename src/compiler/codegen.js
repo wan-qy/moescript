@@ -1144,10 +1144,14 @@ exports.Generator = function(g_envs, g_config){
 				{lNearest: lNearest, scopeLabels: scopeLabels, lReturn: lReturn, nested: true});
 
 			var l = label();
-			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sAttemption.s + '; return ' + sAttemption.enter + '}');
-			ps(C_TEMP(bCatch) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + sCatcher.s +
-				'; return function(x){' + (this.eid ? C_NAME(this.eid.name) + '= x; ' : '') + sCatcher.enter + '()}}');
-			ps('return ' + PART(C_TEMP('SCHEMATA'), 'try') + '(' + C_TEMP(bTry) + ',' + C_TEMP(bCatch) + ',' + C_BLOCK(l) + ')');
+			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' +
+				sAttemption.s + '; return ' + sAttemption.enter + 
+			'}');
+			ps(C_TEMP(bCatch) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + 
+				sCatcher.s +';' +
+				'return function(x){' + (this.eid ? C_NAME(this.eid.name) + '= x; ' : '') + sCatcher.enter + '()}' +
+			'}');
+			ps('return ' + PART(C_TEMP('SCHEMATA'), 'try') + '(' + C_TEMP(bTry) + ', ' + C_TEMP(bCatch) + ', ' + C_BLOCK(l) + ')');
 			LABEL(l);
 			return '';
 		});
