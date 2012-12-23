@@ -33,11 +33,35 @@ var doFile = function(value){
 		});
 		codeSegments.push(compiler.stdComposite(script, ts));
 	} else {
-		util.debug('File ' + value + ' does not exist.');
+		process.stderr.write('File ' + value + ' does not exist.' + "\n");
 	}
 };
 
+var METADATA = require('../package.json');
+var VER_MSG = "\
+Moescript Optimized Compiler, ver. #version\n\
+(c) 2012 #author\n".replace(/#\w+/g, function(m){return METADATA[m.slice(1)]})
+var HELP_MSG = "\
+USAGE\n\
+	moec [options] <input_file>\n\
+\n\
+OPTIONS\n\
+ * -v, --version : Display version information\n\
+ * -h, --help : Display help information\n\
+ * --explicit : Enable explicit mode\n\
+ * -o <path>, --output <path> : Specify the output path of generated .js file. When absent, it will be written into STDOUT\n\
+ * -b <name> <expr>, --bind <name> <expr> : Enable a global variable named <name>, and bind it into JavaScript expression <expr>\n\
+ * -g <name>, --global <name> : Create a global variable <name>, bind it to <name>\n\
+ * --no-prelude : Disable prelude importing\n\
+ * --use-prelude : Enable prelude importing\n\
+ * --clear-binds : Clear all manually added global variable binds\n\
+ * --bare : Equalivent to --no-prelude and --clear-binds\n\
+ * --runtime-bind <expr> : Bind the Moescript Runtime into <expr>. When absent, \"require('moe').runtime\" will be used\
+"
+
 opts()
+	.on('-v', '--version', function(){ return console.log(VER_MSG) })
+	.on('-h', '--help', function(){ return console.log(VER_MSG + HELP_MSG) })
 	.on('-o', '--output',
 		function(path){ fWrite = function(s){fs.writeFileSync(path, s, 'utf-8')} })
 	.on('-b', '--bind',
@@ -46,8 +70,8 @@ opts()
 		function(varName){ ts.bind(varName, varName) })
 	.on('--clear-binds', 
 		function(){ ts = new (compiler.TopScope) })
-	.on('--no-prelude', 
-		function(){ noPreludeQ = true }) .on('--use-prelude', function(){ noPreludeQ = false })
+	.on('--no-prelude', function(){ noPreludeQ = true }) 
+	.on('--use-prelude', function(){ noPreludeQ = false })
 	.on('--bare', 
 		function(){ this.config['--clear-binds'].call(this), this.config['--no-prelude'].call(this)})
 	.on('--runtime-bind', 
