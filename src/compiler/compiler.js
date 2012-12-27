@@ -22,6 +22,7 @@ var C_NAME = moec_codegen.C_NAME;
 var C_TEMP = moec_codegen.C_TEMP;
 var PART = moec_codegen.PART;
 
+var SCOPE_LOCKED_ERR = new Error("Top scope locked. Cannot add more binds.")
 var TopScope = function(){
 	this.maps = {};
 
@@ -36,12 +37,15 @@ var TopScope = function(){
 	this.initsName = C_TEMP('INITS');
 };
 TopScope.prototype.bind = function(n, s){
+	if(this.locked) throw SCOPE_LOCKED_ERR;
 	return (this.maps[n] = s);
 };
 TopScope.prototype.partBind = function(n, obj, prop){
+	if(this.locked) throw SCOPE_LOCKED_ERR;
 	return this.bind(n, PART(obj, prop));
 };
 TopScope.prototype.libRequireBind = function(lib, bind){
+	if(this.locked) throw SCOPE_LOCKED_ERR;
 	for(var item in lib) if(/^[a-zA-Z_]\w*$/.test(item) && OWNS(lib, item)) {
 		this.bind(item, PART(bind, item));
 	}

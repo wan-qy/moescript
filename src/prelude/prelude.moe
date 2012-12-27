@@ -70,10 +70,11 @@ def export('time') time(args, f) =
 -- function inspect: pretty-print of object
 def export('inspect') inspect(x, targetDepth = 3) = inspectObject x, [], 0, targetDepth
 where	
-	rIdentifier = '^[a-zA-Z_$][\w$]*$' as RegExp
+	rIdentifier = `^[a-zA-Z_$][\w$]*$`
 
 	tPropName(s) = 
-		s when(rIdentifier.test s), Primitive.stringify s otherwise
+		s when(rIdentifier.test s), 
+		Primitive.stringify s otherwise
 
 	inspectProperties(x, stack, depth, targetDepth) =
 		var a = [];

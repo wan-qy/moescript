@@ -10,7 +10,7 @@ def chainLength = 3
 
 def markovHash = [:]
 def allCN = '^[\u4e00-\u9fff]+$' as RegExp
-for(var i in 0..(corpus.length - chainLength))
+for(i <- 0..(corpus.length - chainLength))
 	var couple = corpus.slice i, (i + chainLength)
 	if(allCN.test couple)
 		var follow = corpus.charAt (i + chainLength)
