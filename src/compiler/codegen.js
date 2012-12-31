@@ -149,6 +149,10 @@ exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
 	var makeT = g_config.makeT;
 
+	var g_options = g_config.options || {}
+
+	var g_nargsOptOff = g_options.nargsOptOff;
+
 	var ungroup = function(node){
 		while(node.type === nt.GROUP)
 			node = node.operand;
@@ -476,8 +480,12 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		if(hasNameQ){
-			args.push('new '+C_TEMP('NARGS')+'(' + olits.join(', ') + ')');
-		}
+			if(!g_nargsOptOff && olits.length <= 8){
+				args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
+			} else {
+				args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
+			}
+		};
 
 		return args;
 	};
@@ -495,8 +503,12 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		if(hasNameQ){
-			args.push('new '+C_TEMP('NARGS')+'(' + olits.join(', ') + ')');
-		}
+			if(!g_nargsOptOff && olits.length <= 8){
+				args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
+			} else {
+				args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
+			}
+		};
 
 		return args;
 	};
@@ -829,9 +841,13 @@ exports.Generator = function(g_envs, g_config){
 			};
 
 			if(hasNameQ){
-				args.push('new ' + C_TEMP('NARGS') + '(' + olits.join(',') + ')')
+				if(!g_nargsOptOff && olits.length <= 8){
+					args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
+				} else {
+					args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
+				}
 			};
-
+		
 			return {
 				hasNameQ: hasNameQ,
 				args: args

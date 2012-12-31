@@ -95,7 +95,6 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 	}
 
 	function insertAtCaret(txtarea, text) {
-		var scrollPos = txtarea.scrollTop;
 		var strPos = getCaretPos(txtarea);
 
 		var front = txtarea.value.slice(0, strPos);  
@@ -114,7 +113,6 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 			range.moveEnd ('character', 0);
 			range.select();
 		}
-		txtarea.scrollTop = scrollPos;
 	}
 
 	function getCurrentLineBlanks(obj) {
@@ -142,38 +140,68 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 	var resizeInput = function(){
 		$('input').style.height = ($('input').scrollHeight - 16) + 'px';
 	}
-	var last_blanks = '';
-	var exec = false;
 
-	$('input').addEventListener('keydown', function(e){
-		if((e.shiftKey || e.ctrlKey) && (e.key === 'Enter' || e.keyCode === 13)){
-			e.preventDefault();exec = true;
-			return setTimeout(run, 0);
-		} else if(e.key === 'Enter' || e.keyCode === 13){
-			last_blanks = getCurrentLineBlanks($('input'));
-		} else if(e.key === 'Tab' || e.keyCode === 9){
-			e.preventDefault();
-			insertAtCaret($('input'), '\t');
-		}
-	}, false);
-	$('input').addEventListener('keyup', function(){
-		var lRecord = 0
-		return function(e){
+	var enterDown = false;
+	var justExec  = false;
+
+	var heightResizer = function(){
+		var handler = null;
+		var lRecord = 0;
+		var doResize = function(){
+			var scrollPos = $('master').scrollTop;
 			var ln = $('input').value.length;
 			if(ln < lRecord){
 				$('input').style.height = '0';
 			};
 			lRecord = ln;
-			if(e.key === 'Enter' || e.keyCode === 13){
-				if(!exec) insertAtCaret($('input'), last_blanks);
-				exec = false;
-			}
 			resizeInput();
+			$('master').scrollTop = scrollPos;
+			handler = null
 		}
-	}(), false);
+		var tick = function(){
+			if(handler){ clearTimeout(handler) }
+			handler = setTimeout(doResize);
+		}
+		return {tick: tick}
+	}();
+
+	$('input').addEventListener('keydown', function(e){
+		// Input box resizing mechanism
+		if(e.key === 'Enter' || e.keyCode === 13){
+			e.preventDefault();
+			if(!(e.shiftKey || e.ctrlKey) && !justExec){ // entering an ENTER
+				insertAtCaret($('input'), "\n" + getCurrentLineBlanks($('input')));
+			}
+			enterDown = true;
+		} else if(e.key === 'Tab' || e.keyCode === 9){
+			e.preventDefault();
+			insertAtCaret($('input'), '\t');
+		};
+		heightResizer.tick();
+	}, false);
+
+	$('input').addEventListener('keyup', function(e){
+		// Execution handler mechanism
+		justExec  = false;
+		if(e.key === 'Enter' || e.keyIdentifier === 'Enter' || e.keyCode === 13){
+			enterDown = false;
+			if(e.shiftKey || e.ctrlKey) {
+				e.preventDefault();
+				setTimeout(run, 0);
+				justExec = true
+			}
+		} else if(e.key === 'Shift' || e.keyIdentifier === 'Shift' || e.keyCode === 16 ||
+		          e.key === 'Control' || e.keyIdentifier === 'Control' || e.keyCode === 17){
+			if(enterDown) {
+				e.preventDefault();
+				setTimeout(run, 0);	
+				justExec = true		
+			}
+		}
+	}, false);
 
 	$('go').addEventListener('click', function(){
-		setTimeout(run, 0)
+		setTimeout(run, 0);
 	})
 	
 	window.onload = function(){

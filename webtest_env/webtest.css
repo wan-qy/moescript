@@ -3,6 +3,7 @@ body {
 	padding: 0;
 	overflow: hidden;
 	font-size: 16px;
+	font-family: Verdandi Modern, Times New Roman;
 }
 #master {
 	width: 42em;

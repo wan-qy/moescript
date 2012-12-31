@@ -47,15 +47,49 @@ var UNIQ = function(arr) {
 };
 
 //: NamedArguments
-var NamedArguments = function() {
-	for (var i=arguments.length-2;i>=0;i-=2)
-		this[arguments[i]]=arguments[i+1];
-};
+var NamedArguments = function() { };
 var NamedArguments = NamedArguments;
 NamedArguments.prototype = new Nai();
 NamedArguments.fetch = function(o, p) {
 	if (OWNS(o, p)) return o[p]
 }
+
+var CREATE_NARGS = function(a){
+	var na = new NamedArguments, kl = a.length;
+	for (var i = 0; i < kl; i += 2)
+		na[a[i]] = a[i + 1];
+	return na;
+}
+// optimizations
+var CREATE_NARGS0 = function(){
+	return new NamedArguments;
+};
+var CREATE_NARGS1 = function(c1,v1){
+	var na = new NamedArguments;
+	na[c1] = v1;
+	return na;
+};
+var CREATE_NARGS2 = function(c1,v1,c2,v2){
+	var na = new NamedArguments;
+	na[c1] = v1;
+	na[c2] = v2;
+	return na;
+};
+var CREATE_NARGS3 = function(c1,v1,c2,v2,c3,v3){
+	var na = new NamedArguments;
+	na[c1] = v1;
+	na[c2] = v2;
+	na[c3] = v3;
+	return na;
+};
+var CREATE_NARGS4 = function(c1,v1,c2,v2,c3,v3,c4,v4){
+	var na = new NamedArguments;
+	na[c1] = v1;
+	na[c2] = v2;
+	na[c3] = v3;
+	na[c4] = v4;
+	return na;
+};
 
 //: CNARG
 var CNARG = function(a) {
@@ -405,7 +439,13 @@ moe.runtime = moe.rt = {
 	YIELDVALUE: YIELDVALUE,
 	RANGE_EX: RANGE_EX,
 	RANGE_INCL: RANGE_INCL,
-	NARGS: NamedArguments,
+	NamedArguments: NamedArguments,
+	NARGS: CREATE_NARGS,
+	NARGS0: CREATE_NARGS0,
+	NARGS1: CREATE_NARGS1,
+	NARGS2: CREATE_NARGS2,
+	NARGS3: CREATE_NARGS3,
+	NARGS4: CREATE_NARGS4,
 	GET_ENUM: GET_ENUM
 };
 

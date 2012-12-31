@@ -77,4 +77,5 @@ ts.bind('exports', 'exports');
 
 argvParser.parse(argv());
 
-fWrite(codeSegments.join('\n\n'));
+// Write compilation result
+fWrite(codeSegments.join('\n;\n'));

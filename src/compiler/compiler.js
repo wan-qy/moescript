@@ -119,6 +119,6 @@ exports.createSmap = function(){
 
 exports.stdComposite = function(info, ts){
 	ts = ts || info.ts;
-	return 'var ' + ts.runtimeName + ' = ' + (ts.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +
-		ts.createInitializationCode() + '\n' + info.generatedCode;
+	return '(function(){var ' + ts.runtimeName + ' = ' + (ts.runtimeBind || 'require' + '("moe").runtime' ) + '\n' +
+		ts.createInitializationCode() + '\n' + info.generatedCode + '}());';
 };
