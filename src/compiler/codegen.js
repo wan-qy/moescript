@@ -145,6 +145,10 @@ var GListTmpType = function(type){
 var listTemp = GListTmpType(ScopedScript.VARIABLETEMP);
 var listParTemp = GListTmpType(ScopedScript.PARAMETERTEMP);
 
+var smapRecord = function(type, body){
+	return '/*\x1b MOESMAP(' + type + ', ' + body + ')\x1b */'
+}
+
 exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
 	var makeT = g_config.makeT;
@@ -162,12 +166,12 @@ exports.Generator = function(g_envs, g_config){
 	var WPOS = function(node, s){
 		var r = s;
 		if(node.begins >= 0 && node.ends >= 0){
-			r = '/*\x1b [' + node.begins + '\x1b */' + r + '/*\x1b ]' + node.ends + '\x1b */';
+			r = smapRecord('LM', node.begins) + r + smapRecord('RM', node.ends);
 		};
 		return r;
 	}
 
-	var NTF = function(f){
+	var NodeTransformFunction = function(f){
 		return function(node){
 			return WPOS(node, f.apply(this, arguments));;
 		}
@@ -286,7 +290,7 @@ exports.Generator = function(g_envs, g_config){
 		epSchemata[type] = f;
 	};
 
-	var transform = NTF(function (node) {
+	var transform = NodeTransformFunction(function (node) {
 		if (vmSchemata[node.type]) {
 			return vmSchemata[node.type].call(node, node, env);
 		} else if (epSchemata[node.type]) {
@@ -774,9 +778,9 @@ exports.Generator = function(g_envs, g_config){
 			if (!node.bindPoint)
 				return transform(node);
 			if (mSchemata[node.type]) {
-				if(node && node.begins >= 0 && node.ends >= 0) ps('/*\x1b [' + node.begins + '\x1b */');
+				if(node && node.begins >= 0 && node.ends >= 0) ps(smapRecord('LM', node.begins));
 				var r = mSchemata[node.type].call(node, node, env, g_envs);
-				if(node && node.begins >= 0 && node.ends >= 0) ps('/*\x1b ]' + node.ends + '\x1b */');
+				if(node && node.begins >= 0 && node.ends >= 0) ps(smapRecord('RM', node.ends));
 				return r;
 			} else if(epSchemata[node.type]) {
 				return epSchemata[node.type].call(node, expPart, env)
@@ -1195,24 +1199,29 @@ exports.Generator = function(g_envs, g_config){
 		LABEL(label());
 		return flowM.joint();
 	}
-
+	var rSmapInfo = /\/\*\x1b MOESMAP\((\w+), (\w+)\)\x1b \*\//g;
+	var rSmapCleanup = new RegExp('([\\{\\};]\\n\\s*)((?:' + rSmapInfo.source + ')+)(?:;$\\s*)+', 'gm')
 	var addSmapInfo = function(info){
-		var code = info.generatedCode.replace(/(?:;|\s|\/\*\x1b [\[\]]\d+\x1b \*\/)*;/g, 
-			function(m){
-				return (m.match(/\/\*\x1b [\[\]]\d+\x1b \*\//g) || []).join('') + ';';
-			});
-		code = code.replace(/\{((?:\s|\/\*\x1b [\[\]]\d+\x1b \*\/)*);/, '{$1');
+		var code = info.generatedCode
+		var code2 = code, k = 0;
+		do {
+			k += 1;
+			code = code2;
+			code2 = code.replace(rSmapCleanup, '$1$2');
+		} while (k <= 10 && code2 != code);
 		var smapPoints = [];
 		var buf = '';
-		walkRex(/\/\*\x1b ([\[\]])(\d+)\x1b \*\//g, code, function(match, $1, $2){
+		walkRex(rSmapInfo, code, function(match, $1, $2){
 			var p = buf.length;
 			var q = $2 - 0;
 			var type = $1;
 			smapPoints.push({p: p, q: q, type: type});
+			return '';
 		}, function(match){
 			buf += match;
 		});
 		return {
+			generatedCodeWithSmap: info.generatedCode,
 			generatedCode: buf,
 			smapPoints: smapPoints
 		}
