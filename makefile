@@ -13,7 +13,7 @@ DIRS = $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 $(DIRS):
 	$(MKDIR) $@
-dirs: $(DIST)/ $(MOD)/ $(MOD)/bin/ $(MOEC)/
+dirs: $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 
 runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
@@ -55,7 +55,12 @@ webtestENV = $(WEBTEST)/index.html $(WEBTEST)/webtest.css $(WEBTEST)/webtest.js 
 $(webtestENV): $(WEBTEST)/% : webtest_env/%
 	cp $< $@
 
-webtest: moec moePrelude webtestDir $(webMods) $(webtestENV)
+$(MOD)/README.md: README.md
+	cp $< $@
+
+npmdist: moec moePrelude $(MOD)/README.md
+
+webtest: npmdist webtestDir $(webMods) $(webtestENV)
 
 clean:
 	rm -rf dist

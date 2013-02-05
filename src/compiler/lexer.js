@@ -86,13 +86,14 @@ var condF = function (match, $1) {
 			'n': '\n',
 			'\\': '\\',
 			'"': '"',
+			'\'': '\'',
 			't': '\t',
 			'v': '\v'
 		}[$1];
 	}
 };
 var lfUnescape = function (str) {
-	return str.replace(/\\\s*\\/g, '').replace(/\\(\\|n|"|t|v|u[a-fA-F0-9]{4})/g, condF);
+	return str.replace(/\\\s*\\/g, '').replace(/\\(\\|n|"|'|t|v|u[a-fA-F0-9]{4})/g, condF);
 };
 var REPSTR = function(){
 	var cache = [];
@@ -287,8 +288,7 @@ var LexerBackend = function(input, config){
 	var stringliteral = function(match, n, $4){
 		switch(match.charAt(0)) {
 			case("`"): return regexLiteral(match, n);
-			case("'"): return make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
-			case('"'): return make(STRING, lfUnescape(match.slice(1, -1)), n);
+			case("'"): case('"'): return make(STRING, lfUnescape(match.slice(1, -1)), n);
 			default: // Lua style strings
 				return make(STRING, match.slice($4.length + 2, -($4.length + 2)))
 		}
@@ -428,7 +428,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 		mark: UNICODE_MARKS,
 		number: UNICODE_NUMBERS
 	});
-	var rString = /(?:`[^\\`]*(?:\\.[^\\`]*)*`)[gimx]*|'(?!'')[^'\n]*(?:''[^'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/
+	var rString = /(?:`[^\\`]*(?:\\.[^\\`]*)*`)[gimx]*|'[^\\'\n]*(?:\\(?:\S|\s+\\)[^\\'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
 	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
 	var rNewline = /\n[ \t]*/;

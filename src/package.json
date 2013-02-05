@@ -1,10 +1,10 @@
 {
 	"name": "moe",
-	"version": "0.4.1",
+	"version": "0.5.0",
 	"author": "Belleve Invis",
 	"description": "New generation language. JavaScript targeted.",
 	"homepage": "https://github.com/be5invis/moe",
-	"engines": ["node >= 0.6.0"],
+	"engines": ["node >= 0.8.0"],
 	"main": "./dummy",
 	"bin" : {
 		"moec": "./bin/moec",
