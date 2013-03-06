@@ -1,5 +1,4 @@
 var dummy = require('../dummy');
-var C_STRING = require('../compiler/compiler.rt').C_STRING;
 var path  = require('path');
 
 if(process.argv[1]) {

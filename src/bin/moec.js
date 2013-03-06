@@ -1,3 +1,4 @@
+
 var path = require('path');
 var opts = require('./options').opts;
 var argv = require('./options').argv;
@@ -49,7 +50,7 @@ OPTIONS\n\
  * -g <name>, --global <name> : Create a global variable <name>, bind it to <name>\n\
  * --bare : Clear all global variable binds\n\
  * --runtime-bind <expr> : Bind the Moescript Runtime into <expr>. When absent, \"require('moe').runtime\" will be used\
-"
+";
 
 var argvParser = opts()
 	.on('-v', '--version', function(){ return console.log(VER_MSG) })
@@ -68,7 +69,7 @@ var argvParser = opts()
 try {
 	ts.libRequireBind(require('../prelude'), '(require("moe/prelude"))')
 } catch(e) {
-	process.stderr.write("Warning: prelude not found.")
+	process.stderr.write("Warning: prelude not found.\n")
 }
 // Add initial binds
 ts.bind('require', 'require');
