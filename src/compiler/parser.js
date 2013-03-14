@@ -1432,13 +1432,29 @@ exports.parse = function (tokens, source, config) {
 	};
 	var repeatstmt = function () {
 		advance(REPEAT);
-		var n = new Node(nt.REPEAT, {
-			body: block()
-		});
-		stripSemicolons();
-		advance(UNTIL);
-		n.condition = controlExpression();
-		return n;
+		if(tokenIs(WHILE) || tokenIs(UNTIL)) {
+			var untilQ = tokenIs(UNTIL);
+			advance();
+			var ce = controlExpression();
+			if(untilQ) ce = new Node(nt.NOT, {operand: ce});
+			return new Node(nt.WHILE, {
+				condition: ce,
+				body: block()
+			})
+		} else {
+			var n = new Node(nt.REPEAT, {
+				body: block()
+			});
+			stripSemicolons();
+			if(tokenIs(UNTIL)){
+				advance();
+				n.condition = new Node(nt.NOT, {operand: controlExpression()})
+			} else {
+				advance(WHILE);
+				n.condition = controlExpression();
+			}
+			return n;
+		}
 	};
 	var forstmt = function () {
 		advance(FOR);
