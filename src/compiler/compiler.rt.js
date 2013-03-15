@@ -3,7 +3,6 @@
 //	:info:			The essential environment for Moe Compiler
 
 var moe = require('../runtime');
-var OWNS = moe.runtime.OWNS;
 var Nai = moe.Nai;
 
 var derive = moe.derive;
@@ -79,10 +78,9 @@ var NodeType = exports.NodeType = function () {
 
 		// Statements
 		'EXPRSTMT', 
-		'IF', 'FOR', 'OLD_FOR', 'WHILE', 'REPEAT', 'CASE', 
-		'PIECEWISE', 'VAR', 'BREAK', 'LABEL', 'RETURN',
+		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
 		// Large-scale
-		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT'];
+		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK'];
 
 	var T = {};
 	for (var i = 0; i < types.length; i++)

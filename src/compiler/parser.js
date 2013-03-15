@@ -187,13 +187,6 @@ exports.parse = function (tokens, source, config) {
 			if(node.elsePart){
 				ir(node.elsePart);
 			}
-		} else if(lasttype === nt.PIECEWISE || lasttype === nt.CASE){
-			for(var i = 0; i < node.bodies.length; i++){
-				ir(node.bodies[i]);
-			};
-			if(node.otherwise){
-				ir(node.otherwise);
-			};
 		} else if(lasttype === nt.TRY) {
 			ir(node.attemption);
 			ir(node.catcher);
@@ -1487,8 +1480,13 @@ exports.parse = function (tokens, source, config) {
 				});
 		} else {
 			var t = makeT();
+			if(bind.type === nt.VARIABLE || bind.type === nt.TEMPVAR){
+				var tEv = bind
+			} else {
+				var tEv = new Node(nt.TEMPVAR, {name: makeT()})
+			}
 			return new Node(nt.OLD_FOR, {
-				start: formAssignment(bind, '=', new Node(nt.CALL, {
+				start: formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(
 						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
 							func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
@@ -1501,22 +1499,24 @@ exports.parse = function (tokens, source, config) {
 					names: []
 				}), true),
 				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
-				step: formAssignment(bind, '=', new Node(nt.CALL, {
+				step: formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
 					args: [],
 					names: []
 				})),
-				body: body
+				body: new Node(nt.SCRIPT, {
+					content: [(tEv === bind ? null : formAssignment(bind, '=', tEv))].concat(body.type === nt.SCRIPT ? body.content : [body])
+				})
 			})
 		}
 	};
 
 	var piecewise = function (caseQ) {
-		var n = new Node(caseQ ? nt.CASE : nt.PIECEWISE);
-		n.conditions = [], n.bodies = [];
+		var conditions = [], bodies = [];
 		advance();
 		if (caseQ) {
-			n.expression = controlExpression();
+			var caseExpression = controlExpression();
+			var tCaseExpression = makeT();
 		};
 		advance(INDENT);
 		stripSemicolons();
@@ -1525,24 +1525,60 @@ exports.parse = function (tokens, source, config) {
 			if (tokenIs(WHEN)) {
 				advance(WHEN);
 				var condition = controlExpression();
+				if(caseQ){
+					if(conditions.length < 1){
+						condition = new Node(nt['=='], {
+							left: new Node(nt.ASSIGN, {
+								left: new Node(nt.TEMPVAR, {name: tCaseExpression}),
+								right: caseExpression
+							}),
+							right: condition
+						})
+					} else {
+						condition = new Node(nt['=='], {
+							left: new Node(nt.TEMPVAR, {name: tCaseExpression}),
+							right: condition
+						})					
+					}
+				}
 				stripSemicolons();
 				if (tokenIs(WHEN)) {
-					n.conditions.push(condition);
-					n.bodies.push(null);
+					conditions.push(condition);
+					bodies.push(null);
 					continue;
 				} else {
-					n.conditions.push(condition);
-					n.bodies.push(block());
+					conditions.push(condition);
+					bodies.push(block());
 					stripSemicolons();
 				}
 			} else {
 				advance(OTHERWISE);
-				n.otherwise = block();
+				var otherwise = block();
 				stripSemicolons();
 				break;
 			}
 		};
 		advance(OUTDENT);
+		
+		var n = new Node(nt.IF, {
+			condition: conditions[conditions.length - 1],
+			thenPart: bodies[bodies.length - 1],
+			elsePart: otherwise
+		});
+		for(var j = conditions.length - 2; j >= 0; j--){
+			if(bodies[j]){
+				n = new Node(nt.IF, {
+					condition: conditions[j],
+					thenPart: bodies[j],
+					elsePart: new Node(nt.SCRIPT, {content: [n]})
+				})
+			} else {
+				n.condition = new Node(nt['||'], {
+					left: conditions[j],
+					right: n.condition
+				})
+			}
+		}
 		return n;
 	};
 	var labelstmt = function () {

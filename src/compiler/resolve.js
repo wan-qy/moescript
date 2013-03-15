@@ -5,6 +5,8 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
+var cpsTransform = require('./cps').transform;
+
 var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
 
 exports.resolve = function(ast, ts, config){
@@ -94,7 +96,6 @@ exports.resolve = function(ast, ts, config){
 		enterScope.code = overallAst.code;
 		overallAst.tree = 1;
 
-		debugger;
 		ts.fInits(function(v, n, constantQ){
 			enterScope.newVar(n, false, !constantQ);
 			enterScope.useVar(n, 0);
@@ -106,7 +107,7 @@ exports.resolve = function(ast, ts, config){
 		return scopes;
 	};
 
-	var generateBindRequirement = function(scope, scopes){
+	var generateBindRequirement = function(scope){
 		var mPrimQ = false;
 		var fWalk = function (node) {
 			if(!node || !node.type) return false;
@@ -121,8 +122,10 @@ exports.resolve = function(ast, ts, config){
 		};
 		moecrt.walkNode(scope.code, fWalk);
 		if(mPrimQ) {
-			scope.mPrim = true;
+			scope.useTemp('SCHEMATA', ScopedScript.SPECIALTEMP);
 			scope.code.bindPoint = true;
+			scope.code = cpsTransform(scope.code, scope, config, {});
+			scope.mPrim = true;
 		};
 	};
 

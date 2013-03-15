@@ -208,14 +208,18 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 	def schemata.bind(action, g) =
 		action (err, x) =>
 			if(err) rLocal err, undefined
-			else    g x
+			else
+				try g x
+				catch(e) rLocal e, undefined
 
 	def schemata.bindYield(f, t) =
 		f.apply t, arguments.slice(2, (-1)).concat([reaction])
 		where
 			reaction(err, x) = 
 				if(err) rLocal err, undefined
-				else    g x
+				else
+					try g x
+					catch(e) rLocal e, undefined
 			g = arguments[arguments.length - 1]
 
 	def schemata.try(MAttempt, MCatch, g) =

@@ -6,7 +6,6 @@ var walkRex = moecrt.walkRex;
 
 
 var UNIQ = moe.runtime.UNIQ;
-var OWNS = moe.runtime.OWNS;
 
 "Code Emission Util Functions";
 var ENCODE_IDENTIFIER = function(){
@@ -182,7 +181,6 @@ exports.Generator = function(g_envs, g_config){
 		// Generates code for normal function.
 		// Skip when necessary.
 		if (tree.transformed) return tree.transformed;
-		if (tree.mPrim) return compileMPrim(tree, ReplGlobalQ);
 		var backupenv = env;
 		env = tree;
 
@@ -222,81 +220,30 @@ exports.Generator = function(g_envs, g_config){
 
 		if(ReplGlobalQ) return s.replace(/^    /gm, '');
 		s = $('function (%1){%2}',  pars.concat(temppars).join(','), s);
+		if(tree.mPrim){
+			s = $('{build: function(%1){return %2}}', C_TEMP('SCHEMATA'), s)
+		}
+		
 	
 		tree.transformed = s;
 		env = backupenv;
 		return s;
 	};
 
-	"Monadic Primitives";
-	var compileMPrim = function(tree){
-		// Generates code for MPs.
-		if(tree.transformed) return tree.transformed;
-		var backupenv = env;
-		env = tree;
-		
-		var s = transformMPrim(tree);
-
-		tree.useTemp('SCHEMATA', ScopedScript.SPECIALTEMP);
-
-
-		var locals = UNIQ(tree.locals),
-			vars = [],
-			temps = listTemp(tree);
-		for (var i = 0; i < locals.length; i++) {
-			if (!(tree.varIsArg[locals[i]])){
-				vars.push(C_NAME(locals[i]));
-			}
-		};
-		for (var i = 0; i < temps.length; i++) {
-			temps[i] = TEMP_BIND(tree, temps[i]);
-		};
-
-		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
-		for (var i = 0; i < pars.length; i++)
-			pars[i] = WPOS(pars[i], C_NAME(pars[i].name));
-		for (var i = 0; i < temppars.length; i++)
-			temppars[i] = C_TEMP(temppars[i])
-
-		s = $('{build:function(%1){return function(%2){%3}}}', 
-				C_TEMP('SCHEMATA'),
-				pars.concat(temppars).join(', '),
-				JOIN_STMTS([
-					THIS_BIND(tree),
-					ARGS_BIND(tree),
-					ARGN_BIND(tree),
-					(temps.length ? 'var ' + temps.join(', '): ''),
-					(vars.length ? 'var ' + vars.join(', ') : ''),
-					s.s,
-					'return ' + s.enter
-				]));
-		tree.transformed = s;
-		env = backupenv;
-		return s;
-	};
-
 	"Transforming Utils";
-	// eSchemata: Transformation schemata for both non- and MP nodes.
+	// schemata: Transformation schemata for both non- and MP nodes.
 	// Used for expressions only.
-	var eSchemata = [];
-	var eSchemataDef = function(type, f){
+	var schemata = [];
+	var defineSchemata = function(type, f){
 		if(!type) throw "Unexpected schemata name"
-		eSchemata[type] = f;
+		schemata[type] = f;
 	};
 
-	// nmpSchemata: Transformation schemata for non-MP parts
-	var nmpSchemata = [];
-	var nmpSchemataDef = function (tf, trans) {
-		if(!tf) throw "Unexpected schemata name"
-		nmpSchemata[tf] = trans;
-	};
 
 
 	var transform = NodeTransformFunction(function (node) {
-		if (nmpSchemata[node.type]) {
-			return nmpSchemata[node.type].call(node, node, env);
-		} else if (eSchemata[node.type]) {
-			return eSchemata[node.type].call(node, transform, env);
+		if (schemata[node.type]) {
+			return schemata[node.type].call(node, node, env);
 		} else {
 			throw node
 		};
@@ -304,13 +251,13 @@ exports.Generator = function(g_envs, g_config){
 
 
 	"Common schematas";
-	eSchemataDef(nt.VARIABLE, function (transform, env) {
+	defineSchemata(nt.VARIABLE, function () {
 		return GETV(this);
 	});
-	eSchemataDef(nt.TEMPVAR, function(){
+	defineSchemata(nt.TEMPVAR, function(){
 		return C_TEMP(this.name);
 	});
-	eSchemataDef(nt.LITERAL, function () {
+	defineSchemata(nt.LITERAL, function () {
 		if (typeof this.value === 'string') {
 			return C_STRING(this.value);
 		} else if (typeof this.value === 'number'){
@@ -329,28 +276,31 @@ exports.Generator = function(g_envs, g_config){
 				+ (this.value.multiline ? 'm' : '') + ')';
 		} else return '' + this.value.map;
 	});
-	eSchemataDef(nt.GROUP, function(transform, env){
+	defineSchemata(nt.GROUP, function(){
 		return '(' + transform(ungroup(this.operand)) + ')'
 	});
-	eSchemataDef(nt.THIS, function (transform, e) {
+	defineSchemata(nt.THIS, function (node, e) {
 		return T_THIS(e);
 	});
-	eSchemataDef(nt.ARGN, function (transform, e){
+	defineSchemata(nt.ARGN, function (){
 		return T_ARGN();
 	});
-	eSchemataDef(nt.ARGUMENTS, function (transform, e) {
+	defineSchemata(nt.ARGUMENTS, function () {
 		return T_ARGS();
 	});
-	eSchemataDef(nt.PARAMETERS, function () {
+	defineSchemata(nt.PARAMETERS, function () {
 		throw new Error('Unexpected parameter group');
 	});
-	eSchemataDef(nt.UNIT, function(){
+	defineSchemata(nt.UNIT, function(){
 		return 'undefined';
-	})
+	});
+	defineSchemata(nt.BLOCK, function(){
+		return '(function(' + (this.arg ? transform(this.arg) : '') + '){' + transform(this.code) + '})'
+	});
 
 
 
-	eSchemataDef(nt.OBJECT, function (transform) {
+	defineSchemata(nt.OBJECT, function () {
 		var inits = [],
 		    terms = [],
 			x = 0,
@@ -372,13 +322,13 @@ exports.Generator = function(g_envs, g_config){
 		else
 			return $('[%1]', terms.join(', '));
 	});
-	eSchemataDef(nt.FUNCTION, function (n, e) {
+	defineSchemata(nt.FUNCTION, function () {
 		var	f = g_envs[this.tree - 1];
-		var s = (f.mPrim ? compileMPrim : compileFunctionBody)(f);
+		var s = compileFunctionBody(f);
 		return '(' + s + ')';
 	});
 
-	eSchemataDef(nt.MEMBER, function (transform) {
+	defineSchemata(nt.MEMBER, function () {
 		if(this.right.type === nt.LITERAL 
 			&& typeof this.right.value === 'string' 
 			&& !(this.left.type === nt.LITERAL && typeof this.left.value === 'number')) {
@@ -389,7 +339,7 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	var binoper = function (operator, tfoper) {
-		eSchemataDef(nt[operator], function (transform) {
+		defineSchemata(nt[operator], function () {
 			var left = transform(this.left);
 			var right = transform(this.right);
 			if(this.left.type > this.type) left = '(' + left + ')';
@@ -398,7 +348,7 @@ exports.Generator = function(g_envs, g_config){
 		});
 	};
 	var libfuncoper = function (operator, func){
-		eSchemataDef(nt[operator], function (transform) {
+		defineSchemata(nt[operator], function () {
 			return $('(%1(%2, %3))', func, transform(this.left), transform(this.right));
 		});
 	};
@@ -427,28 +377,28 @@ exports.Generator = function(g_envs, g_config){
 	libfuncoper('..', C_TEMP('RANGE_EX'));
 	libfuncoper('...', C_TEMP('RANGE_INCL'));
 
-	eSchemataDef(nt.NEGATIVE, function (transform) {
+	defineSchemata(nt.NEGATIVE, function () {
 		return '(-(' + transform(this.operand) + '))';
 	});
-	eSchemataDef(nt.NOT, function (transform) {
+	defineSchemata(nt.NOT, function () {
 		return '(!(' + transform(this.operand) + '))';
 	});
-	eSchemataDef(nt.CTOR, function(transform){
+	defineSchemata(nt.CTOR, function(){
 		return 'new (' + transform(this.expression) + ')'
 	});
 
 
-	eSchemataDef(nt.VAR, function(){return ''});
+	defineSchemata(nt.VAR, function(){return ''});
 
 	"Normal transformation specific rules";
-	nmpSchemataDef(nt.CALLBLOCK, function(){
+	defineSchemata(nt.CALLBLOCK, function(){
 		return $('(%1())', transform(this.func))
 	})
-	nmpSchemataDef(nt.ASSIGN, function () {
+	defineSchemata(nt.ASSIGN, function () {
 		return $('(%1 = %2)', transform(this.left), transform(this.right));
 	});
 
-	nmpSchemataDef(nt.EXPRSTMT, function(){
+	defineSchemata(nt.EXPRSTMT, function(){
 		var s = transform(ungroup(this.expression));
 		if(this.expression.type === nt.ASSIGN && s.charAt(0) === '(')
 			s = s.slice(1, -1);
@@ -548,7 +498,7 @@ exports.Generator = function(g_envs, g_config){
 		}
 	};
 
-	nmpSchemataDef(nt.CALL, function (node, env) {
+	defineSchemata(nt.CALL, function (node, env) {
 		// this requires special pipeline processing:
 		var pipelineQ = node.pipeline && node.func // pipe line invocation...
 			&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS) // and side-effective.
@@ -579,104 +529,48 @@ exports.Generator = function(g_envs, g_config){
 			return $('%1(%2)', transform(this.func), regularOrderArgs.call(this).join(', '))
 		}
 	});
-	nmpSchemataDef(nt['then'], function(){
+	defineSchemata(nt['then'], function(){
 		var a = []
 		for(var i = 0; i < this.args.length; i++)
 			a.push(transform(this.args[i]))
 		return '(' + a.join(',') + ')';
 	});
-	nmpSchemataDef(nt.CONDITIONAL, function(){
+	defineSchemata(nt.CONDITIONAL, function(){
 		return $("(%1 ? %2 : %3)", transform(this.condition), transform(this.thenPart), transform(this.elsePart))
 	});
 
-	nmpSchemataDef(nt.RETURN, function () {
+	defineSchemata(nt.RETURN, function () {
 		return 'return ' + transform(ungroup(this.expression));
 	});
-	nmpSchemataDef(nt.IF, function () {
+	defineSchemata(nt.IF, function () {
 		return $('if (%1){%2} %3', 
 			transform(ungroup(this.condition)),
 			transform(this.thenPart),
 			this.elsePart ? "else {" + transform(this.elsePart) + "}" : '');
 	});
-	nmpSchemataDef(nt.PIECEWISE, function () {
-		var a = [], cond = '';
-		for (var i = 0; i < this.conditions.length; i++) {
-			if (!this.bodies[i]) { // fallthrough condition
-				cond += '(' + transform(ungroup(this.conditions[i])) + ') || ';
-			} else {
-				cond += '(' + transform(ungroup(this.conditions[i])) + ')';
-				a.push('if (' + cond + '){' + transform(this.bodies[i]) + '}');
-				cond = '';
-			}
-		}
 
-		var s = a.join(' else ');
-		if (this.otherwise) {
-			s += ' else {' + transform(this.otherwise) + '}';
-		}
-
-		return s;
-	});
-
-	nmpSchemataDef(nt.CASE, function (node, env) {
-		var t = makeT(env);
-		var sAssignment = C_TEMP(t) + ' = ' + transform(ungroup(this.expression));
-		// create temp node
-		var tempNode = {
-			type: nt.PIECEWISE, 
-			bodies: this.bodies, 
-			conditions: this.conditions.map(function(right){return {
-				type: '==',
-				left: {type: nt.TEMPVAR, name: t},
-				right: right,
-			}}),
-			otherwise: this.otherwise
-		};
-		return sAssignment + ';\n' + transform(tempNode);
-	});
-	nmpSchemataDef(nt.REPEAT, function () {
+	defineSchemata(nt.REPEAT, function () {
 		return $('do{%2}while(%1)', transform(ungroup(this.condition)), transform(this.body));
 	});
-	nmpSchemataDef(nt.WHILE, function () {
+	defineSchemata(nt.WHILE, function () {
 		return $('while(%1){%2}', transform(ungroup(this.condition)), transform(this.body));
 	});
-	nmpSchemataDef(nt.OLD_FOR, function(){
+	defineSchemata(nt.OLD_FOR, function(){
 		return $('for(%1; %2; %3){%4}',
 			this.start ? transform(this.start) : '',
 			transform(ungroup(this.condition)),
 			this.step ? transform(ungroup(this.step)) : '',
 			transform(this.body));
 	});
-	nmpSchemataDef(nt.FOR, function (nd, e) {
-		var tEnum = makeT(e);
-		var tYV = makeT(e);
-		var s_enum = $('(%1 = %2())',
-			C_TEMP(tYV),
-			C_TEMP(tEnum));
-		
-		if(this.pass){
-			var varAssign = [C_NAME(this.vars[0]) + ' = ' + C_TEMP(tYV)];
-		} else {
-			var varAssign = [];
-			for(var i = 0; i < this.vars.length; i += 1)
-				varAssign.push($('%1 = %2[%3]', C_NAME(this.vars[i]), C_TEMP(tYV), i + ''));
-		}
 
-		return $('%1 = ' + C_TEMP('GET_ENUM') + '(%2);\nwhile(%3){\n%4;%5}',
-			C_TEMP(tEnum),
-			transform(this.range),
-			s_enum,
-			INDENT(varAssign.join(';\n')),
-			transform(this.body));
-	});
-	nmpSchemataDef(nt.BREAK, function () {
+	defineSchemata(nt.BREAK, function () {
 		return 'break ' + (this.destination ? C_LABELNAME(this.destination) : '');
 	});
-	nmpSchemataDef(nt.LABEL, function () {
+	defineSchemata(nt.LABEL, function () {
 		return C_LABELNAME(this.name) + ':{' + transform(this.body) + '}';
 	});
 
-	nmpSchemataDef(nt.TRY, function(){
+	defineSchemata(nt.TRY, function(){
 		var t = makeT();
 		return $('try{%1}catch(%2){%3;%4}',
 			transform(this.attemption),
@@ -685,11 +579,7 @@ exports.Generator = function(g_envs, g_config){
 			transform(this.catcher))
 	});
 	
-	// nmpSchemataDef(nt.TRY, function(){
-	// 	return $('try{%1}catch(e){}', transform(this.body))
-	// });
-
-	nmpSchemataDef(nt.SCRIPT, function (n) {
+	defineSchemata(nt.SCRIPT, function (n) {
 		var a = [];
 		for (var i = 0; i < n.content.length; i++) {
 			if (n.content[i]){
@@ -698,510 +588,7 @@ exports.Generator = function(g_envs, g_config){
 		}
 		return JOIN_STMTS(a)
 	});
-	
-	"Obstructive Proto Flow";
-	var mPrimFlow = function(ct){
-		var block = [];
-		var labelPlacements = [];
-		var joint = function(){
-			var basicBlocks = [];
-			var ilast = 0;
-			for(var i = 1; i <= block.length; i++){
-				if(labelPlacements[i]){
-					basicBlocks.push({
-						statements: block.slice(ilast, i),
-						id: labelPlacements[ilast][0],
-						labels: labelPlacements[ilast]
-					});
-					ilast = i;
-				}
-			};
-			var ans = [];
-			for(var i = 0; i < basicBlocks.length; i++){
-				var b = basicBlocks[i];
-				var sContinue = (i < basicBlocks.length - 1 && !/^return /.test(b.statements[b.statements.length - 1]))
-					? [GOTO(basicBlocks[i + 1].id)] : []
-				ans.push('function ' + C_BLOCK(b.id) + '(' + C_TEMP(b.id) + '){'
-					+ JOIN_STMTS(b.statements.concat(sContinue)) + '}')
-				for(var j = 1; j < b.labels.length; j++){
-					ans.push('var ' + C_BLOCK(b.labels[j]) + ' = ' + C_BLOCK(b.id));
-				}
-			}
-			return {s: ans.join(';\n'), enter: C_BLOCK(basicBlocks[0].id)};
-		};
-		var label_dispatch = function(){
-			return makeT()
-		};
 
-		var GOTO = function(label){
-			return 'return ' + C_BLOCK(label) + '()'
-		}
-		var LABEL = function(label){
-			if(labelPlacements[block.length])
-				labelPlacements[block.length].push(label)
-			else
-				labelPlacements[block.length] = [label];
-		}
-		var pushStatement = function(s){
-			if(s) block.push(s);
-		};
-		var bindPartID = function(){
-			return C_TEMP(makeT(env));
-		};
-
-
-		return {
-			ps: pushStatement,
-			GOTO: GOTO,
-			LABEL: LABEL,
-			label: label_dispatch,
-			joint: joint,
-			bindPartID: bindPartID
-		}
-	};
-
-	"Monad-Protos Transformer";
-	var transformMPrim = function(tree, aux){
-		var aux = aux || {};
-
-		// Get a flow manager
-		var flowM = mPrimFlow(ct);
-		var ps = flowM.ps,
-			label = flowM.label,
-			GOTO = flowM.GOTO,
-			LABEL = flowM.LABEL,
-			bindPartID = flowM.bindPartID;
-		var pct = function(node){ return ps(ct(node))};
-
-		// MP schemata
-		// Note that it is flow-dependent
-		var mpSchemata = nmpSchemata.slice(0);
-		var ct = function (node) {
-			var r;
-			if (!node.bindPoint)
-				return transform(node);
-			if (mpSchemata[node.type]) {
-				if(node && node.begins >= 0 && node.ends >= 0) ps(smapRecord('LM', node.begins));
-				var r = mpSchemata[node.type].call(node, node, env, g_envs);
-				if(node && node.begins >= 0 && node.ends >= 0) ps(smapRecord('RM', node.ends));
-				return r;
-			} else if(eSchemata[node.type]) {
-				return eSchemata[node.type].call(node, expPart, env)
-			} else {
-				throw node;
-			}
-		};
-		var expPart = function(node){
-			return expPush(ct(node));
-		};
-		var expPush = function(s){
-			if(/^\d+$|^\w+\$_$/.test(s))
-				return s;
-			var id = bindPartID();
-			ps(id + ' = (' + s + ')');
-			return id;
-		};
-		var mpSchemataDef = function(){
-			var func = arguments[arguments.length - 1];
-			for(var i = arguments.length - 2; i >= 0; i--) {
-				if(!arguments[i]) throw "Unexpected schemata name"
-				mpSchemata[arguments[i]] = func;
-			}
-		};
-
-		// Labels
-		var lNearest = aux.lNearest || 0;
-		var scopeLabels = aux.scopeLabels || {};
-		var lReturn = aux.lReturn || label();
-
-		mpSchemataDef(nt.ASSIGN, function () {
-			if(this.left.type === nt.MEMBER) {
-				var pivot = expPart(this.left.left);
-				var member = expPart(this.left.right);
-				return $('(%1[%2] = %3)', pivot, member, expPart(this.right));
-			} else {
-				return $('(%1 = %2)', transform(this.left), expPart(this.right));
-			}
-		});
-
-		mpSchemataDef(nt.EXPRSTMT, function(){
-			pct(this.expression);
-			return '';
-		})
-
-		// bindPoint expressions
-		var mArgsList = function(node, env, skip, skips){
-			var args = [], olits = [], hasNameQ = false;
-			
-			for (var i = (skip || 0); i < node.args.length; i++) {
-				if (node.names[i]) {
-					olits.push(C_STRING(node.names[i]));
-					olits.push(expPart(node.args[i]));
-					hasNameQ = true
-				} else {
-					args.push(expPart(node.args[i]));
-				}
-			};
-
-			if(skip){
-				args = (skips).concat(args)
-			};
-
-			if(hasNameQ){
-				if(!g_nargsOptOff && olits.length <= 8){
-					args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
-				} else {
-					args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
-				}
-			};
-		
-			return {
-				hasNameQ: hasNameQ,
-				args: args
-			};
-		};
-
-		var bindFunctionPart = function(){
-			switch (this.type) {
-				case nt.MEMBER:
-					var p = expPart(this.left);
-					return { p: p, f: expPush('((' + p + ')[' + expPart(this.right) + '])') }
-				case nt.CTOR:
-					var f = expPart(this.expression);
-					return { p: null, f: f, b: 'new (' + f + ')' }
-				default:
-					return {
-						f : expPart(this),
-						p : null
-					}
-			}
-		};
-
-		mpSchemataDef(nt.CALL, function (node, env) {
-			if(this.func && this.func.type === nt.BINDPOINT)
-				return awaitCall.apply(this, arguments);
-
-			var skip = 0, skips = [];
-
-			// this requires special pipeline processing:
-			var pipelineQ = node.pipeline && node.func // pipe line invocation...
-				&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS) // and side-effective.
-
-			if(pipelineQ){
-				skip = 1;
-				skips = [expPart(this.args[0])];
-			};
-
-			var func = bindFunctionPart.call(this.func);
-			var ca = mArgsList(this, env, skip, skips);
-			if(func.p) {
-				ca.args.unshift(func.p);
-				return $('(%1.call(%2))', func.b || func.f, ca.args.join(','))
-			} else {
-				return $('(%1(%2))', func.b || func.f, ca.args.join(','))
-			}
-		});
-
-		var awaitCall = function(node, env){
-			var skip, skips
-			// this requires special pipeline processing:
-			var pipelineQ = node.pipeline && node.func // pipe line invocation...
-
-			if(pipelineQ){
-				skip = 1;
-				skips = [expPart(this.args[0])];
-			};
-
-			if(this.func.expression){
-				var func = bindFunctionPart.call(this.func.expression);
-				var finalProcess = PART(C_TEMP('SCHEMATA'), 'bindYield');
-			} else {
-				var func = null;
-				var finalProcess = PART(C_TEMP('SCHEMATA'), 'bind')
-			}
-			var ca = mArgsList(this, env, skip, skips);
-			var l = label();
-			ca.args.push(C_BLOCK(l));
-			if(!func) {
-
-			} else if(func.p) {
-				ca.args.unshift(func.p);
-				ca.args.unshift(func.b || func.f);
-			} else if(finalProcess) {
-				ca.args.unshift('null');
-				ca.args.unshift(func.b || func.f);
-			};
-
-			ps($('return %1(%2)',
-				finalProcess,
-				ca.args.join(',')));
-
-			LABEL(l);
-			return C_TEMP(l);
-		};
-
-		mpSchemataDef(nt.BINDPOINT, function (n, env) {
-			var node = {
-				type: nt.CALL,
-				func: this,
-				args: [],
-				names: []
-			};
-			return awaitCall.call(node, node, env);
-		});
-
-		mpSchemataDef(nt.then, function(){
-			for(var i = 0; i < this.args.length - 1; i++)
-				pct(this.args[i]);
-			return expPart(this.args[this.args.length - 1]);
-		})
-
-		mpSchemataDef(nt.CALLBLOCK, function(){
-			var l = label();
-			ps($("return (" + C_TEMP('SCHEMATA_BLOCK') + "(%1, %2, %3))",
-				transform(this.func),
-				C_TEMP('SCHEMATA'),
-				C_BLOCK(l)));
-			LABEL(l);
-			return C_TEMP(l);
-		});
-
-		mpSchemataDef(nt['and'], nt['&&'], function(){
-			var left = expPart(this.left);
-			var lElse = label();
-			ps('if(!(' + left + '))' + GOTO(lElse));
-			var right = expPart(this.right);
-			var lEnd = label();
-			ps(GOTO(lEnd));
-			(LABEL(lElse));
-			ps(right + '= false');
-			(LABEL(lEnd));
-			return left + '&&' + right;
-		});
-
-		mpSchemataDef(nt['or'], nt['||'], function(){
-			var left = expPart(this.left);
-			var lElse = label();
-			ps('if(' + left + ')' + GOTO(lElse));
-			var right = expPart(this.right);
-			var lEnd = label();
-			ps(GOTO(lEnd));
-			(LABEL(lElse));
-			ps(right + '= true');
-			(LABEL(lEnd));
-			return left + '||' + right;
-		});
-
-		mpSchemataDef(nt.CONDITIONAL, function(){
-			var cond = expPart(this.condition);
-			var lElse = label();
-			ps('if(!(' + cond + '))' + GOTO(lElse));
-			var thenp = expPart(this.thenPart);
-			var lEnd = label();
-			ps(GOTO(lEnd));
-			LABEL(lElse);
-			var elsep = expPart(this.elsePart)
-			LABEL(lEnd);
-			return cond + '?' + thenp + ':' + elsep
-		});
-
-
-		// Statements
-
-		mpSchemataDef(nt.IF, function(node){
-			var lElse = label();
-			var lEnd = label();
-			ps('if(!(' + ct(this.condition) + '))' + GOTO(lElse));
-			pct(this.thenPart);
-			if(this.elsePart){
-				ps(GOTO(lEnd));
-				LABEL(lElse)
-				pct(this.elsePart);
-				LABEL(lEnd)
-			} else {
-				LABEL(lElse)
-			}
-			return '';
-		});
-
-		mpSchemataDef(nt.PIECEWISE, nt.CASE, function () {
-			var b = [], l = [], cond = '', lElse;
-			if(this.type === nt.CASE)
-				var expr = expPart(this.expression);
-
-			for (var i = this.conditions.length-1; i >= 0; i--) {
-				if (!this.bodies[i]) { // fallthrough condition
-					l[i] = l[i+1]
-				} else {
-					var li = label();
-					l[i] = li;
-					b[i] = this.bodies[i];
-				}
-			};
-
-			for (var i = 0; i < this.conditions.length; i++) {
-				if(this.type === nt.PIECEWISE){
-					ps('if (' + ct(this.conditions[i]) + '){\n' + GOTO(l[i]) + '\n}');
-				} else {
-					ps('if (' + expr + '=== (' + ct(this.conditions[i]) + ')){\n' + GOTO(l[i]) + '\n}');
-				}
-			}
-
-			var lEnd = label();	
-			if (this.otherwise) {
-				var lElse = label()
-				ps(GOTO(lElse));
-			} else {
-				ps(GOTO(lEnd));
-			}
-
-			for(var i = 0; i < b.length; i += 1) if(b[i]) {
-				LABEL(l[i])
-				pct(b[i])
-				ps(GOTO(lEnd))
-			}
-
-			if (this.otherwise) {
-				LABEL(lElse)
-				pct(this.otherwise);
-				ps(GOTO(lEnd));
-			}
-	
-			LABEL(lEnd)
-			return '';
-		});
-
-		mpSchemataDef(nt.WHILE, function(){
-			var lLoop = label();
-			var bk = lNearest;
-			var lEnd = lNearest = label();
-			(LABEL(lLoop));
-			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd)); 
-			pct(this.body);
-			ps(GOTO(lLoop));
-			(LABEL(lEnd));
-			lNearest = bk;
-			return '';
-		});
-		mpSchemataDef(nt.OLD_FOR, function () {
-			var lLoop = label();
-			var bk = lNearest;
-			var lEnd = lNearest = label();
-			if(this.start) ps(ct(this.start));
-			(LABEL(lLoop));
-			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd));
-			pct(this.body);
-			if(this.step) ps(ct(this.step));
-			ps(GOTO(lLoop));
-			(LABEL(lEnd));
-			lNearest = bk;
-			return '';
-		});
-		mpSchemataDef(nt.FOR, function(node, env){
-			var tEnum = makeT(env);
-			var tYV = makeT(env);
-
-			if(this.pass){
-				var varAssign = [C_NAME(this.vars[0]) + '=' + C_TEMP(tYV)]
-			} else {
-				var varAssign = [];
-				for(var i = 0; i < this.vars.length; i += 1)
-					varAssign.push($('%1 = %2[%3]', C_NAME(this.vars[i]), C_TEMP(tYV), i + ''));
-			}
-			var s_enum = $('(%1 = %2()) ? ( %3 ): undefined',
-				C_TEMP(tYV),
-				C_TEMP(tEnum),
-				varAssign.join(', '));
-
-			var lLoop = label();
-			var bk = lNearest;
-			var lEnd = lNearest = label();
-			ps(C_TEMP(tEnum) + '=' + C_TEMP('GET_ENUM') + '(' + ct(this.range) + ')');
-			ps(s_enum);
-			(LABEL(lLoop));
-			ps('if(!(' + C_TEMP(tYV) + '))' + GOTO(lEnd));
-			pct(this.body);
-			ps(s_enum);
-			ps(GOTO(lLoop));
-			(LABEL(lEnd))
-			lNearest = bk;
-			return '';
-		});
-
-		mpSchemataDef(nt.REPEAT, function(){
-			var lLoop = label();
-			var bk = lNearest;
-			var lEnd = lNearest = label();
-			(LABEL(lLoop));
-			pct(this.body);
-			ps('if(' + ct(this.condition) + ')' + GOTO(lLoop));
-			(LABEL(lEnd));
-			lNearest = bk;
-			return ''
-		});
-	
-
-		mpSchemataDef(nt.RETURN, function() {
-			ps($('return %1(%2)',
-				C_BLOCK(lReturn),
-				ct(this.expression)));
-			return '';
-		});
-
-		mpSchemataDef(nt.LABEL, function () {
-			var l = scopeLabels[this.name] = label();
-			pct(this.body);
-			(LABEL(l));
-			return ''
-		});
-		mpSchemataDef(nt.BREAK, function () {
-			ps(GOTO(this.destination ? scopeLabels[this.destination] : lNearest));
-			return ''
-		});
-		mpSchemataDef(nt.TRY, function() {
-			var bTry = makeT();
-			var bCatch = makeT();
-			var sAttemption = transformMPrim({code: {type: nt.SCRIPT, content: this.attemption.content, bindPoint: true}}, 
-				{lNearest: lNearest, scopeLabels: scopeLabels, lReturn: lReturn, nested: true});
-			var sCatcher = transformMPrim({code: {type: nt.SCRIPT, content: this.catcher.content, bindPoint: true}}, 
-				{lNearest: lNearest, scopeLabels: scopeLabels, lReturn: lReturn, nested: true});
-
-			var l = label();
-			ps(C_TEMP(bTry) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' +
-				sAttemption.s + '; return ' + sAttemption.enter + 
-			'}');
-			ps(C_TEMP(bCatch) + ' = ' + 'function(' + C_TEMP('SCHEMATA') + '){' + 
-				sCatcher.s +';' +
-				'return function(x){' + (this.eid ? C_NAME(this.eid.name) + '= x; ' : '') + sCatcher.enter + '()}' +
-			'}');
-			ps('return ' + PART(C_TEMP('SCHEMATA'), 'try') + '(' + C_TEMP(bTry) + ', ' + C_TEMP(bCatch) + ', ' + C_BLOCK(l) + ')');
-			LABEL(l);
-			return '';
-		});
-
-		mpSchemataDef(nt.SCRIPT, function (n) {
-			var gens;
-			for (var i = 0; i < n.content.length; i++){
-				if (n.content[i]){
-					gens = ct(n.content[i]);
-					if(gens) ps(gens);
-				}
-			};
-		});
-
-		// -------------------------------------------------------------
-		// Here we go
-
-		LABEL(label());
-		ct(tree.code);
-		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '()');
-		if(!aux.nested){
-			LABEL(lReturn);
-			ps('return ' + PART(C_TEMP('SCHEMATA'), 'return') + '(' + C_TEMP(lReturn) + ')');
-		};
-		LABEL(label());
-		return flowM.joint();
-	}
 	var rSmapInfo = /\/\*\x1b MOESMAP\((\w+), (\w+)\)\x1b \*\//g;
 	var rSmapCleanup = new RegExp('([\\{\\};]\\n\\s*)((?:' + rSmapInfo.source + ')+)(?:;$\\s*)+', 'gm')
 	var addSmapInfo = function(info){
