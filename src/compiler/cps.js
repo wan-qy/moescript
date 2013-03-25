@@ -6,6 +6,7 @@ var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 var Node = moecrt.MakeNode;
 
+var CPS_EXPRESSION_SEGMENT_NAMESPACE = 'es'
 
 var ScriptFlow = function(makeT){
 	this.statements = []
@@ -28,7 +29,9 @@ var ScriptFlow = function(makeT){
 	}
 	this.pushExpPart = function(node){
 		while(node && node.type === nt.GROUP) node = node.operand;
-		if(node && (node.type === nt.TEMPVAR || node.type === nt.LITERAL)) return node;
+		if(node && 
+			(  node.type === nt.TEMPVAR && node.name.slice(0, CPS_EXPRESSION_SEGMENT_NAMESPACE.length) === CPS_EXPRESSION_SEGMENT_NAMESPACE 
+			|| node.type === nt.LITERAL)) return node;
 
 		var t = makeT();
 		this.pushStatement(new Node(nt.ASSIGN, {
@@ -115,7 +118,7 @@ var ScriptFlow = function(makeT){
 }
 
 var transform = exports.transform = function(code, scope, config, aux){
-	var makeT = aux.makeT || function(){return config.makeT(scope)};
+	var makeT = aux.makeT || function(){return config.makeT(scope, CPS_EXPRESSION_SEGMENT_NAMESPACE)};
 	var flow = new ScriptFlow(makeT);
 
 	var NaturalTransform = function(){

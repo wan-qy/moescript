@@ -165,10 +165,12 @@ exports.walkNode = function(node, f, aux){
 };
 
 exports.TMaker = function(){
-	var n = 0;
-	return function(e){
-		n += 1;
-		var id = 'T' + n.toString(36);
+	var ns = {};
+	return function(e, namespace){
+		namespace = namespace || 't';
+		if(!ns[namespace]) ns[namespace] = 0
+		var id = namespace + '_' + ns[namespace].toString(36);
+		ns[namespace] += 1
 		if(e) e.useTemp(id);
 		return id;
 	};
