@@ -67,6 +67,12 @@ var SQSTART = '[', SQEND = ']',
 	RDSTART = '(', RDEND = ')',
 	CRSTART = '{', CREND = '}';
 
+var DECLARE_SOMETHING = true, SIMPLE_ASSIGNMENT = false,
+	DECLARE_A_CONSTANT = true, DECLARE_A_VARIABLE = false,
+	SINGLE_LINE = true, MULTIPLE_LINE = false,
+	INSIDE_FOR_STATEMENT = true, OUTSIDE_FOR_STATEMENT = false,
+	INSIDE_WHERE_CLAUSE = true, OUTSIDE_WHERE_CLAUSE = false;
+
 var NodeType = moecrt.NodeType;
 var MakeNode = moecrt.MakeNode;
 var HAS_DUPL = function (arr) {
@@ -318,7 +324,7 @@ exports.parse = function (tokens, source, config) {
 		if(firstIrregularArgI >= 0){
 			for(var i = p.names.length - 1; i >= firstIrregularArgI; i--){
 				c.content.unshift(new Node(nt.EXPRSTMT, {
-					expression: formAssignment(paramBindLefts[i], '=', p.names[i], true, false, false)
+					expression: formAssignment(paramBindLefts[i], '=', p.names[i], DECLARE_SOMETHING, DECLARE_A_CONSTANT)
 				}))
 			}
 		}
@@ -333,7 +339,8 @@ exports.parse = function (tokens, source, config) {
 					thenPart: new Node(nt.SCRIPT, {
 						content: [last, new Node(nt.ASSIGN, {
 							left: new Node(p.names[i].type, {name: p.names[i].name}),
-							right: p.names[i].defaultValue
+							right: p.names[i].defaultValue,
+							constantQ: true
 						})]
 					})
 				})
@@ -1175,7 +1182,7 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 	var whereClause = NRF(function(){
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, true, true)})
+		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, SINGLE_LINE, INSIDE_WHERE_CLAUSE)})
 	});
 
 	var stover = function () {
@@ -1186,7 +1193,6 @@ exports.parse = function (tokens, source, config) {
 	};
 	var aStatementEnded = false;
 
-	var SINGLE_LINE = true
 	var statement = function(singleLineQ){
 		aStatementEnded = false;
 		var begins = pos();
@@ -1311,7 +1317,7 @@ exports.parse = function (tokens, source, config) {
 		if(tokenIs(ID) && (nextIs(COMMA) || nextstover())){
 			return vardecls();
 		} else {
-			return new Node(nt.EXPRSTMT, {expression: varDefinition(false, false, singleLineQ)});
+			return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_VARIABLE, OUTSIDE_FOR_STATEMENT, singleLineQ)});
 		};
 	};
 	var vardecls = function () {
@@ -1327,7 +1333,7 @@ exports.parse = function (tokens, source, config) {
 	};
 
 	var defstmt = function (singleLineQ) {
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(true, false, singleLineQ)});
+		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, singleLineQ)});
 	};
 
 	var DEF_ASSIGNMENT = 1;
@@ -1358,7 +1364,7 @@ exports.parse = function (tokens, source, config) {
 					return [v, expression()]
 				} else if (defType === DEF_FUNCTIONAL){
 					if(forQ) throw new PE("Invalid Declaration.")
-					return [v, functionLiteral(true)]
+					return [v, functionLiteral()]
 				} else if (defType === DEF_BIND){
 					advance();
 					if(forQ){
@@ -1384,7 +1390,7 @@ exports.parse = function (tokens, source, config) {
 		return function(constantQ, forQ, singleLineQ, insideWhereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			return whereClausize(formAssignment(r[0], "=", r[1], true, constantQ, insideWhereClauseQ), singleLineQ);
+			return whereClausize(formAssignment(r[0], "=", r[1], DECLARE_SOMETHING, constantQ, insideWhereClauseQ), singleLineQ);
 		}
 	}();
 
@@ -1473,7 +1479,7 @@ exports.parse = function (tokens, source, config) {
 	var forstmt = function () {
 		advance(FOR);
 		advance(OPEN, RDSTART);
-		var declAssignment = varDefinition(false, true);
+		var declAssignment = varDefinition(DECLARE_A_VARIABLE, INSIDE_FOR_STATEMENT);
 		advance(CLOSE, RDEND);
 		var body = block();
 
@@ -1485,7 +1491,7 @@ exports.parse = function (tokens, source, config) {
 			return new Node(nt.OLD_FOR, {
 					start: new Node(nt.then, {
 						args: [
-							formAssignment(bind, '=', range.left, true),
+							formAssignment(bind, '=', range.left, DECLARE_SOMETHING),
 							formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right)
 						],
 						names: [null, null]

@@ -30,7 +30,7 @@ moec: dirs $(moecCompoments)
 
 PRELUDE_CONFIG = --explicit --bare -g exports -g moert --runtime-bind moert.runtime
 $(MOD)/prelude.js: src/prelude/overture.js src/prelude/prelude.moe $(moecCompoments)
-	node $(MOD)/bin/moec $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
+	-node $(MOD)/bin/moec $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
 
 moePrelude: $(MOD)/prelude.js
 

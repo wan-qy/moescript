@@ -33,14 +33,13 @@ exports.resolve = function(ast, ts, config){
 				s.blockQ = node.blockQ;
 				s.noVarDecl = node.noVarDecl;
 
-				debugger;
 				for (var i = 0; i < s.parameters.names.length; i++) {
 					var paramName = s.parameters.names[i].name
 					if(s.parameters.names[i].type === nt.VARIABLE){
 						ensure(s.variables[paramName] !== s.id, 
 							'Parameters list duplication detected.', 
 							s.parameters.names[i].begins);
-						s.newVar(paramName, true);
+						s.newVar(paramName, true, true);
 					} else {
 						s.useTemp(paramName, ScopedScript.PARAMETERTEMP)
 					}
@@ -76,10 +75,11 @@ exports.resolve = function(ast, ts, config){
 			} else {
 				if(node.declareVariable){
 					try {
-						if(node.whereClauseQ)
-							current.newVar(node.declareVariable, false, node.constantQ)
-						else
+						if(node.whereClauseQ) {
+							current.newVar(node.declareVariable, false, node.constantQ);
+						} else {
 							quenchRebinds(current).newVar(node.declareVariable, false, node.constantQ);
+						}
 					} catch(ex) {
 						throw PE(ex, node.begins || node.position)
 					};
@@ -190,10 +190,12 @@ exports.resolve = function(ast, ts, config){
 				if(scope.varIsConst[each]) {
 					var s = scope;
 					do {
-						if(s.usedVariablesAssignOcc[each] >= 0)
+						if(s.usedVariablesAssignOcc[each] >= 0) {
 							throw PE('Attempt to redefine or assign to constant "' + each + '".', s.usedVariablesAssignOcc[each])
+						}
+						if(s === livingScope) break;
 						s = s.parent;
-					} while(s && s !== livingScope)
+					} while(s)
 				}
 			};
 		};

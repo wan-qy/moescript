@@ -124,7 +124,6 @@ var transform = exports.transform = function(code, scope, config, aux){
 	var NaturalTransform = function(){
 		var propList = arguments;
 		return function(){
-			debugger;
 			for(var j = 0; j < propList.length; j++){
 				this[propList[j]] = pep(this[propList[j]])
 			}
