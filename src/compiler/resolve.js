@@ -32,8 +32,18 @@ exports.resolve = function(ast, ts, config){
 				s.parameters = node.parameters;
 				s.blockQ = node.blockQ;
 				s.noVarDecl = node.noVarDecl;
+
+				debugger;
 				for (var i = 0; i < s.parameters.names.length; i++) {
-					s.newVar(s.parameters.names[i].name, true)
+					var paramName = s.parameters.names[i].name
+					if(s.parameters.names[i].type === nt.VARIABLE){
+						ensure(s.variables[paramName] !== s.id, 
+							'Parameters list duplication detected.', 
+							s.parameters.names[i].begins);
+						s.newVar(paramName, true);
+					} else {
+						s.useTemp(paramName, ScopedScript.PARAMETERTEMP)
+					}
 				};
 				s.code = node.code;
 

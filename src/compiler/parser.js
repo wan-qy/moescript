@@ -299,6 +299,30 @@ exports.parse = function (tokens, source, config) {
 	});
 
 	var generateDefaultParameters = function(p, c){
+		var paramBindLefts = [];
+		var firstIrregularArgI = -1
+		for(var i = 0; i < p.names.length; i++){
+			if(firstIrregularArgI < 0 && p.names[i].type !== nt.VARIABLE && p.names[i].type !== nt.TEMPVAR){
+				firstIrregularArgI = i;
+			};
+			if(firstIrregularArgI >= 0) {
+				paramBindLefts[i] = p.names[i];
+				p.names[i] = new Node(nt.TEMPVAR, {
+					name: makeT(),
+					defaultValue: paramBindLefts[i].defaultValue
+				});
+				paramBindLefts[i].defaultValue = null;
+			}
+		}
+
+		if(firstIrregularArgI >= 0){
+			for(var i = p.names.length - 1; i >= firstIrregularArgI; i--){
+				c.content.unshift(new Node(nt.EXPRSTMT, {
+					expression: formAssignment(paramBindLefts[i], '=', p.names[i], true, false, false)
+				}))
+			}
+		}
+
 		var last = null;
 		for(var i = 0; i < p.names.length; i++){
 			if(p.names[i].defaultValue){
@@ -308,9 +332,11 @@ exports.parse = function (tokens, source, config) {
 						right: new Node(nt.LITERAL, {value: i + 1})}),
 					thenPart: new Node(nt.SCRIPT, {
 						content: [last, new Node(nt.ASSIGN, {
-							left: new Node(nt.VARIABLE, {name: p.names[i].name}),
+							left: new Node(p.names[i].type, {name: p.names[i].name}),
 							right: p.names[i].defaultValue
-						})]})})
+						})]
+					})
+				})
 			}
 		};
 		c.content.unshift(last);
@@ -398,12 +424,8 @@ exports.parse = function (tokens, source, config) {
 	var parlist = function(){
 		var arr = [];
 		var dfvArgQ = false;
-		while (tokenIs(ID)) {
-			arr[arr.length] = {
-				begins: pos(),
-				name: lname(),
-				ends: pos()
-			};
+		while (true) {
+			arr[arr.length] = unary();
 			if(tokenIs(ASSIGN, '=') || dfvArgQ){
 				dfvArgQ = true;
 				advance(ASSIGN, '=');
@@ -422,7 +444,6 @@ exports.parse = function (tokens, source, config) {
 			arr = parlist();
 		};
 		advance(CLOSE, RDEND);
-		ensure(!HAS_DUPL(arr), 'Parameter list contains duplicate');
 		return new Node(nt.PARAMETERS, { names: arr });
 	});
 

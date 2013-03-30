@@ -142,7 +142,6 @@ var GListTmpType = function(type){
 	};
 };
 var listTemp = GListTmpType(ScopedScript.VARIABLETEMP);
-var listParTemp = GListTmpType(ScopedScript.PARAMETERTEMP);
 
 var smapRecord = function(type, body){
 	return '/*\x1b MOESMAP(' + type + ', ' + body + ')\x1b */'
@@ -190,9 +189,7 @@ exports.Generator = function(g_envs, g_config){
 			vars = [],
 			temps = listTemp(tree);
 
-		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
-
-
+		var pars = tree.parameters.names.slice(0);
 
 		for (var i = 0; i < locals.length; i++)
 			if (!(tree.varIsArg[locals[i]])){
@@ -212,14 +209,11 @@ exports.Generator = function(g_envs, g_config){
 		]);
 
 		for (var i = 0; i < pars.length; i++) {
-			pars[i] = WPOS(pars[i], C_NAME(pars[i].name));
-		};		
-		for (var i = 0; i < temppars.length; i++) {
-			temppars[i] = C_TEMP(temppars[i]);
+			pars[i] = transform(pars[i]);
 		};
 
 		if(ReplGlobalQ) return s.replace(/^    /gm, '');
-		s = $('function (%1){%2}',  pars.concat(temppars).join(','), s);
+		s = $('function (%1){%2}',  pars.join(','), s);
 		if(tree.mPrim){
 			s = $('{build: function(%1){return %2}}', C_TEMP('SCHEMATA'), s)
 		}
