@@ -775,7 +775,11 @@ exports.parse = function (tokens, source, config) {
 				names:[null].concat(n.names)
 			});
 		} else {
-			throw new PE('resend must connect a function call.');
+			return new Node(nt.CALL, {
+				func: MemberNode(n, 'apply'),
+				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
+				names:[null, null]
+			});
 		}
 	};
 	callWrappers[WAIT] = function(n){
@@ -1380,11 +1384,11 @@ exports.parse = function (tokens, source, config) {
 			} else {
 				if(forQ) throw new PE("Invalid Declaration.")
 				var rhs = dp(constantQ);
-				return [rhs[0], new Node(nt.CALL, {
+				return [rhs[0], wrapCall(new Node(nt.CALL, {
 					func: v,
 					args: [rhs[1]],
 					names: [null],
-				})]
+				}))]
 			}
 		};
 		return function(constantQ, forQ, singleLineQ, insideWhereClauseQ){

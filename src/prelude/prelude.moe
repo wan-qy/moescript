@@ -73,8 +73,7 @@ where
 	rIdentifier = `^[a-zA-Z_$][\w$]*$`
 
 	tPropName(s) = 
-		s when(rIdentifier.test s), 
-		Primitive.stringify s otherwise
+		s when(rIdentifier.test s), Primitive.stringify s otherwise
 
 	inspectProperties(x, stack, depth, targetDepth) =
 		var a = [];
@@ -225,25 +224,17 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) =
 	def schemata.try(MAttempt, MCatch, g) =
 		def r(err, x) =
 			if(err)
-				try
-					MCatch(catchSchemata)(err)
-				catch(ex)
-					rCatch(ex, undefined)
+				try MCatch(catchSchemata)(err)
+				catch(ex) rCatch(ex, undefined)
 			else
 				g x
-
 		def trySchemata = createAsyncSchemata r, rLongJump
-
 		def rCatch(err, x) =
 			if(err)	rLocal err, undefined
 			else    g x
-
 		def catchSchemata = createAsyncSchemata rCatch, rLongJump
-
-		try
-			MAttempt(trySchemata)();
-		catch(ex)
-			r ex, undefined
+		try MAttempt(trySchemata)();
+		catch(ex) r ex, undefined
 
 	def schemata.return(x) = rLocal null, x
 

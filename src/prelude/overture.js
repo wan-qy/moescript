@@ -56,7 +56,11 @@ var _Type = function(p, f){
 	var Aut = function(){};
 	Aut.prototype = p;
 	var T = function(){
-		var o = new Aut();
+		if(this instanceof Aut){
+			var o = this;
+		} else {
+			var o = new Aut();
+		}
 		f.apply(o, arguments);
 		return o;
 	};
@@ -73,9 +77,19 @@ Type.outof = function(T){
 		return _Type((typeof T === 'function' ? new T() : derive(T)), f)
 	}
 };
+Type.inherits = function(T){
+	return function(f){
+		return Type.outof(T)(function(){
+			debugger;
+			if(typeof T === 'function') T.apply(this, arguments);
+			return f.apply(this, arguments);
+		})
+	}
+}
 
 reg('type', Type);
 reg('outof', Type.outof);
+reg('inherits', Type.inherits);
 
 reg('debugger', function(){debugger});
 
