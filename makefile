@@ -46,6 +46,7 @@ WEBTEST = doc/webtest
 WEBMOD  = $(WEBTEST)/moe
 webtestDir:
 	$(MKDIR) doc
+	$(MKDIR) doc/demo
 	$(MKDIR) $(WEBTEST)
 	$(MKDIR) $(WEBMOD)
 	$(MKDIR) $(WEBMOD)/compiler
@@ -82,3 +83,11 @@ __all: webtest webmin
 publish:
 	git push origin master:master
 	git push cafe   master:master
+
+release: webtest webmin
+	rm -rf channel-release/moe/
+	rm -rf channel-release/*.js
+	cp -a dist/* channel-release/
+
+	rm -rf doc/demo/*
+	cp -a $(WEBTEST)/* doc/demo/

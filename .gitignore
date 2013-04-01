@@ -11,6 +11,7 @@ doc/
 
 webtest/
 dist/*
+channel-release/
 */node_modules/*
 
 *.sublime*
