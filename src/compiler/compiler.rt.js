@@ -59,10 +59,11 @@ var NodeType = exports.NodeType = function () {
 		'MEMBER', 
 		// Invocation
 		'CALL', 'CALLBLOCK',
-		// Operators
+		// Singular Operators
 		'NEGATIVE', 'NOT',
-
-		'*', '/','%',
+		// Binary Operators
+		// NOTE: direct-converted operators must be ordered from higher priority to lower priority
+		'*', '/', '%',
 		'+', '-',
 		'<', '>', '<=', '>=', 'is', 'in',
 		'==', '!=', '=~', '!~', '===', '!==',
@@ -85,6 +86,8 @@ var NodeType = exports.NodeType = function () {
 	var T = {};
 	for (var i = 0; i < types.length; i++)
 		T[types[i]] = function(j){return {
+			ts: types[j],
+			ti: j,
 			valueOf: function(){return j},
 			toString: function(){return types[j]}
 		}}(i);

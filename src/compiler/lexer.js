@@ -44,8 +44,6 @@ var TASK = exports.TASK = TokenType('Task')
 var LAMBDA = exports.LAMBDA = TokenType('Lambda')
 var PASS = exports.PASS = TokenType('Pass')
 var EXCLAM = exports.EXCLAM = TokenType('Exclamation symbol')
-var WAIT = exports.WAIT = TokenType('Wait')
-var USING = exports.USING = TokenType('Using')
 var WHERE = exports.WHERE = TokenType('Where')
 var DEF = exports.DEF = TokenType('Def')
 var RESEND = exports.RESEND = TokenType('Resend')
@@ -62,7 +60,6 @@ var BIND = exports.BIND = TokenType('Bind symbol')
 var BACKSLASH = exports.BACKSLASH = TokenType('Backslash')
 var TRY = exports.TRY = TokenType('Try')
 var CATCH = exports.CATCH = TokenType('Catch')
-var FINALLY = exports.FINALLY = TokenType('Finally')
 
 var NEWLINE = TokenType('Newline');
 

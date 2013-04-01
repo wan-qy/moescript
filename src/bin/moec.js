@@ -13,6 +13,7 @@ var optmaps = {};
 var options = {};
 
 var runtimeBind = '';
+var preludeBind = '';
 var fWrite = console.log;
 
 var codeSegments = [];
@@ -60,6 +61,14 @@ var argvParser = opts()
 	.on('-g', '--global', function(varName){ ts.bind(varName, varName) })
 	.on('--bare', function(){ ts.maps = {} })
 	.on('--runtime-bind', function(expr){ runtimeBind = expr })
+	.on('--prelude-bind', function(expr){ preludeBind = expr })
+	.on('--prelude', function(){ ts.libRequireBind(require('../prelude'), preludeBind || '(require("moe/prelude"))') })
+	.on('-w', '--web', function() {
+		this.config['--runtime-bind']('moescript.runtime');
+		this.config['--prelude-bind']('moescript.prelude');
+		this.config['--bare']();
+		this.config['--prelude']();
+	})
 	.on('--include-js', function(file){ codeSegments.push(compiler.inputNormalize(fs.readFileSync(file, 'utf-8'))) })
 	.on('--file', '-f', doFile)
 	.on('--explicit', function(){ options.explicit = true })
@@ -67,7 +76,7 @@ var argvParser = opts()
 
 // Add prelude. Note that it is absent when building prelude...
 try {
-	ts.libRequireBind(require('../prelude'), '(require("moe/prelude"))')
+	ts.libRequireBind(require('../prelude'), preludeBind || '(require("moe/prelude"))')
 } catch(e) {
 	process.stderr.write("Warning: prelude not found.\n")
 }

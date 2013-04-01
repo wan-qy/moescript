@@ -334,16 +334,23 @@ exports.Generator = function(g_envs, g_config){
 
 	var binoper = function (operator, tfoper) {
 		defineSchemata(nt[operator], function () {
-			var left = transform(this.left);
-			var right = transform(this.right);
-			if(this.left.type > this.type) left = '(' + left + ')';
-			if(this.right.type > this.type) right = '(' + right + ')';
+			var left, right;
+			if(this.left.type > this.type) {
+				left = '(' + reduceBracketsTransform(ungroup(this.left), true) + ')'
+			} else {
+				left = transform(this.left)
+			}
+			if(this.right.type > this.type) {
+				right = '(' + reduceBracketsTransform(ungroup(this.right), true) + ')'
+			} else {
+				right = transform(this.right)
+			}
 			return $('%1 %2 %3', left, tfoper, right);
 		});
 	};
 	var libfuncoper = function (operator, func){
 		defineSchemata(nt[operator], function () {
-			return $('(%1(%2, %3))', func, transform(this.left), transform(this.right));
+			return $('%1(%2, %3)', func, transform(this.left), transform(this.right));
 		});
 	};
 
@@ -372,13 +379,13 @@ exports.Generator = function(g_envs, g_config){
 	libfuncoper('...', C_TEMP('RANGE_INCL'));
 
 	defineSchemata(nt.NEGATIVE, function () {
-		return '(-(' + transform(this.operand) + '))';
+		return '(-(' + reduceBracketsTransform(ungroup(this.operand), true) + '))';
 	});
 	defineSchemata(nt.NOT, function () {
-		return '(!(' + transform(this.operand) + '))';
+		return '(!(' + reduceBracketsTransform(ungroup(this.operand), true) + '))';
 	});
 	defineSchemata(nt.CTOR, function(){
-		return 'new (' + transform(this.expression) + ')'
+		return 'new (' + reduceBracketsTransform(ungroup(this.expression), true) + ')'
 	});
 
 
@@ -392,15 +399,29 @@ exports.Generator = function(g_envs, g_config){
 		return $('(%1 = %2)', transform(this.left), transform(this.right));
 	});
 
-	defineSchemata(nt.EXPRSTMT, function(){
-		var s = transform(ungroup(this.expression));
-		if(this.expression.type === nt.ASSIGN && s.charAt(0) === '(')
-			s = s.slice(1, -1);
+	var isBracketedExprType = function(t){
+		return t === nt.ASSIGN || t === nt.CALLBLOCK || t === nt.NOT || t === nt.NEGATIVE
+		    || t === nt.THEN || t === nt.CONDITIONAL || t === nt.AS || t === nt.IS
+		    || t === nt['..'] || t === nt['...']
+	};
+
+	var reduceBracketsTransform = function(e, ceQ){
+
+		var s = transform(e);
+		if(isBracketedExprType(e.type) && rBracketRemoval.test(s))
+			s = s.replace(rBracketRemoval, '$1$2$3');
+
+		if(ceQ) return s;
+
 		// Two schemas are avoided due to JS' restrictions
 		if(s.slice(0, 8) === 'function' || s.charAt(0) === '{'){
 			s = '(' + s + ')';
 		};
 		return s;
+	}
+
+	defineSchemata(nt.EXPRSTMT, function(){
+		return reduceBracketsTransform(ungroup(this.expression));
 	});
 
 	var flowPush = function(flow, env, expr){
@@ -525,8 +546,14 @@ exports.Generator = function(g_envs, g_config){
 	});
 	defineSchemata(nt['then'], function(){
 		var a = []
-		for(var i = 0; i < this.args.length; i++)
-			a.push(transform(this.args[i]))
+		for(var i = 0; i < this.args.length; i++) {
+			var e = ungroup(this.args[i]);
+			var s = transform(e);
+			if(e.type === nt['then'])
+				a.push(s.slice(1, -1))
+			else
+				a.push(s);
+		}
 		return '(' + a.join(',') + ')';
 	});
 	defineSchemata(nt.CONDITIONAL, function(){
@@ -537,23 +564,23 @@ exports.Generator = function(g_envs, g_config){
 		return 'return ' + transform(ungroup(this.expression));
 	});
 	defineSchemata(nt.IF, function () {
-		return $('if (%1){%2} %3', 
-			transform(ungroup(this.condition)),
+		return $('if (%1) {%2} %3', 
+			reduceBracketsTransform(ungroup(this.condition), true),
 			transform(this.thenPart),
 			this.elsePart ? "else {" + transform(this.elsePart) + "}" : '');
 	});
 
 	defineSchemata(nt.REPEAT, function () {
-		return $('do{%2}while(%1)', transform(ungroup(this.condition)), transform(this.body));
+		return $('do {%2} while(%1)', reduceBracketsTransform(ungroup(this.condition), true), transform(this.body));
 	});
 	defineSchemata(nt.WHILE, function () {
-		return $('while(%1){%2}', transform(ungroup(this.condition)), transform(this.body));
+		return $('while (%1) {%2}', reduceBracketsTransform(ungroup(this.condition), true), transform(this.body));
 	});
 	defineSchemata(nt.OLD_FOR, function(){
-		return $('for(%1; %2; %3){%4}',
-			this.start ? transform(this.start) : '',
-			transform(ungroup(this.condition)),
-			this.step ? transform(ungroup(this.step)) : '',
+		return $('for (%1; %2; %3) {%4}',
+			this.start ? reduceBracketsTransform(ungroup(this.start)) : '',
+			reduceBracketsTransform(ungroup(this.condition)),
+			this.step ? reduceBracketsTransform(ungroup(this.step)) : '',
 			transform(this.body));
 	});
 
@@ -566,7 +593,7 @@ exports.Generator = function(g_envs, g_config){
 
 	defineSchemata(nt.TRY, function(){
 		var t = makeT();
-		return $('try{%1}catch(%2){%3;%4}',
+		return $('try {%1} catch (%2) {%3;%4}',
 			transform(this.attemption),
 			C_TEMP(t),
 			(this.eid ? C_NAME(this.eid.name) + '=' + C_TEMP(t) : ''),
@@ -577,14 +604,15 @@ exports.Generator = function(g_envs, g_config){
 		var a = [];
 		for (var i = 0; i < n.content.length; i++) {
 			if (n.content[i]){
-				a.push(transform(n.content[i]));
+				a.push(reduceBracketsTransform(ungroup(n.content[i])));
 			}
 		}
 		return JOIN_STMTS(a)
 	});
 
 	var rSmapInfo = /\/\*\x1b MOESMAP\((\w+), (\w+)\)\x1b \*\//g;
-	var rSmapCleanup = new RegExp('([\\{\\};]\\n\\s*)((?:' + rSmapInfo.source + ')+)(?:;$\\s*)+', 'gm')
+	var rSmapCleanup = new RegExp('([\\{\\};]\\n\\s*)((?:' + rSmapInfo.source + ')+)(?:;$\\s*)+', 'gm');
+	var rBracketRemoval = /^(\/\*\x1b MOESMAP\((?:\w+), (?:\w+)\)\x1b \*\/)?\(([\s\S]*)\)(\/\*\x1b MOESMAP\((?:\w+), (?:\w+)\)\x1b \*\/)?$/;
 	var addSmapInfo = function(info){
 		var code = info.generatedCode
 		var code2 = code, k = 0;

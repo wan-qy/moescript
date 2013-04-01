@@ -418,9 +418,7 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 };
 
 //: moe-master
-var moe = exports;
-
-moe.runtime = moe.rt = {
+exports.runtime = {
 	CNARG: CNARG,
 	M_TOP: M_TOP,
 	MONAD_SCHEMATA_M: MONAD_SCHEMATA_M,
@@ -449,5 +447,5 @@ moe.runtime = moe.rt = {
 	GET_ENUM: GET_ENUM
 };
 
-moe.derive = derive;
-moe.Nai = Nai;
+exports.derive = derive;
+exports.Nai = Nai;

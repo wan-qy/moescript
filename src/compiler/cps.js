@@ -34,9 +34,11 @@ var ScriptFlow = function(makeT){
 			|| node.type === nt.LITERAL)) return node;
 
 		var t = makeT();
-		this.pushStatement(new Node(nt.ASSIGN, {
-			left: new Node(nt.TEMPVAR, {name: t}),
-			right: node
+		this.pushStatement(new Node(nt.EXPRSTMT, {
+			expression: new Node(nt.ASSIGN, {
+				left: new Node(nt.TEMPVAR, {name: t}),
+				right: node
+			})
 		}));
 		return new Node(nt.TEMPVAR, {name: t});
 	}

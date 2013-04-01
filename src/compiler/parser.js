@@ -41,8 +41,6 @@ var TASK = lexer.TASK;
 var LAMBDA = lexer.LAMBDA;
 var PASS = lexer.PASS;
 var EXCLAM = lexer.EXCLAM;
-var WAIT = lexer.WAIT;
-var USING = lexer.USING;
 var WHERE = lexer.WHERE;
 var DEF = lexer.DEF;
 var RESEND = lexer.RESEND;
@@ -59,7 +57,6 @@ var BIND = lexer.BIND;
 var BACKSLASH = lexer.BACKSLASH;
 var TRY = lexer.TRY;
 var CATCH = lexer.CATCH;
-var FINALLY = lexer.FINALLY;
 
 var Token = lexer.Token;
 
@@ -184,26 +181,26 @@ exports.parse = function (tokens, source, config) {
 		return node;
 	};
 	var geenerateImplicitReturnForStructure = function(node, caseQ){
-		var ir = geenerateImplicitReturn;
 		var lasttype = node.type;
 		if(lasttype === nt.SCRIPT){
-			ir(node);
+			geenerateImplicitReturn(node);
 		} else if(lasttype === nt.IF){
-			ir(node.thenPart);
+			geenerateImplicitReturn(node.thenPart);
 			if(node.elsePart){
-				ir(node.elsePart);
+				geenerateImplicitReturn(node.elsePart);
 			}
 		} else if(lasttype === nt.TRY) {
-			ir(node.attemption);
-			ir(node.catcher);
+			geenerateImplicitReturn(node.attemption);
+			geenerateImplicitReturn(node.catcher);
 		}
 	};
 
 	var optimizeOnelineWhere = function(code){
 		if(code.content.length === 1                              // one statement
 			&& code.content[0]
-			&& code.content[0].type === nt.RETURN                // it is return
-			&& code.content[0].expression.type === nt.CALLBLOCK){ // and it is a WHERE
+			&& code.content[0].type === nt.RETURN                 // it is return
+			&& code.content[0].expression.type === nt.CALLBLOCK
+			&& code.content[0].expression.isWhereClause){ // and it is a WHERE
 			return code.content[0].expression.func.code;
 		}
 		return code;
@@ -242,7 +239,7 @@ exports.parse = function (tokens, source, config) {
 	// Identifier: like the javascript
 	var variable = NRF(function () {
 		var t = advance(ID, undefined, "A variable is required here.");
-		return new Node(NodeType.VARIABLE, { name: t.value, position: t.position });
+		return new Node(NodeType.VARIABLE, { name: t.value });
 	});
 	var lname = function () {
 		var t = advance(ID);
@@ -509,9 +506,8 @@ exports.parse = function (tokens, source, config) {
 				operatorType: opType
 			})
 		} else if(opType === nt['-']) {
-			var r = new Node(nt['-'], {
-				left: new Node(nt.LITERAL, {value: 0}),
-				right: unary()
+			var r = new Node(nt.NEGATIVE, {
+				operand: unary()
 			});
 			advance(CLOSE, RDEND);
 			return r;
@@ -617,7 +613,7 @@ exports.parse = function (tokens, source, config) {
 		return functionLiteral();
 	};
 	esp[LAMBDA] = lambdaExpression;
-	esp[NEW] = esp[RESEND] = esp[DO] = esp[WAIT] = function(){
+	esp[NEW] = esp[RESEND] = esp[DO] = function(){
 		return new Node(nt.CALLWRAP, {value: advance().type})
 	};
 
@@ -780,17 +776,6 @@ exports.parse = function (tokens, source, config) {
 				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
 				names:[null, null]
 			});
-		}
-	};
-	callWrappers[WAIT] = function(n){
-		if(n.type === nt.CALL){
-			return new Node(nt.CALL, {
-				func: new Node(nt.BINDPOINT, { expression: n.func }),
-				args: n.args,
-				names: n.names
-			});
-		} else {
-			throw new PE('wait must connect a function call.');
 		}
 	};
 	callWrappers[DO] = function(n){
@@ -1089,13 +1074,22 @@ exports.parse = function (tokens, source, config) {
 			 || left.type === nt.TEMPVAR 
 			 || left.type === nt.OBJECT
 			 || left.type === nt.UNIT,
-			"Invalid assignment/bind", left.position);
+			"Invalid assignment/bind");
 		if(left.type === nt.OBJECT){
-			var objt = makeT();
-			var seed = new Node(nt.then, {
-				args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
-				names: [null]
-			});
+			var seed, objt;
+			if(right.type === nt.TEMPVAR){
+				objt = right.name;
+				seed = new Node(nt.then, {
+					args: [],
+					names: []
+				});
+			} else {
+				objt = makeT();
+				seed = new Node(nt.then, {
+					args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
+					names: [null]
+				});
+			}
 			var j = 0;
 			for(var i = 0; i < left.args.length; i++){
 				if(!left.names[i]) j += 1;
@@ -1116,17 +1110,29 @@ exports.parse = function (tokens, source, config) {
 		} else if(left.type === nt.UNIT) {
 			return right;
 		} else {
-			return new Node(nt.ASSIGN, {
+			var tLeft;
+			if(oper === "=" || left.type === nt.VARIABLE || left.type === nt.TEMPVAR) {
+				tLeft = left
+			} else {
+				tLeft = new Node(nt.TEMPVAR, {name: makeT()})
+			}
+			var node = new Node(nt.ASSIGN, {
 				left: left,
 				right: oper === "=" ? right : new Node(nt[oper.slice(0, oper.length - 1)], {
-					left: left,
+					left: tLeft,
 					right: right
 				}),
-				position: left.position,
 				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
 				constantQ: constantQ,
 				whereClauseQ: whereClauseQ
-			})
+			});
+			if(tLeft !== left){
+				node = new Node(nt.then, {
+					args: [formAssignment(tLeft, '=', left), node],
+					names: [null, null]
+				})
+			};
+			return node;
 		}
 	};
 
@@ -1152,7 +1158,9 @@ exports.parse = function (tokens, source, config) {
 				func: new Node(nt.FUNCTION, {
 						parameters: new Node(nt.PARAMETERS, {names: []}),
 						code: new Node(nt.SCRIPT, {content: stmts}),
-						blockQ: true })}))
+						blockQ: true }),
+				isWhereClause: true
+			}))
 		} else {
 			return node;
 		}
