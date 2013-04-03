@@ -353,7 +353,7 @@ exports.parse = function (tokens, source, config) {
 		};
 		if (tokenIs(OPEN, RDSTART)) { // currying arguments
 			f = curryBody(p);
-		} else if (tokenIs(COLON) || tokenIs(ASSIGN, '=')) {
+		} else if (tokenIs(COLON) || tokenIs(ASSIGN, '=') || tokenIs(INDENT)) {
 			f = blockBody(p);
 		} else if (tokenIs(LAMBDA)){
 			f = completeLambdaExpression(p);
@@ -680,7 +680,7 @@ exports.parse = function (tokens, source, config) {
 							return ms;
 						};
 					};
-					if(tokenIs(ASSIGN, '=') || tokenIs(COLON)) { // a declaration
+					if(tokenIs(ASSIGN, '=') || tokenIs(COLON) || tokenIs(INDENT)) { // a declaration
 						loadState(state);
 						return m_;
 					};
@@ -1156,9 +1156,10 @@ exports.parse = function (tokens, source, config) {
 			}));
 			return whereClausize(new Node(nt.CALLBLOCK, {
 				func: new Node(nt.FUNCTION, {
-						parameters: new Node(nt.PARAMETERS, {names: []}),
-						code: new Node(nt.SCRIPT, {content: stmts}),
-						blockQ: true }),
+					parameters: new Node(nt.PARAMETERS, {names: []}),
+					code: new Node(nt.SCRIPT, {content: stmts}),
+					blockQ: true 
+				}),
 				isWhereClause: true
 			}))
 		} else {
@@ -1528,7 +1529,7 @@ exports.parse = function (tokens, source, config) {
 				start: formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(
 						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
-							func: new Node(nt.TEMPVAR, {name: 'GET_ENUM', builtin: true}),
+							func: new Node(nt.TEMPVAR, {name: 'GETENUM', builtin: true}),
 							args: [range],
 							names: [null]
 						})), 
@@ -1696,6 +1697,7 @@ exports.parse = function (tokens, source, config) {
 	stripSemicolons();
 
 	return {
+		type: nt.PROGRAM,
 		tree: new Node(nt.FUNCTION, {
 			parameters: new Node(nt.PARAMETERS, { names: [] }),
 			code: ws_code

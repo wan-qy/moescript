@@ -3,8 +3,8 @@
 //	:info:			The code generator for Moe Runtime
 
 var moe = require('../runtime');
-var UNIQ = moe.runtime.UNIQ;
-var OWNS = moe.runtime.OWNS;
+var UNIQ = moe.UNIQ;
+var OWNS = moe.OWNS;
 var derive = moe.derive;
 
 var moecrt = require('./compiler.rt');

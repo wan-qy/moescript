@@ -1,6 +1,6 @@
 var moe = require('../runtime');
-var MOE_UNIQ = moe.runtime.UNIQ;
-var OWNS = moe.runtime.OWNS;
+var MOE_UNIQ = moe.UNIQ;
+var OWNS = moe.OWNS;
 var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
@@ -13,111 +13,71 @@ exports.resolve = function(ast, ts, config){
 	// Config satisifies <.initVariable()>, <.PE()>, <.PW()> and <.warn()>
 	var PE = config.PE;
 	var PW = config.PW;
+	var ensure = function(c, m, p){
+		if(!c) throw PE(m, p);
+		return c;
+	};
 
 	var createScopes = function(overallAst){
 		var scopes = [];
 		var stack = [];
-		var ensure = function(c, m, p){
-			if(!c) throw PE(m, p);
-			return c;
-		};
 
 		var fWalk = function(node){
 			if(node.type === nt.FUNCTION) {
-				var s = new ScopedScript(scopes.length + 1, current);
-				if(current){
-					current.hasNested = true;
-					current.nest.push(s.id);
-				};
+				var s = new ScopedScript(scopes.length, stack[stack.length - 1]);
 				s.parameters = node.parameters;
 				s.blockQ = node.blockQ;
 				s.noVarDecl = node.noVarDecl;
+				s.code = node.code;
+				scopes[scopes.length] = s;
+				node.parameters = node.code = null;
 
+				stack.push(s);
+				
 				for (var i = 0; i < s.parameters.names.length; i++) {
 					var paramName = s.parameters.names[i].name
 					if(s.parameters.names[i].type === nt.VARIABLE){
 						ensure(s.variables[paramName] !== s.id, 
 							'Parameters list duplication detected.', 
 							s.parameters.names[i].begins);
-						s.newVar(paramName, true, true);
+						s.pendNewVar(paramName, true, true, node.begins || node.position);
 					} else {
 						s.useTemp(paramName, ScopedScript.PARAMETERTEMP)
 					}
 				};
-				s.code = node.code;
+				moecrt.walkNode(s.code, fWalk);
 
-				scopes[scopes.length] = s;
-				stack.push(s);
-				current = s;
-
-				moecrt.walkNode(node, fWalk);
-				
 				stack.pop();
-				current = stack[stack.length - 1];
 
-				node.parameters = node.code = null;
-
-				generateBindRequirement(s, scopes);
+				checkBreakPosition(s);
+				checkCallWrap(s);
+				fAfterScopeFormation(s);
+				generateCPSTransform(s);
+				
 				node.mPrim = node.blockQ && s.mPrim;
 				node.tree = s.id;
-			} else if(node.type === nt.LABEL) {
-				var label = node.name;
-				ensure(!current.labels[label] && current.labels[label] !== 0,
-					'Unable to re-label a statement.',
-					node.position);
-				current.labels[label] = node;
-				moecrt.walkNode(node, fWalk);
-				current.labels[label] = 0
-			} else if(node.type === nt.BREAK && node.destination) {
-				ensure(current.labels[node.destination] && current.labels[node.destination].type === nt.LABEL, 
-					"BREAK statement used a unfound label.",
-					node.position)
 			} else {
-				if(node.declareVariable){
-					try {
-						if(node.whereClauseQ) {
-							current.newVar(node.declareVariable, false, node.constantQ);
-						} else {
-							quenchRebinds(current).newVar(node.declareVariable, false, node.constantQ);
-						}
-					} catch(ex) {
-						throw PE(ex, node.begins || node.position)
-					};
-				};
-				if(node.type === nt.ASSIGN && node.left.type === nt.VARIABLE && !node.constantQ){
-					current.usedVariablesAssignOcc[node.left.name] = node.left.position;
-				};
-				if(node.type === nt.VARIABLE) {
-					current.useVar(node.name, node.position)
-				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN){
-					var e = current;
-					while(e.blockQ && e.parent) e = e.parent;
-					e[node.type === nt.THIS ? 'thisOccurs' : 
-					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 'argnOccurs'] = true;
-				} else if(node.type === nt.TEMPVAR && !node.builtin){
-					current.useTemp(node.name, node.processing)
-				};
 				moecrt.walkNode(node, fWalk);
 			}
 		};
 
-		var enterScope = scopes[0] = stack[0] = new ScopedScript(1);
-		enterScope.parameters = overallAst.parameters;
-		enterScope.code = overallAst.code;
-		overallAst.tree = 1;
+		var virtualRootAst = {
+			type: nt.FUNCTION, 
+			code: overallAst
+		}
+
+		moecrt.walkNode(overallAst, fWalk);
+		var enterScope = scopes[0];
 
 		ts.fInits(function(v, n, constantQ){
-			enterScope.newVar(n, false, !constantQ);
+			enterScope.pendNewVar(n, true, !constantQ);
 			enterScope.useVar(n, 0);
-			enterScope.varIsArg[n] = true;
 		});
 
-		var current = enterScope;
-		moecrt.walkNode(overallAst, fWalk);
 		return scopes;
 	};
 
-	var generateBindRequirement = function(scope){
+	var generateCPSTransform = function(scope){
 		var mPrimQ = false;
 		var fWalk = function (node) {
 			if(!node || !node.type) return false;
@@ -139,6 +99,45 @@ exports.resolve = function(ast, ts, config){
 		};
 	};
 
+	var fAfterScopeFormation = function(s){
+		var fWalk = function(node){
+			if(node.type === nt.LABEL) {
+				var label = node.name;
+				ensure(!s.labels[label] && s.labels[label] !== 0,
+					'Unable to re-label a statement.',
+					node.position);
+				s.labels[label] = node;
+				moecrt.walkNode(node, fWalk);
+				s.labels[label] = 0
+			} else if(node.type === nt.BREAK && node.destination) {
+				ensure(s.labels[node.destination] && s.labels[node.destination].type === nt.LABEL, 
+					"BREAK statement used a unfound label.",
+					node.position)
+			} else {
+				if(node.declareVariable){
+					if(node.whereClauseQ) {
+						declareMessage = s.pendNewVar(node.declareVariable, false, node.constantQ, node.begins || node.position);
+					} else {
+						declareMessage = quenchRebinds(s).pendNewVar(node.declareVariable, false, node.constantQ, node.begins || node.position);
+					}
+				};
+				if(node.type === nt.ASSIGN && node.left.type === nt.VARIABLE && !node.constantQ){
+					s.usedVariablesAssignOcc[node.left.name] = node.left.position;
+				};
+				if(node.type === nt.VARIABLE) {
+					s.useVar(node.name, node.position);
+				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN){
+					quenchRebinds(s)[node.type === nt.THIS ? 'thisOccurs' : 
+					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 'argnOccurs'] = true;
+				} else if(node.type === nt.TEMPVAR && !node.builtin){
+					s.useTemp(node.name, node.processing)
+				};
+				moecrt.walkNode(node, fWalk);
+			}
+		};
+		return moecrt.walkNode(s.code, fWalk);
+	}
+
 	var checkBreakPosition = function(scope){
 		var fWalk = function (node) {
 			if(node.type === nt.WHILE || node.type === nt.FOR || node.type === nt.REPEAT || node.type === nt.OLD_FOR)
@@ -154,30 +153,38 @@ exports.resolve = function(ast, ts, config){
 	var checkCallWrap = function(scope){
 		// "CALLWRAP" check
 		var fWalk = function(node){
-			if(node.type === nt.CALLWRAP)
+			if(node.type === nt.CALLWRAP) {
+				debugger;
 				throw PE("Invalid CALLWRAP usage.", node.position);
+			}
 			return moecrt.walkNode(node, fWalk);
 		};
 		moecrt.walkNode(scope.code, fWalk);
 	};
 
-	var checkFunction = function(s){
-		checkBreakPosition(s);
-		checkCallWrap(s);
-//		generateBindRequirement(s);
-	};
-
 	// Variables resolve
 	var resolveVariables = function(scope, trees, explicitQ) {
+		// Step I: declare variables
+		for(var j = 0; j < scope.pendNewVars.length; j++){
+			var warnMessage, term = scope.pendNewVars[j];
+			try {
+				warnMessage = scope.newVar(term.name, term.parQ, term.constQ, explicitQ)
+			} catch(e) {
+				throw PE(e + '', term.pos)
+			}
+			if(warnMessage){
+				config.warn(PW(warnMessage, term.pos))
+			}
+		}
+		// Step II: check used variables
 		for (var each in scope.usedVariables) if (scope.usedVariables[each] === true) {
-			if(!(scope.variables[each] > 0)){
+			if(!scope.variables[each]){
 				if(!explicitQ) {
 					if(!/^[a-z][\d_$]?$/.test(each))
 						config.warn(PW('Undeclared variable "' + each + '".',
 							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
-					var s = scope;
-					s.newVar(each);
-					trees[s.variables[each] - 1].locals.push(each);
+					quenchRebinds(scope).newVar(each, false, false, explicitQ);
+					quenchRebinds(scope).locals.push(each);
 				} else {
 					throw PE(
 						'Undeclared variable "' + each + '" when using `-!option explicit`.',
@@ -185,9 +192,10 @@ exports.resolve = function(ast, ts, config){
 					)
 				};
 			} else {
-				var livingScope = trees[scope.variables[each] - 1];
+				var variableRecord = scope.variables[each]
+				var livingScope = trees[variableRecord.id];
 				livingScope.locals.push(each);
-				if(scope.varIsConst[each]) {
+				if(variableRecord.constQ) {
 					var s = scope;
 					do {
 						if(s.usedVariablesAssignOcc[each] >= 0) {
@@ -199,24 +207,17 @@ exports.resolve = function(ast, ts, config){
 				}
 			};
 		};
-		for (var i = 0; i < scope.nest.length; i++)
-			resolveVariables(trees[scope.nest[i] - 1], trees, explicitQ);
-
-		// minimalize AST size
-		// scope.cleanup();
+		// Step III: recurse to nested scopes
+		for (var i = 0; i < scope.nest.length; i++) {
+			resolveVariables(trees[scope.nest[i]], trees, explicitQ);
+		}
 	};
 
-	var trees = createScopes(ast.tree);
+	var trees = createScopes(ast);
 	var enter = trees[0];
-	generateBindRequirement(enter);
-	
-	if(enter.mPrim){
+	if(enter.mPrim) {
 		throw PE("The global scope cannot be a monadic primitive.", 1);
 	}
-
-	for(var i = 0; i < trees.length; i++)
-		checkFunction(trees[i]);
-
 	resolveVariables(enter, trees, !!ast.options.explicit);
 	return trees;
 }

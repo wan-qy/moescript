@@ -1,4 +1,3 @@
-
 var path = require('path');
 var opts = require('./options').opts;
 var argv = require('./options').argv;

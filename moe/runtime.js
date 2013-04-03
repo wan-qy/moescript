@@ -99,18 +99,6 @@ var CNARG = function(a) {
 		return new NamedArguments
 }
 
-//: AUX-METHODS
-var M_TOP = function() {return this}();
-var RMETHOD = function(l, r, m) {
-	return r[m](l)
-}
-var YIELDVALUE = function(a, restart) {
-	this.values = a;
-	this.restart = restart;
-}
-var RETURNVALUE = function(x) {
-	this.value = x
-}
 //: MONAD_SCHEMATA_M
 var MONAD_SCHEMATA_M = {
 	'return': function(x) { return x },
@@ -138,7 +126,7 @@ var SCHEMATA_BLOCK = function(G, schemata, coming){
 	}
 };
 
-var GET_ENUM = function(obj){
+var GETENUM = function(obj){
 	if(obj.getEnumerator) {
 		return obj.getEnumerator()
 	} else if(obj instanceof Array) {
@@ -364,10 +352,10 @@ if (!Array.prototype.forEach) {
 	};
 }
 
-var RANGE_EX = function(left, right){
+var ExclusiveRange = function(left, right){
 	return new ExclusiveAscRange(left, right)
 };
-var RANGE_INCL = function(left, right){
+var InclusiveRange = function(left, right){
 	return new InclusiveAscRange(left, right)
 };
 
@@ -417,14 +405,9 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	return f
 };
 
-//: moe-master
+// All functions used for the runtime
 exports.runtime = {
 	CNARG: CNARG,
-	M_TOP: M_TOP,
-	MONAD_SCHEMATA_M: MONAD_SCHEMATA_M,
-	OWNS: OWNS,
-	RETURNVALUE: RETURNVALUE,
-	RMETHOD: RMETHOD,
 	SLICE: SLICE,
 	THROW: THROW,
 	NEGATE: NEGATE,
@@ -433,10 +416,8 @@ exports.runtime = {
 	IS: IS,
 	AS: AS,
 	SCHEMATA_BLOCK: SCHEMATA_BLOCK,
-	UNIQ: UNIQ,
-	YIELDVALUE: YIELDVALUE,
-	RANGE_EX: RANGE_EX,
-	RANGE_INCL: RANGE_INCL,
+	ExclusiveRange: ExclusiveRange,
+	InclusiveRange: InclusiveRange,
 	NamedArguments: NamedArguments,
 	NARGS: CREATE_NARGS,
 	NARGS0: CREATE_NARGS0,
@@ -444,8 +425,12 @@ exports.runtime = {
 	NARGS2: CREATE_NARGS2,
 	NARGS3: CREATE_NARGS3,
 	NARGS4: CREATE_NARGS4,
-	GET_ENUM: GET_ENUM
+	GETENUM: GETENUM
 };
 
+// util functions used for the compiler or the prelude
 exports.derive = derive;
 exports.Nai = Nai;
+exports.MONAD_SCHEMATA_M = MONAD_SCHEMATA_M;
+exports.OWNS = OWNS;
+exports.UNIQ = UNIQ;

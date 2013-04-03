@@ -293,17 +293,12 @@ reg('keysof', Object.keys || (function () {
     };
 })());
 
-reg('defaultMonadSchemata', moert.runtime.MONAD_SCHEMATA_M);
+reg('defaultMonadSchemata', moert.MONAD_SCHEMATA_M);
 
 ;
 (function(){var RUNTIME$_ = moert.runtime
 var undefined;
 var CNARG$_ = RUNTIME$_.CNARG;
-var M_TOP$_ = RUNTIME$_.M_TOP;
-var MONAD_SCHEMATA_M$_ = RUNTIME$_.MONAD_SCHEMATA_M;
-var OWNS$_ = RUNTIME$_.OWNS;
-var RETURNVALUE$_ = RUNTIME$_.RETURNVALUE;
-var RMETHOD$_ = RUNTIME$_.RMETHOD;
 var SLICE$_ = RUNTIME$_.SLICE;
 var THROW$_ = RUNTIME$_.THROW;
 var NEGATE$_ = RUNTIME$_.NEGATE;
@@ -312,10 +307,8 @@ var IN$_ = RUNTIME$_.IN;
 var IS$_ = RUNTIME$_.IS;
 var AS$_ = RUNTIME$_.AS;
 var SCHEMATA_BLOCK$_ = RUNTIME$_.SCHEMATA_BLOCK;
-var UNIQ$_ = RUNTIME$_.UNIQ;
-var YIELDVALUE$_ = RUNTIME$_.YIELDVALUE;
-var RANGE_EX$_ = RUNTIME$_.RANGE_EX;
-var RANGE_INCL$_ = RUNTIME$_.RANGE_INCL;
+var ExclusiveRange$_ = RUNTIME$_.ExclusiveRange;
+var InclusiveRange$_ = RUNTIME$_.InclusiveRange;
 var NamedArguments$_ = RUNTIME$_.NamedArguments;
 var NARGS$_ = RUNTIME$_.NARGS;
 var NARGS0$_ = RUNTIME$_.NARGS0;
@@ -323,14 +316,14 @@ var NARGS1$_ = RUNTIME$_.NARGS1;
 var NARGS2$_ = RUNTIME$_.NARGS2;
 var NARGS3$_ = RUNTIME$_.NARGS3;
 var NARGS4$_ = RUNTIME$_.NARGS4;
-var GET_ENUM$_ = RUNTIME$_.GET_ENUM;
+var GETENUM$_ = RUNTIME$_.GETENUM;
 var exports$ = exports;
 var moert$ = moert;
 
 
 var _$_ARGS = [];
 var _$_ARGND = {};
-var Array$, Both$, Date$, Either$, Empty$, Enumerable$, Function$, MONAD_SCHEMATA_M$, OWNS$, Object$, Primitive$, RETURNVALUE$, Reaction$, RegExp$, YIELDVALUE$, async$, composite$, createAsyncSchemata$, derive$, doon$, enumeration$, export$, extractor$, getEnumeratorOf$, global_$, hash$, inspect$, instanceof$, its$, itself$, join$, keysof$, list$, match$, matcher$, math$, object$, pac$, pairsof$, qjoin$, rangeForEach$, returns$, select$, sleep$, start$, table$, takeWhile$, tee$, time$, type$;
+var Array$, Both$, Date$, Either$, Empty$, Enumerable$, Function$, MONAD_SCHEMATA_M$, OWNS$, Object$, Primitive$, Reaction$, RegExp$, async$, compose$, createAsyncSchemata$, derive$, doon$, enumeration$, export$, extractor$, getEnumeratorOf$, global_$, hash$, inspect$, instanceof$, its$, itself$, join$, keysof$, list$, match$, matcher$, math$, object$, pairsof$, pcl$, pcr$, qjoin$, rangeForEach$, returns$, select$, sleep$, start$, table$, takeWhile$, tee$, time$, type$;
 derive$ = exports$.derive;
 Object$ = exports$.Object;
 Function$ = exports$.Function;
@@ -344,10 +337,8 @@ RegExp$ = exports$.RegExp;
 type$ = exports$.type;
 instanceof$ = exports$["instanceof"];
 math$ = exports$.math;
-MONAD_SCHEMATA_M$ = moert$.runtime.MONAD_SCHEMATA_M;
-OWNS$ = moert$.runtime.OWNS;
-YIELDVALUE$ = moert$.runtime.YIELDVALUE;
-RETURNVALUE$ = moert$.runtime.RETURNVALUE;
+MONAD_SCHEMATA_M$ = moert$.MONAD_SCHEMATA_M;
+OWNS$ = moert$.OWNS;
 export$ = (function (n$){
     return (function (x$){
         return (exports$[n$] = x$);
@@ -366,7 +357,7 @@ returns$ = export$("returns")((function (x$){
 itself$ = export$("itself")((function (x$){
     return x$;
 }));
-composite$ = export$("composite")((function (f$,g$){
+compose$ = export$("compose")((function (f$,g$){
     return (function (){
         var _$_THIS = this;
         var _$_ARGS = SLICE$_(arguments, 0);
@@ -438,10 +429,10 @@ list$ = export$("list")(object$((function (){
         }}}));
     });
     return (_$_THIS.shuffle = (function (a$){
-        var t_0$_;
+        var _0$_;
         var b$, i$, j$, t$;
         b$ = a$.slice(0);
-        for (((i$ = 0),(t_0$_ = b$.length)); i$ < t_0$_; i$ = i$ + 1) {
+        for (((i$ = 0),(_0$_ = b$.length)); i$ < _0$_; i$ = i$ + 1) {
             j$ = math$.randInt(i$, b$.length);
             t$ = b$[i$];
             b$[i$] = b$[j$];
@@ -450,7 +441,7 @@ list$ = export$("list")(object$((function (){
         return b$;
     }));
 })));
-pac$ = export$("pcl")((function (f$){
+pcl$ = export$("pcl")((function (f$){
     var _$_ARGS = SLICE$_(arguments, 0);
     var args$;
     args$ = _$_ARGS.slice(1);
@@ -460,7 +451,7 @@ pac$ = export$("pcl")((function (f$){
         return f$.apply(_$_THIS, args$.concat(_$_ARGS));
     });
 }));
-pac$ = export$("pcr")((function (f$){
+pcr$ = export$("pcr")((function (f$){
     var _$_ARGS = SLICE$_(arguments, 0);
     var args$;
     args$ = _$_ARGS.slice(1);
@@ -471,11 +462,11 @@ pac$ = export$("pcr")((function (f$){
     });
 }));
 time$ = export$("time")((function (args$,f$){
-    var final$, start$;
-    start$ = new (Date$)();
+    var finishTime$, startTime$;
+    startTime$ = new (Date$)();
     f$.apply(null, args$);
-    final$ = new (Date$)();
-    return final$ - start$;
+    finishTime$ = new (Date$)();
+    return finishTime$ - startTime$;
 }));
 (function (){
     var inspectObject$, inspectProperties$, rIdentifier$, tPropName$;
@@ -484,13 +475,13 @@ time$ = export$("time")((function (args$,f$){
         return (rIdentifier$.test(s$) ? s$ : Primitive$.stringify(s$));
     });
     inspectProperties$ = (function (x$,stack$,depth$,targetDepth$){
-        var t_2$_, t_1$_;
+        var _2$_, _1$_;
         var a$, foundCircle$, j$, p$, prop$;
         a$ = [];
-        for (p$ = (t_2$_ = GET_ENUM$_(keysof$(x$))).emit(); t_2$_.active; p$ = t_2$_.emit()) {
+        for (p$ = (_2$_ = GETENUM$_(keysof$(x$))).emit(); _2$_.active; p$ = _2$_.emit()) {
             prop$ = x$[p$];
             foundCircle$ = false;
-            for (j$ = (t_1$_ = GET_ENUM$_(stack$)).emit(); t_1$_.active; j$ = t_1$_.emit()) {
+            for (j$ = (_1$_ = GETENUM$_(stack$)).emit(); _1$_.active; j$ = _1$_.emit()) {
                 if (j$ === prop$) {
                     foundCircle$ = true;
                     break ;
@@ -531,9 +522,7 @@ enumeration$ = export$("enumeration")((function (G$){
     return (function (){
         var _$_THIS = this;
         var _$_ARGS = SLICE$_(arguments, 0);
-        var a$, e$, fCont$, g$, t$;
-        t$ = _$_THIS;
-        a$ = _$_ARGS;
+        var e$, fCont$, g$;
         e$ = {"emit": (function (){
             var _$_THIS = this;
             var _$_ARGS = SLICE$_(arguments, 0);
@@ -555,7 +544,7 @@ enumeration$ = export$("enumeration")((function (G$){
             });
             return (g$ = G$.build({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$}));
         })();
-        fCont$ = g$.apply(t$, a$);
+        fCont$ = g$.apply(_$_THIS, _$_ARGS);
         return e$;
     });
 }));
@@ -566,9 +555,9 @@ Enumerable$ = export$("Enumerable")((function (G$){
     return (function (){
         var _$_THIS = this;
         var _$_ARGS = SLICE$_(arguments, 0);
-        var a$, fGetEnumerator$, t$;
-        t$ = _$_THIS;
-        a$ = _$_ARGS;
+        var argsp$, fGetEnumerator$, thisp$;
+        thisp$ = _$_THIS;
+        argsp$ = _$_ARGS;
         fGetEnumerator$ = (function (){
             var e$, fCont$, g$;
             e$ = {"emit": (function (){
@@ -592,13 +581,13 @@ Enumerable$ = export$("Enumerable")((function (G$){
                 });
                 return (g$ = G$.build({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$}));
             })();
-            fCont$ = g$.apply(t$, a$);
+            fCont$ = g$.apply(thisp$, argsp$);
             return e$;
         });
         return {"getEnumerator": fGetEnumerator$};
     });
 }));
-getEnumeratorOf$ = export$("getEnumeratorOf")(moert$.runtime.GET_ENUM);
+getEnumeratorOf$ = export$("getEnumeratorOf")(moert$.runtime.GETENUM);
 rangeForEach$ = export$("rangeForEach")((function (range$,f$){
     var e$, t$;
     e$ = getEnumeratorOf$(range$);
@@ -613,14 +602,14 @@ rangeForEach$ = export$("rangeForEach")((function (range$,f$){
     };
 }));
 takeWhile$ = export$("takeWhile")(Enumerable$(({build: function(SCHEMATA$_){return function (I$,condition$){
-    var t_3$_, es_c$_, es_d$_, es_e$_, es_f$_, es_g$_, es_h$_, es_i$_, es_j$_, es_k$_;
+    var _3$_, es_c$_, es_d$_, es_e$_, es_f$_, es_g$_, es_h$_, es_i$_, es_j$_, es_k$_;
     var a$;
     es_c$_ = (function(){
-        a$ = (t_3$_ = GET_ENUM$_(I$)).emit();
+        a$ = (_3$_ = GETENUM$_(I$)).emit();
         return es_f$_();
     });
     es_f$_ = (function(){
-        if (!(t_3$_.active)) {
+        if (!(_3$_.active)) {
             return es_g$_();
         };
         if (!(!(condition$(a$)))) {
@@ -633,7 +622,7 @@ takeWhile$ = export$("takeWhile")(Enumerable$(({build: function(SCHEMATA$_){retu
         return SCHEMATA$_.bind(es_i$_, es_j$_);
     });
     es_j$_ = (function(es_k$_){
-        a$ = t_3$_.emit();
+        a$ = _3$_.emit();
         return es_f$_();
     });
     es_g$_ = (function(){
@@ -645,14 +634,14 @@ takeWhile$ = export$("takeWhile")(Enumerable$(({build: function(SCHEMATA$_){retu
     return es_c$_;
 }}})));
 select$ = export$("select")(Enumerable$(({build: function(SCHEMATA$_){return function (I$,condition$){
-    var t_4$_, es_l$_, es_m$_, es_n$_, es_o$_, es_p$_, es_q$_, es_r$_, es_s$_, es_t$_;
+    var _4$_, es_l$_, es_m$_, es_n$_, es_o$_, es_p$_, es_q$_, es_r$_, es_s$_, es_t$_;
     var a$;
     es_l$_ = (function(){
-        a$ = (t_4$_ = GET_ENUM$_(I$)).emit();
+        a$ = (_4$_ = GETENUM$_(I$)).emit();
         return es_o$_();
     });
     es_o$_ = (function(){
-        if (!(t_4$_.active)) {
+        if (!(_4$_.active)) {
             return es_p$_();
         };
         if (!(condition$(a$))) {
@@ -665,7 +654,7 @@ select$ = export$("select")(Enumerable$(({build: function(SCHEMATA$_){return fun
         return es_q$_();
     });
     es_q$_ = (function(){
-        a$ = t_4$_.emit();
+        a$ = _4$_.emit();
         return es_o$_();
     });
     es_p$_ = (function(){
@@ -677,21 +666,21 @@ select$ = export$("select")(Enumerable$(({build: function(SCHEMATA$_){return fun
     return es_l$_;
 }}})));
 pairsof$ = export$("pairsof")(Enumerable$(({build: function(SCHEMATA$_){return function (o$){
-    var t_5$_, es_u$_, es_v$_, es_w$_, es_x$_, es_y$_, es_z$_, es_10$_, es_11$_;
+    var _5$_, es_u$_, es_v$_, es_w$_, es_x$_, es_y$_, es_z$_, es_10$_, es_11$_;
     var j$;
     es_u$_ = (function(){
-        j$ = (t_5$_ = GET_ENUM$_(keysof$(o$))).emit();
+        j$ = (_5$_ = GETENUM$_(keysof$(o$))).emit();
         return es_x$_();
     });
     es_x$_ = (function(){
-        if (!(t_5$_.active)) {
+        if (!(_5$_.active)) {
             return es_y$_();
         };
         es_z$_ = [o$[j$], j$];
         return SCHEMATA$_.bind(es_z$_, es_10$_);
     });
     es_10$_ = (function(es_11$_){
-        j$ = t_5$_.emit();
+        j$ = _5$_.emit();
         return es_x$_();
     });
     es_y$_ = (function(){
@@ -710,25 +699,25 @@ table$ = export$("table")((function (G$){
     schemata$ = object$(MONAD_SCHEMATA_M$, (function (){
         var _$_THIS = this;
         _$_THIS["return"] = (function (x$){
-            var t_6$_;
-            if ((t_6$_ = x$) === undefined) {
+            var _6$_;
+            if ((_6$_ = x$) === undefined) {
                 ;
             } else {
                 return ans$.push(x$);
             };
         });
-        return (_$_THIS.bind = (function (list$,callback$){
-            return rangeForEach$(list$, callback$);
+        return (_$_THIS.bind = (function (enumerationList$,callback$){
+            return rangeForEach$(enumerationList$, callback$);
         }));
     }));
     (G$.build(schemata$).apply(_$_THIS, _$_ARGS))();
     return ans$;
 }));
 hash$ = export$("hash")((function (t$){
-    var t_7$_;
+    var _7$_;
     var o$, term$;
     o$ = {};
-    for (term$ = (t_7$_ = GET_ENUM$_(t$)).emit(); t_7$_.active; term$ = t_7$_.emit()) {
+    for (term$ = (_7$_ = GETENUM$_(t$)).emit(); _7$_.active; term$ = _7$_.emit()) {
         o$[term$[0]] = o$[term$[1]];
     };
     return o$;
@@ -757,7 +746,7 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             } else {
                 try {
                     return g$(x$);
-                } catch (t_c$_) {e$=t_c$_;
+                } catch (_c$_) {e$=_c$_;
                     return rLocal$(e$, undefined);
                 };
             };
@@ -773,7 +762,7 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             } else {
                 try {
                     return g$(x$);
-                } catch (t_d$_) {e$=t_d$_;
+                } catch (_d$_) {e$=_d$_;
                     return rLocal$(e$, undefined);
                 };
             };
@@ -788,7 +777,7 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             if (err$) {
                 try {
                     return MCatch$(catchSchemata$)(err$);
-                } catch (t_e$_) {ex$=t_e$_;
+                } catch (_e$_) {ex$=_e$_;
                     return rCatch$(ex$, undefined);
                 };
             } else {
@@ -806,7 +795,7 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
         catchSchemata$ = createAsyncSchemata$(rCatch$, rLongJump$);
         try {
             return MAttempt$(trySchemata$)();
-        } catch (t_f$_) {ex$=t_f$_;
+        } catch (_f$_) {ex$=_f$_;
             return r$(ex$, undefined);
         };
     });
@@ -836,7 +825,7 @@ async$ = export$("async")((function (M$){
             reaction$ = _$_ARGS[(_$_ARGS.length - 1)];
             try {
                 r$ = M$.apply(t$, a$);
-            } catch (t_g$_) {e$=t_g$_;
+            } catch (_g$_) {e$=_g$_;
                 return reaction$(e$, undefined);
             };
             return reaction$(null, r$);
@@ -887,29 +876,29 @@ join$ = export$("join")((function (o$,reaction$){
     }));
 }));
 qjoin$ = export$("qjoin")(async$(({build: function(SCHEMATA$_){return function (nQueues$,tasks$){
-    var t_8$_, t_9$_, t_b$_, es_1b$_, es_1c$_, es_1d$_, es_1e$_, es_1f$_, es_1g$_, es_1h$_;
+    var _8$_, _9$_, _b$_, es_1b$_, es_1c$_, es_1d$_, es_1e$_, es_1f$_, es_1g$_, es_1h$_;
     var i$, q$;
     es_1b$_ = (function(){
         q$ = [];
-        for (((i$ = 0),(t_8$_ = nQueues$)); i$ < t_8$_; i$ = i$ + 1) {
+        for (((i$ = 0),(_8$_ = nQueues$)); i$ < _8$_; i$ = i$ + 1) {
             q$[i$] = [];
         };
-        for (((i$ = 0),(t_9$_ = tasks$.length)); i$ < t_9$_; i$ = i$ + 1) {
+        for (((i$ = 0),(_9$_ = tasks$.length)); i$ < _9$_; i$ = i$ + 1) {
             q$[(i$ % nQueues$)].push(tasks$[i$]);
         };
-        for (((i$ = 0),(t_b$_ = nQueues$)); i$ < t_b$_; i$ = i$ + 1) {
+        for (((i$ = 0),(_b$_ = nQueues$)); i$ < _b$_; i$ = i$ + 1) {
             (function (){
                 var queue$;
                 queue$ = q$[i$];
                 return (q$[i$] = async$(({build: function(SCHEMATA$_){return function (){
-                    var t_a$_, es_12$_, es_13$_, es_14$_, es_15$_, es_16$_, es_17$_, es_18$_, es_19$_, es_1a$_;
+                    var _a$_, es_12$_, es_13$_, es_14$_, es_15$_, es_16$_, es_17$_, es_18$_, es_19$_, es_1a$_;
                     var j$;
                     es_12$_ = (function(){
-                        ((j$ = 0),(t_a$_ = queue$.length));
+                        ((j$ = 0),(_a$_ = queue$.length));
                         return es_15$_();
                     });
                     es_15$_ = (function(){
-                        if (!(j$ < t_a$_)) {
+                        if (!(j$ < _a$_)) {
                             return es_16$_();
                         };
                         es_17$_ = queue$;
@@ -954,9 +943,10 @@ matcher$ = (function (G$){
     });
     schemata$ = object$(MONAD_SCHEMATA_M$, (function (){
         var _$_THIS = this;
-        return (_$_THIS.bindYield = (function (extractor$,thisp$,gotcha$,mismatch$){
-            mismatch$();
-            fMatcher$ = extractor$.formMatch.call(thisp$, gotcha$, fMatcher$);
+        return (_$_THIS.bindYield = (function (extractor$,thisp$,fGot$,fMismatch$){
+            var extractor$;
+            fMismatch$();
+            fMatcher$ = extractor$.formMatch.call(thisp$, fGot$, fMatcher$);
         }));
     }));
     G$.build(schemata$)()();
@@ -982,6 +972,7 @@ Both$ = export$("Both")((function (){
     extractors$ = _$_ARGS;
     return extractor$((function (got$,miss$){
         return extractors$.reduceRight((function (total$,extractor$){
+            var extractor$;
             return extractor$.formMatch(total$, miss$);
         }), got$);
     }));
@@ -992,6 +983,7 @@ Either$ = export$("Either")((function (){
     extractors$ = _$_ARGS;
     return extractor$((function (got$,miss$){
         return extractors$.reduceRight((function (total$,extractor$){
+            var extractor$;
             return extractor$.formMatch(got$, total$);
         }), miss$);
     }));
