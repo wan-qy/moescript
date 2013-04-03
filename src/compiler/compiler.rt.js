@@ -1,4 +1,4 @@
-﻿//:module: compiler runtime -- compilerrt
+//:module: compiler runtime -- compilerrt
 //	:author:		infinte (aka. be5invis)
 //	:info:			The essential environment for Moe Compiler
 
@@ -81,7 +81,7 @@ var NodeType = exports.NodeType = function () {
 		'EXPRSTMT', 
 		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
 		// Large-scale
-		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK'];
+		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK', 'PROGRAM'];
 
 	var T = {};
 	for (var i = 0; i < types.length; i++)
@@ -95,38 +95,77 @@ var NodeType = exports.NodeType = function () {
 } ();
 
 var ScopedScript = exports.ScopedScript = function (id, env) {
-	this.code = {type: NodeType.SCRIPT};
-	this.variables = env ? derive(env.variables) : new Nai;
+	this.id = id;
+	this.variables = new Nai;
 	this.varIsArg = new Nai;
-	this.varIsConst = env ? derive(env.varIsConst) : new Nai;
+	this.varIsConst = new Nai;
 	this.labels = {};
 	this.upper = null;
 	this.type = NodeType.SCOPE;
 	this.nest = [];
 	this.locals = [];
-	this.id = id;
 	this.fid = "F" + id.toString(36);
-	this.parent = env;
 	this.usedVariables = new Nai;
 	this.usedVariablesOcc = new Nai;
 	this.usedVariablesAssignOcc = new Nai;
-	this.usedTemps = {};
+	this.usedTemps = new Nai;
 	this.grDepth = 0;
 	this.sharpNo = 0;
 	this.finNo = 0;
 	this.coroid = false;
 	this.initHooks = {};
+	this.pendNewVars = [];
+	if(env){
+		env.hasNested = true;
+		env.nest.push(this.id);
+		this.parent = env;
+		this.variables = derive(env.variables);
+		this.varIsConst = derive(env.varIsConst);
+	}
 };
-
-ScopedScript.prototype.newVar = function (name, parQ, constQ) {
-	if (this.variables[name] === this.id) {
-		this.varIsConst[name] = this.varIsConst[name] || constQ;
+ScopedScript.prototype.pendNewVar = function (name, parQ, constQ, pos) {
+	this.pendNewVars.push({
+		name: name,
+		parQ: parQ,
+		constQ: constQ,
+		pos: pos
+	})
+}
+ScopedScript.prototype.newVar = function (name, parQ, constQ, explicitQ) {
+	if(!this.variables[name]){
+		// New variable
+		this.varIsArg[name] = parQ === true;
+		this.varIsConst[name] = constQ;
+		this.variables[name] = this.id;
+		//
+		this.variables[name] = {
+			id: this.id,
+			parQ: parQ,
+			constQ: constQ
+		}
+	} else if (this.variables[name].id === this.id) {
+		// Same scope redeclare
+		if(this.variables[name].constQ || constQ){
+			throw ("Attempt to redefine constant " + name)
+		}
 		return;
+	} else {
+		// Shadowing
+		var rv;
+		if(this.variables[name].constQ && !parQ) {
+			if(explicitQ){
+				throw ("Attempt to shadow constant " + name)
+			} else {
+				rv = "Shadowing constant " + name;
+			}
+		}
+		this.variables[name] = {
+			id: this.id,
+			parQ: parQ,
+			constQ: constQ
+		}
+		return rv;
 	};
-
-	this.varIsArg[name] = parQ === true;
-	this.varIsConst[name] = constQ;
-	return this.variables[name] = this.id;
 };
 ScopedScript.prototype.useVar = function (name, position) {
 	this.usedVariables[name] = true;
@@ -144,7 +183,8 @@ ScopedScript.prototype.useTemp = function(name, processing){
 	// 0: As variable
 	// 1: As Parameter
 	// 2: Special
-	this.usedTemps[name] = (processing || 0) + 1;
+	if(!this.usedTemps[name])
+		this.usedTemps[name] = (processing || 0) + 1;
 };
 ScopedScript.VARIABLETEMP = 0;
 ScopedScript.PARAMETERTEMP = 1;
@@ -170,7 +210,7 @@ exports.walkNode = function(node, f, aux){
 exports.TMaker = function(){
 	var ns = {};
 	return function(e, namespace){
-		namespace = namespace || 't';
+		namespace = namespace || '';
 		if(!ns[namespace]) ns[namespace] = 0
 		var id = namespace + '_' + ns[namespace].toString(36);
 		ns[namespace] += 1

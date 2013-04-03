@@ -16,7 +16,7 @@ var source2html = function(s){
 
 module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function(require){
 	var moert = require('moe/runtime');
-	var OWNS = moert.runtime.OWNS;
+	var OWNS = moert.OWNS;
 	var moec = require('moe/compiler/compiler');
 	var TopScope = moec.TopScope;
 	var C_STRING = require('moe/compiler/compiler.rt').C_STRING;

@@ -3,9 +3,7 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 var walkRex = moecrt.walkRex;
-
-
-var UNIQ = moe.runtime.UNIQ;
+var UNIQ = moe.UNIQ;
 
 "Code Emission Util Functions";
 var ENCODE_IDENTIFIER = function(){
@@ -317,7 +315,7 @@ exports.Generator = function(g_envs, g_config){
 			return $('[%1]', terms.join(', '));
 	});
 	defineSchemata(nt.FUNCTION, function () {
-		var	f = g_envs[this.tree - 1];
+		var	f = g_envs[this.tree];
 		var s = compileFunctionBody(f);
 		return '(' + s + ')';
 	});
@@ -375,8 +373,8 @@ exports.Generator = function(g_envs, g_config){
 	binoper('or', '||');
 	libfuncoper('is', C_TEMP('IS'));
 	libfuncoper('as', C_TEMP('AS'));
-	libfuncoper('..', C_TEMP('RANGE_EX'));
-	libfuncoper('...', C_TEMP('RANGE_INCL'));
+	libfuncoper('..', C_TEMP('ExclusiveRange'));
+	libfuncoper('...', C_TEMP('InclusiveRange'));
 
 	defineSchemata(nt.NEGATIVE, function () {
 		return '(-(' + reduceBracketsTransform(ungroup(this.operand), true) + '))';

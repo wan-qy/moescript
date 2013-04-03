@@ -37,7 +37,7 @@ def chain(head, length) = piecewise
 
 def head = randomFetch couples
 def generated = (head + chain head, generateLength)
-def symbol = '[^\u4e00-\u9fff]+' as RegExp.g
+def symbol = `[^\u4e00-\u9fff]+`g
 
 console.log (generated.replace symbol, (=> randomFetch ["。", "，"]) 
                      |.replace ('，$' as RegExp.g), "。")

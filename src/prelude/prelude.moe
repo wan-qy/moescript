@@ -15,10 +15,8 @@ def type = exports.type
 def instanceof = exports.instanceof
 def math = exports.math
 
-def MONAD_SCHEMATA_M = moert.runtime.MONAD_SCHEMATA_M
-def OWNS = moert.runtime.OWNS
-def YIELDVALUE = moert.runtime.YIELDVALUE
-def RETURNVALUE = moert.runtime.RETURNVALUE
+def MONAD_SCHEMATA_M = moert.MONAD_SCHEMATA_M
+def OWNS = moert.OWNS
 
 def export(n)(x) = (exports[n] = x)
 
@@ -28,7 +26,7 @@ def export(n)(x) = (exports[n] = x)
 def export('its') its(prop)(o) = o[prop]
 def export('returns') returns(x)() = x
 def export('itself') itself(x) = x
-def export('composite') composite(f, g)() = f (do g)
+def export('compose') compose(f, g)() = f (do g)
 def export('doon') doon(o, f) = f.call o
 def export('tee') tee(o, f) =
 	f.call o, o
@@ -52,20 +50,21 @@ def export('list') list = object =>
 			b[j] = t
 		return b
 
-def export('pcl') pac(f) =
+def export('pcl') pcl(f) =
 	() => f.apply this, args.concat(arguments)
 	where args = arguments.slice 1
-def export('pcr') pac(f) =
+	
+def export('pcr') pcr(f) =
 	() => f.apply this, arguments.concat(args)
 	where args = arguments.slice 1
 
 
 -- function time: record run time of an function
 def export('time') time(args, f) = 
-	def start = new Date
+	def startTime = new Date
 	f.apply null, args
-	def final = new Date
-	final - start
+	def finishTime = new Date
+	finishTime - startTime
 
 -- function inspect: pretty-print of object
 def export('inspect') inspect(x, targetDepth = 3) = inspectObject x, [], 0, targetDepth
@@ -102,8 +101,6 @@ where
 // Enumeration functions
 -- function enumeration: Generates emitters, used for adding methods.
 def export('enumeration') enumeration(G)() = 
-	def t = this
-	def a = arguments
 	var e = [emit: (=> fCont.apply this, arguments), active: true]
 	var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield] where 
 		fRet(x) = 
@@ -113,7 +110,7 @@ def export('enumeration') enumeration(G)() =
 			fCont = cont
 			x
 		fBindYield(f, t, x, cont) = fBind(f.call(t, x), arguments[arguments.length - 1])
-	var fCont = g.apply(t, a)
+	var fCont = g.apply(this, arguments)
 	
 	e;
 
@@ -121,8 +118,8 @@ def enumeration.yield(x) = x;
 -- function Enumerable: creates objects containing "getEnumerator" method.
 -- Enumerable: (MonadPrimitive(* -> [T])) -> Enumerable T
 def export('Enumerable') Enumerable(G)() = [getEnumerator: fGetEnumerator] where 
-	t = this
-	a = arguments
+	thisp = this
+	argsp = arguments
 	fGetEnumerator() =
 		var e = [emit: (=> fCont.apply this, arguments), active: true]
 		var g = G.build [return: fRet, bind: fBind, bindYield: fBindYield] where 
@@ -133,14 +130,14 @@ def export('Enumerable') Enumerable(G)() = [getEnumerator: fGetEnumerator] where
 				fCont = cont
 				x
 			fBindYield(f, t, x, cont) = fBind(f.call(t, x), arguments[arguments.length - 1])
-		var fCont = g.apply(t, a)
+		var fCont = g.apply(thisp, argsp)
 
 		e;
 
 -- function getEnumeratorOf: Returns an enumerator of an Enumerable object
 -- Defined in moert
 -- getEnumeratorOf: (Enumerable T) -> Enumerator T
-def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GET_ENUM
+def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GETENUM
 
 -- function rangeForEach: A "sometimes-faster" way to run "for" on a function
 -- Approximately for(var *a in range) f.apply null, a
@@ -184,7 +181,7 @@ def export("table") table(G) =
 		def @return(x) = case(x)
 			when(undefined) pass
 			otherwise       ans.push x
-		def @bind(list, callback) = rangeForEach list, callback
+		def @bind(enumerationList, callback) = rangeForEach enumerationList, callback
 
 	(do G.build schemata)()
 
@@ -311,9 +308,9 @@ def export('sleep') sleep(dt, reaction) = global_.setTimeout({reaction()}, dt)
 def matcher(G) = 
     var fMatcher = (x) => undefined;
     def schemata = object MONAD_SCHEMATA_M, =>
-        def @bindYield(extractor, thisp, gotcha, mismatch):
-            mismatch()
-            fMatcher = extractor.formMatch.call thisp, gotcha, fMatcher
+        def @bindYield(extractor, thisp, fGot, fMismatch):
+            fMismatch()
+            fMatcher = extractor.formMatch.call thisp, fGot, fMatcher
     	
     G.build(schemata)()()
     return fMatcher
