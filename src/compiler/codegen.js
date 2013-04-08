@@ -5,6 +5,11 @@ var ScopedScript = moecrt.ScopedScript;
 var walkRex = moecrt.walkRex;
 var UNIQ = moe.UNIQ;
 
+var smapinfo = require('./smapinfo');
+var addSmapInfo = smapinfo.addSmapInfo;
+var rBracketRemoval = smapinfo.rBracketRemoval;
+var smapRecord = smapinfo.smapRecord;
+
 "Code Emission Util Functions";
 var ENCODE_IDENTIFIER = function(){
 	var COMPARE_CODES = function(P, Q){
@@ -141,10 +146,6 @@ var GListTmpType = function(type){
 };
 var listTemp = GListTmpType(ScopedScript.VARIABLETEMP);
 
-var smapRecord = function(type, body){
-	return '/*\x1b MOESMAP(' + type + ', ' + body + ')\x1b */'
-}
-
 exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
 	var makeT = g_config.makeT;
@@ -211,11 +212,14 @@ exports.Generator = function(g_envs, g_config){
 		};
 
 		if(ReplGlobalQ) return s.replace(/^    /gm, '');
-		s = $('function (%1){%2}',  pars.join(','), s);
-		if(tree.mPrim){
-			s = $('{build: function(%1){return %2}}', C_TEMP('SCHEMATA'), s)
+		if(tree.mPrim && tree.blockQ){
+			s = $('function (%1){%2}',  C_TEMP('SCHEMATA'), s);
+		} else {
+			s = $('function (%1){%2}',  pars.join(','), s);
+			if(tree.mPrim){
+				s = $('{build: function(%1){return %2}}', C_TEMP('SCHEMATA'), s)
+			}
 		}
-		
 	
 		tree.transformed = s;
 		env = backupenv;
@@ -244,7 +248,7 @@ exports.Generator = function(g_envs, g_config){
 
 	"Common schematas";
 	defineSchemata(nt.VARIABLE, function () {
-		return GETV(this);
+		return smapRecord('ID', ENCODE_IDENTIFIER(this.name)) + GETV(this);
 	});
 	defineSchemata(nt.TEMPVAR, function(){
 		return C_TEMP(this.name);
@@ -608,37 +612,8 @@ exports.Generator = function(g_envs, g_config){
 		return JOIN_STMTS(a)
 	});
 
-	var rSmapInfo = /\/\*\x1b MOESMAP\((\w+), (\w+)\)\x1b \*\//g;
-	var rSmapCleanup = new RegExp('([\\{\\};]\\n\\s*)((?:' + rSmapInfo.source + ')+)(?:;$\\s*)+', 'gm');
-	var rBracketRemoval = /^(\/\*\x1b MOESMAP\((?:\w+), (?:\w+)\)\x1b \*\/)?\(([\s\S]*)\)(\/\*\x1b MOESMAP\((?:\w+), (?:\w+)\)\x1b \*\/)?$/;
-	var addSmapInfo = function(info){
-		var code = info.generatedCode
-		var code2 = code, k = 0;
-		do {
-			k += 1;
-			code = code2;
-			code2 = code.replace(rSmapCleanup, '$1$2');
-		} while (k <= 10 && code2 != code);
-		var smapPoints = [];
-		var buf = '';
-		walkRex(rSmapInfo, code, function(match, $1, $2){
-			var p = buf.length;
-			var q = $2 - 0;
-			var type = $1;
-			smapPoints.push({p: p, q: q, type: type});
-			return '';
-		}, function(match){
-			buf += match;
-		});
-		return {
-			generatedCodeWithSmap: info.generatedCode,
-			generatedCode: buf,
-			smapPoints: smapPoints
-		}
-	};
-
 	return function(){
 		var generatedCode = compileFunctionBody.apply(this, arguments);
-		return addSmapInfo({generatedCode: generatedCode})
+		return {generatedCode: generatedCode}
 	}
 };

@@ -14,12 +14,13 @@ var source2html = function(s){
 		+ '</ol>'
 }
 
-module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function(require){
+module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/compiler/smapinfo'], function(require){
 	var moert = require('moe/runtime');
 	var OWNS = moert.OWNS;
 	var moec = require('moe/compiler/compiler');
 	var TopScope = moec.TopScope;
 	var C_STRING = require('moe/compiler/compiler.rt').C_STRING;
+	var smapinfo = require('moe/compiler/smapinfo');
 
 	var moert_using = function(libs, f) {
 		var importings = [], immediates = [];
@@ -60,17 +61,21 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude'], function
 			function(ts){
 				try {
 					var script = moec.compile(document.getElementById('input').value, ts, {
-						warn: tracel
+						warn: tracel,
+						keepSourceMap: true
 					});
 					var initCode = ts.createInitializationCode();
 					
-					tracer('Generated Code:' + source2html(script.generatedCode));
-					tracer('Smap points:' + source2html(script.smapPoints.map(function(p){
+					var si = smapinfo.calculateSmapPoints(script.generatedCode);
+					tracer('Generated Code:' + source2html(si.codeWithoutSmap));
+					tracer('Smap points:' + source2html(si.smapPoints.map(function(p){
 						return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
 					}).join('\n')));
 					tracer('Initialization Code:' + source2html(initCode));
 
-					var func = Function(ts.runtimeName, initCode + '\n;' + script.generatedCode);
+//					console.log(smapinfo.generateSmapJson(si.codeWithoutSmap, [script.source], si.smapPoints));
+
+					var func = Function(ts.runtimeName, initCode + '\n;' + si.codeWithoutSmap);
 					func.call(this, moert.runtime);
 				} catch(e){
 					terr('Error occurs:\n' + e + '\nF12 to read more');

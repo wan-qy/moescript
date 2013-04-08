@@ -162,7 +162,9 @@ var transform = exports.transform = function(code, scope, config, aux){
 	}
 
 	/// Expressions
-
+	schemata[nt.FUNCTION] = function(){
+		return this;
+	}
 	schemata[nt.OBJECT] = function(){
 		for(var j = 0; j < this.args.length; j++){
 			this.args[j] = pep(this.args[j]);
@@ -259,10 +261,12 @@ var transform = exports.transform = function(code, scope, config, aux){
 		var e = makeT();
 		flow.pushStatement(new Node(nt.RETURN, {
 			expression: new Node(nt.CALL, {
-				func: new Node(nt.TEMPVAR, {name: 'SCHEMATA_BLOCK'}),
+				func: new Node(nt.MEMBER, {
+					left: new Node(nt.TEMPVAR, {name: 'SCHEMATA'}),
+					right: new Node(nt.LITERAL, {value: 'resend'})
+				}),
 				args: [
 					pep(this.func),
-					new Node(nt.TEMPVAR, {name: 'SCHEMATA'}),
 					new Node(nt.TEMPVAR, {name: l})
 				],
 				names: [null, null, null]

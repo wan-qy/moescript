@@ -1158,7 +1158,7 @@ exports.parse = function (tokens, source, config) {
 				func: new Node(nt.FUNCTION, {
 					parameters: new Node(nt.PARAMETERS, {names: []}),
 					code: new Node(nt.SCRIPT, {content: stmts}),
-					blockQ: true 
+					blockQ: true
 				}),
 				isWhereClause: true
 			}))

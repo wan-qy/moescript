@@ -17,7 +17,7 @@ dirs: $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 
 runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
-compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/cps.js
+compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/cps.js $(MOEC)/smapinfo.js
 commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
 metadatas = $(MOD)/package.json $(MOEC)/package.json
 
@@ -91,3 +91,14 @@ release: webtest webmin
 
 	rm -rf doc/demo/*
 	cp -a $(WEBTEST)/* doc/demo/
+
+publish-release: release
+	cd channel-release && git commit -a -m "Version $(ver)"
+	cd channel-release && git tag -a "r$(ver)" -m "Version $(ver)"
+	cd channel-release && git push origin release:release
+	cd channel-release && git push cafe   release:release
+	cd channel-release && git push origin --tag
+	cd channel-release && git push cafe   --tag
+	cd channel-release/moe && npm publish
+	cd doc && git commit -a -m "Demo: Version $(ver)"
+	cd doc && make publish
