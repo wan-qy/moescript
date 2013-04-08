@@ -93,12 +93,14 @@ release: webtest webmin
 	cp -a $(WEBTEST)/* doc/demo/
 
 publish-release: release
-	cd channel-release && git commit -a -m "Version $(ver)"
+	cd channel-release && git add .
+	cd channel-release && git commit -m "Version $(ver)"
 	cd channel-release && git tag -a "r$(ver)" -m "Version $(ver)"
 	cd channel-release && git push origin release:release
 	cd channel-release && git push cafe   release:release
 	cd channel-release && git push origin --tag
 	cd channel-release && git push cafe   --tag
 	cd channel-release/moe && npm publish
+	cd doc && git add demo
 	cd doc && git commit -a -m "Demo: Version $(ver)"
 	cd doc && make publish
