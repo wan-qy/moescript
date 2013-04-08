@@ -1,14 +1,15 @@
-//: Nai
+// << runtime.js >>
+// << Nai >>
 var Nai = function() {};
 Nai.prototype = {
 	constructor: undefined,
-//	toString: undefined, // comment this line for debug.
+	toString: undefined, // comment this line to debug.
 	valueOf: undefined,
 	hasOwnProperty: undefined,
 	propertyIsEnumerable: undefined
 };
 
-//: derive
+// << derive >>
 var derive = Object.craate ? Object.create : function() {
 	var F = function() {};
 	return function(obj) {
@@ -16,9 +17,8 @@ var derive = Object.craate ? Object.create : function() {
 		return new F;
 	}
 }();
-var derive = derive;
 
-//: OWNS
+// << OWNS >>
 var OWNS = function() {
 	var hop = {}.hasOwnProperty;
 	return function(o,p) {
@@ -26,7 +26,7 @@ var OWNS = function() {
 	}
 }();
 
-//: SLICE
+// << SLICE >>
 var SLICE = function() {
 	var s = Array.prototype.slice;
 	return function(x, m, n) {
@@ -34,7 +34,7 @@ var SLICE = function() {
 	};
 } ();
 
-//: UNIQ
+// << UNIQ >>
 var UNIQ = function(arr) {
 	if (!arr.length) return arr;
 
@@ -46,9 +46,8 @@ var UNIQ = function(arr) {
 	return t;
 };
 
-//: NamedArguments
+// << NamedArguments >>
 var NamedArguments = function() { };
-var NamedArguments = NamedArguments;
 NamedArguments.prototype = new Nai();
 NamedArguments.fetch = function(o, p) {
 	if (OWNS(o, p)) return o[p]
@@ -91,41 +90,45 @@ var CREATE_NARGS4 = function(c1,v1,c2,v2,c3,v3,c4,v4){
 	return na;
 };
 
-//: CNARG
+// << CNARG >>
 var CNARG = function(a) {
 	if (a instanceof NamedArguments)
 		return a
 	else
 		return new NamedArguments
-}
+};
 
-//: MONAD_SCHEMATA_M
-var MONAD_SCHEMATA_M = {
-	'return': function(x) { return x },
-	'bindYield': function() { return arguments[0].apply(arguments[1], SLICE(arguments, 2)) },
-	'bind': function(v, cb){ return cb(v) }
-}
 
-//: Exceptions
+// << OPERATORS >>
+var IS = function(x, y){ return y.be(x) };
+var AS = function(x, y){ return y.convertFrom(x) };
+
+// << Keyword Functions >>
+var IN = function(range){
+	return {'be': function(x){return range.contains(x)}}
+};
 var THROW = function(x) {
 	throw x || "[?] Unexpected error"
 };
-var NEGATE = function(x){return -x}
-var NOT = function(x){return !x}
+var NEGATE = function(x){return -x};
+var NOT = function(x){return !x};
 
-var IS = function(x, y){ return y.be(x) }
-var AS = function(x, y){ return y.convertFrom(x) }
-
-var SCHEMATA_BLOCK = function(G, schemata, coming){
-	if(G.build){
-		var m = derive(schemata);
-		m['return'] = coming;
-		return G.build(m)()();
-	} else {
-		return coming(G())
+// << MONAD_SCHEMATA_M >>
+var MONAD_SCHEMATA_M = {
+	'return': function(x) { return x },
+	'bindYield': function() { return arguments[0].apply(arguments[1], SLICE(arguments, 2)) },
+	'bind': function(v, cb){ return cb(v) },
+	'try': function(){
+		throw "Try/Catch is not supported in this monadic schemata"
+	},
+	'resend': function(b, callback){
+		var s = derive(this);
+		s['return'] = callback;
+		return b(s)();
 	}
 };
 
+// << GETENUM >>
 var GETENUM = function(obj){
 	if(obj.getEnumerator) {
 		return obj.getEnumerator()
@@ -153,205 +156,8 @@ var GETENUM = function(obj){
 	}
 };
 
-var IN = function(range){
-	return {'be': function(x){return range.contains(x)}}
-};
 
-//: ES5
-// Essential ES5 prototype methods
-if (!Array.prototype.map) {
-	Array.prototype.map = function(fun /*, thisp */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		var res = new Array(len);
-		var thisp = arguments[1];
-		for (var i = 0; i < len; i++) {
-			if (i in t)
-				res[i] = fun.call(thisp, t[i], i, t);
-		}
-
-		return res;
-	};
-};
-if (!Array.prototype.some) {
-	Array.prototype.some = function(fun /*, thisp */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		var thisp = arguments[1];
-		for (var i = 0; i < len; i++) {
-			if (i in t && fun.call(thisp, t[i], i, t))
-				return true;
-		}
-
-		return false;
-	};
-}
-if (!Array.prototype.reduce) {
-	Array.prototype.reduce = function(fun /*, initialValue */)
-	{
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		// no value to return if no initial value and an empty array
-		if (len == 0 && arguments.length == 1)
-			throw new TypeError();
-
-		var k = 0;
-		var accumulator;
-		if (arguments.length >= 2) {
-			accumulator = arguments[1];
-		} else {
-			do {
-				if (k in t) {
-					accumulator = t[k++];
-					break;
-				}
-
-				// if array contains no values, no initial value to return
-				if (++k >= len) throw new TypeError();
-			} while (true);
-		}
-
-		while (k < len) {
-			if (k in t)
-				accumulator = fun.call(undefined, accumulator, t[k], k, t);
-			k++;
-		}
-
-		return accumulator;
-	};
-};
-if (!Array.prototype.reduceRight) {
-	Array.prototype.reduceRight = function(callbackfn /*, initialValue */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof callbackfn !== "function")
-			throw new TypeError();
-
-		// no value to return if no initial value, empty array
-		if (len === 0 && arguments.length === 1)
-			throw new TypeError();
-
-		var k = len - 1;
-		var accumulator;
-		if (arguments.length >= 2) {
-			accumulator = arguments[1];
-		} else {
-			do {
-				if (k in this) {
-					accumulator = this[k--];
-					break;
-				}
-
-				// if array contains no values, no initial value to return
-				if (--k < 0)
-					throw new TypeError();
-			} while (true);
-		}
-
-		while (k >= 0) {
-			if (k in t)
-				accumulator = callbackfn.call(undefined, accumulator, t[k], k, t);
-			k--;
-		}
-
-		return accumulator;
-	};
-}
-if (!Array.prototype.every) {
-	Array.prototype.every = function(fun /*, thisp */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		var thisp = arguments[1];
-		for (var i = 0; i < len; i++) {
-			if (i in t && !fun.call(thisp, t[i], i, t))
-				return false;
-		}
-
-		return true;
-	};
-}
-if (!Array.prototype.filter) {
-	Array.prototype.filter = function(fun /*, thisp */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		var res = [];
-		var thisp = arguments[1];
-		for (var i = 0; i < len; i++) {
-			if (i in t) {
-				var val = t[i]; // in case fun mutates this
-				if (fun.call(thisp, val, i, t))
-					res.push(val);
-			}
-		}
-
-		return res;
-	};
-}
-if (!Array.prototype.forEach) {
-	Array.prototype.forEach = function(fun /*, thisp */) {
-		"use strict";
-
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		var thisp = arguments[1];
-		for (var i = 0; i < len; i++) {
-			if (i in t)
-				fun.call(thisp, t[i], i, t);
-		}
-	};
-}
-
+// << Ranges >>
 var ExclusiveRange = function(left, right){
 	return new ExclusiveAscRange(left, right)
 };
@@ -405,6 +211,7 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	return f
 };
 
+// << export-interface >>
 // All functions used for the runtime
 exports.runtime = {
 	CNARG: CNARG,
@@ -415,7 +222,6 @@ exports.runtime = {
 	IN: IN,
 	IS: IS,
 	AS: AS,
-	SCHEMATA_BLOCK: SCHEMATA_BLOCK,
 	ExclusiveRange: ExclusiveRange,
 	InclusiveRange: InclusiveRange,
 	NamedArguments: NamedArguments,

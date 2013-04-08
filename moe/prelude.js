@@ -306,7 +306,6 @@ var NOT$_ = RUNTIME$_.NOT;
 var IN$_ = RUNTIME$_.IN;
 var IS$_ = RUNTIME$_.IS;
 var AS$_ = RUNTIME$_.AS;
-var SCHEMATA_BLOCK$_ = RUNTIME$_.SCHEMATA_BLOCK;
 var ExclusiveRange$_ = RUNTIME$_.ExclusiveRange;
 var InclusiveRange$_ = RUNTIME$_.InclusiveRange;
 var NamedArguments$_ = RUNTIME$_.NamedArguments;
@@ -823,6 +822,7 @@ async$ = export$("async")((function (M$){
             t$ = _$_THIS;
             a$ = _$_ARGS.slice(0, (-(1)));
             reaction$ = _$_ARGS[(_$_ARGS.length - 1)];
+            ;
             try {
                 r$ = M$.apply(t$, a$);
             } catch (_g$_) {e$=_g$_;

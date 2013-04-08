@@ -22,6 +22,9 @@ var C_NAME = moec_codegen.C_NAME;
 var C_TEMP = moec_codegen.C_TEMP;
 var PART = moec_codegen.PART;
 
+var smap_info = require('./smapinfo');
+var calculateSmapPoints = smap_info.calculateSmapPoints;
+
 var SCOPE_LOCKED_ERR = new Error("Top scope locked. Cannot add more binds.")
 var TopScope = function(){
 	this.maps = {};
@@ -101,6 +104,13 @@ var compile = function (source, ts, config) {
 	var generator = Generator(trees, config);
 	var generatedInfo = generator(enter, true);
 
+	if(!config.keepSourceMap){
+		var smapinfo = calculateSmapPoints(generatedInfo.generatedCode);
+		generatedInfo.generatedCodeWithSmap = generatedInfo.generatedCode
+		generatedInfo.generatedCode = smapinfo.codeWithoutSmap;
+		generatedInfo.smapPoints = smapinfo.smapPoints;
+	}
+
 	generatedInfo.source = source;
 	generatedInfo.ts = ts;
 	generatedInfo.trees = trees;
@@ -110,12 +120,8 @@ var compile = function (source, ts, config) {
 	return generatedInfo;
 };
 
-
 exports.compile = compile;
 exports.TopScope = TopScope;
-exports.createSmap = function(){
-	// TODO
-};
 
 exports.stdComposite = function(info, ts){
 	ts = ts || info.ts;

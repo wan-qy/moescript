@@ -14,7 +14,7 @@ var options = {};
 var runtimeBind = '';
 var preludeBind = '';
 var fWrite = console.log;
-
+var keepSourceMap = false;
 var codeSegments = [];
 
 var doFile = function(value){
@@ -25,7 +25,8 @@ var doFile = function(value){
 		var script = compiler.compile(fs.readFileSync(value, 'utf-8'), ts, {
 			optionMaps: optmaps,
 			warn: function(s){ process.stderr.write(s + '\n') },
-			options: options
+			options: options,
+			keepSourceMap: keepSourceMap
 		});
 		codeSegments.push(compiler.stdComposite(script, ts));
 	} else {
@@ -62,13 +63,17 @@ var argvParser = opts()
 	.on('--runtime-bind', function(expr){ runtimeBind = expr })
 	.on('--prelude-bind', function(expr){ preludeBind = expr })
 	.on('--prelude', function(){ ts.libRequireBind(require('../prelude'), preludeBind || '(require("moe/prelude"))') })
+//	.on('--source-map', function(){ keepSourceMap = true })
 	.on('-w', '--web', function() {
 		this.config['--runtime-bind']('moescript.runtime');
 		this.config['--prelude-bind']('moescript.prelude');
 		this.config['--bare']();
 		this.config['--prelude']();
 	})
-	.on('--include-js', function(file){ codeSegments.push(compiler.inputNormalize(fs.readFileSync(file, 'utf-8'))) })
+	.on('--include-js', function(file){
+		var jsCode = compiler.inputNormalize(fs.readFileSync(file, 'utf-8'))
+		codeSegments.push(jsCode);
+	})
 	.on('--file', '-f', doFile)
 	.on('--explicit', function(){ options.explicit = true })
 	.file(doFile);
