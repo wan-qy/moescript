@@ -89,6 +89,7 @@ release: webtest webmin
 	rm -rf channel-release/*.js
 	cp -a dist/* channel-release/
 
+	cd doc && make
 	rm -rf doc/demo/*
 	cp -a $(WEBTEST)/* doc/demo/
 
