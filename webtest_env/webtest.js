@@ -57,30 +57,29 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 		var tracel = infoout.tracel;
 		var tracer = infoout.traceraw;
 
-		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }],
-			function(ts){
-				try {
-					var script = moec.compile(document.getElementById('input').value, ts, {
-						warn: tracel,
-						keepSourceMap: true
-					});
-					var initCode = ts.createInitializationCode();
-					
-					var si = smapinfo.calculateSmapPoints(script.generatedCode);
-					tracer('Generated Code:' + source2html(si.codeWithoutSmap));
-					tracer('Smap points:' + source2html(si.smapPoints.map(function(p){
-						return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
-					}).join('\n')));
-					tracer('Initialization Code:' + source2html(initCode));
+		var fAfterUsing = function(ts){
+			var script = moec.compile(document.getElementById('input').value, ts, {
+				warn: tracel,
+				keepSourceMap: true
+			});
+			var initCode = ts.createInitializationCode();
+			
+			var si = smapinfo.calculateSmapPoints(script.generatedCode);
+			tracer('Generated Code:' + source2html(si.codeWithoutSmap));
+			tracer('Smap points:' + source2html(si.smapPoints.map(function(p){
+				return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
+			}).join('\n')));
+			tracer('Initialization Code:' + source2html(initCode));
 
-//					console.log(smapinfo.generateSmapJson(si.codeWithoutSmap, [script.source], si.smapPoints));
+			var func = Function(ts.runtimeName, initCode + '\n;' + si.codeWithoutSmap);
+			func.call(this, moert.runtime);
+		}
 
-					var func = Function(ts.runtimeName, initCode + '\n;' + si.codeWithoutSmap);
-					func.call(this, moert.runtime);
-				} catch(e){
-					terr('Error occurs:\n' + e + '\nF12 to read more');
-				}
-		});
+		moert_using(['moe/prelude', output, { log: function(){console.log.apply(console, arguments)} }], fAfterUsing);
+	};
+
+	window.onerror = function(message){
+		terr(message);
 	};
 });
 
