@@ -1051,7 +1051,14 @@ exports.parse = function (tokens, source, config) {
 			return node;
 		}
 	});
-
+	var nodeSideEffectiveQ = function(node){
+		while(node.type === nt.GROUP) node = node.operand;
+		return (node.type !== nt.VARIABLE 
+			&& node.type !== nt.TEMPVAR 
+			&& node.type !== nt.LITERAL 
+			&& node.type !== nt.THIS 
+			&& node.type !== nt.ARGUMENTS)
+	};
 	var assignmentExpression = NRF(function(){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
@@ -1089,17 +1096,17 @@ exports.parse = function (tokens, source, config) {
 					args: [formAssignment(new Node(nt.TEMPVAR, {name: objt}), '=', right)],
 					names: [null]
 				});
-			}
+			};
 			var j = 0;
 			for(var i = 0; i < left.args.length; i++){
 				if(!left.names[i]) j += 1;
 				if(left.args[i].type !== nt.UNIT) {
 					if(left.names[i]) {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ, whereClauseQ));
 					} else {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ, whereClauseQ));
 					}
 					seed.names.push(null);
 				}
@@ -1537,7 +1544,7 @@ exports.parse = function (tokens, source, config) {
 					),
 					args: [],
 					names: []
-				}), true),
+				}), DECLARE_SOMETHING),
 				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
 				step: formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
@@ -1545,7 +1552,7 @@ exports.parse = function (tokens, source, config) {
 					names: []
 				})),
 				body: new Node(nt.SCRIPT, {
-					content: [(tEv === bind ? null : formAssignment(bind, '=', tEv))].concat(body.type === nt.SCRIPT ? body.content : [body])
+					content: [(tEv === bind ? null : formAssignment(bind, '=', tEv, DECLARE_SOMETHING))].concat(body.type === nt.SCRIPT ? body.content : [body])
 				})
 			})
 		}
