@@ -52,7 +52,7 @@ var NodeType = exports.NodeType = function () {
 		'UNKNOWN',
 		// Primary
 		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-		'ARGUMENTS', 'ARGN', 'GROUP', 'CALLWRAP', 'UNIT',
+		'ARGUMENTS', 'ARGN', 'GROUP', 'PESUDO_FUNCTION', 'UNIT',
 		// Wrappers
 		'BINDPOINT', 'CTOR',
 		// Membering
@@ -93,7 +93,7 @@ var NodeType = exports.NodeType = function () {
 		}}(i);
 	return T;
 } ();
-
+var nt = NodeType;
 var ScopedScript = exports.ScopedScript = function (id, env) {
 	this.id = id;
 	this.variables = new Nai;
@@ -206,6 +206,25 @@ exports.walkNode = function(node, f, aux){
 	};
 	return res;
 };
+exports.walkNodeTF = function(node, f, aux){
+	if(!node) return;
+	if(!node.type) return;
+	var res;
+	for(var each in node) if(node[each]){
+		var prop = node[each];
+		if(prop.length && prop.slice){
+			for(var i = 0; i < prop.length; i++)
+				if(prop[i] && prop[i].type) {
+					res = f(prop[i], aux);
+					if(res) prop[i] = res;
+				}
+		} else if (prop.type) {
+			res = f(prop, aux)
+			if(res) node[each] = res;
+		}
+	};
+	return res;
+};
 
 exports.TMaker = function(){
 	var ns = {};
@@ -265,3 +284,12 @@ exports.C_STRING = function(){
 			.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 	};
 }();
+exports.nodeSideEffectiveQ = function(node){
+	if(!node) return false;
+	while(node.type === nt.GROUP) node = node.operand;
+	return (node.type !== nt.VARIABLE 
+		&& node.type !== nt.TEMPVAR 
+		&& node.type !== nt.LITERAL 
+		&& node.type !== nt.THIS 
+		&& node.type !== nt.ARGUMENTS)
+};

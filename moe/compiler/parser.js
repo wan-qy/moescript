@@ -34,6 +34,8 @@ var END = lexer.END;
 var ELSE = lexer.ELSE;
 var OTHERWISE = lexer.OTHERWISE;
 var PIPE = lexer.PIPE;
+var PIPELEFT = lexer.PIPELEFT;
+var PIPEDOT = lexer.PIPEDOT;
 var VAR = lexer.VAR;
 var SHARP = lexer.SHARP;
 var DO = lexer.DO;
@@ -57,6 +59,7 @@ var BIND = lexer.BIND;
 var BACKSLASH = lexer.BACKSLASH;
 var TRY = lexer.TRY;
 var CATCH = lexer.CATCH;
+var DOWNSLASH = lexer.DOWNSLASH;
 
 var Token = lexer.Token;
 
@@ -365,7 +368,7 @@ exports.parse = function (tokens, source, config) {
 
 	var lambdaExpression = NRF(function(){
 		if(tokenIs(ID)){
-			var p = new Node(nt.PARAMETERS, {names: [{name: lname()}]});
+			var p = new Node(nt.PARAMETERS, {names: [new Node(nt.VARIABLE, {name: lname()})]});
 		} else if(tokenIs(LAMBDA)) {
 			var p = null;
 		} else {
@@ -378,12 +381,12 @@ exports.parse = function (tokens, source, config) {
 	var expressionBody = NRF(function (p) {
 		advance(OPEN, CRSTART);
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
-		if(tokenIs(PIPE)) { // {|args| } form
+		if(tokenIs(DOWNSLASH)) { // {|args| } form
 			if(p)
 				throw PE('Attempting to add parameters to a parameter-given function.');
-			advance(PIPE);
+			advance(DOWNSLASH);
 			parameters.names = parlist();
-			advance(PIPE);
+			advance(DOWNSLASH);
 		};
 		var code = onelineStatements();
 		geenerateImplicitReturn(code);
@@ -395,6 +398,13 @@ exports.parse = function (tokens, source, config) {
 	var blockBody = NRF(function (p) {
 		var t = advance();
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
+		if(tokenIs(DOWNSLASH)) { // :|args| form
+			if(p)
+				throw PE('Attempting to add parameters to a parameter-given function.');
+			advance(DOWNSLASH);
+			parameters.names = parlist();
+			advance(DOWNSLASH);
+		};
 		var code = block();
 		if(t.type === ASSIGN && t.value === '=')
 			geenerateImplicitReturn(code);
@@ -477,7 +487,10 @@ exports.parse = function (tokens, source, config) {
 		if(tokenIs(CLOSE, RDEND)) {
 			advance();
 			return new Node(nt.FUNCTION, {
-				parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}, {name: 'y'}]}),
+				parameters: new Node(nt.PARAMETERS, {names: [
+					new Node(nt.VARIABLE, {name: 'x'}),
+					new Node(nt.VARIABLE, {name: 'y'})
+				]}),
 				code: new Node(nt.SCRIPT, {content: [
 					new Node(nt.IF, { 
 						condition: new Node(nt['<'], {
@@ -486,7 +499,9 @@ exports.parse = function (tokens, source, config) {
 						}),
 						thenPart: new Node(nt.RETURN, {
 							expression: new Node(nt.FUNCTION, {
-								parameters: new Node(nt.PARAMETERS, {names: [{name: 'z'}]}),
+								parameters: new Node(nt.PARAMETERS, {names: [
+									new Node(nt.VARIABLE, {name: 'z'})
+								]}),
 								code: new Node(nt.RETURN, {
 									expression: new Node(opType, {
 										left: new Node(nt.VARIABLE, {name: 'z'}),
@@ -614,14 +629,14 @@ exports.parse = function (tokens, source, config) {
 	};
 	esp[LAMBDA] = lambdaExpression;
 	esp[NEW] = esp[RESEND] = esp[DO] = function(){
-		return new Node(nt.CALLWRAP, {value: advance().type})
+		return new Node(nt.PESUDO_FUNCTION, {value: advance().type})
 	};
 
 	var exprStartQ = function(){
 		return token && esp[token.type];
 	};
 	var argStartQ = function(){
-		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, INDENT)))
+		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, INDENT) || shiftIs(2, PIPE)))
 			return 2;
 		else if(exprStartQ())
 			return 1;
@@ -674,7 +689,6 @@ exports.parse = function (tokens, source, config) {
 							if (tokenIs(CLOSE, RDEND)) { m.args = []; advance(); continue; };
 							argList(m, true);
 							advance(CLOSE, RDEND);
-							m = wrapCall(m);
 						} catch (e) {
 							loadState(stateSingleBracket);
 							return ms;
@@ -692,11 +706,11 @@ exports.parse = function (tokens, source, config) {
 					});
 					advance(CLOSE, SQEND);
 				} else if (token.value === CRSTART) {
-					m = wrapCall(new Node(nt.CALL, {
+					m = new Node(nt.CALL, {
 						func: m,
 						args:[expressionBody()],
 						names: [null]
-					}));
+					});
 				};
 				continue;
 			case DOT:
@@ -750,105 +764,6 @@ exports.parse = function (tokens, source, config) {
 		}
 	});
 
-	var wrapCall = NWF(function(n){
-		if(n.type === nt.CALL){
-			if(n.func.type === nt.CALLWRAP && n.args.length === 1 && !n.names[0]) {
-				return callWrappers[n.func.value](n.args[0])
-			} else if(n.func.type === nt.CALLWRAP) {
-				throw new PE('Wrong call wrapper usage.')
-			} else if(n.func.operatorType) {
-				return callWrappers.OPERATOR(n);
-			}
-		};
-		return n;
-	});
-	var callWrappers = [];
-	callWrappers[RESEND] = function(n){
-		if(n.type === nt.CALL){
-			return new Node(nt.CALL, {
-				func: MemberNode(n.func, 'call'),
-				args: [new Node(nt.THIS, {})].concat(n.args),
-				names:[null].concat(n.names)
-			});
-		} else {
-			return new Node(nt.CALL, {
-				func: MemberNode(n, 'apply'),
-				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
-				names:[null, null]
-			});
-		}
-	};
-	callWrappers[DO] = function(n){
-		return new Node(nt.CALL, {
-			func: MemberNode(n, 'apply'),
-			args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
-			names:[null, null]
-		});
-	};
-	callWrappers[NEW] = function(n){
-		if(n.type === nt.CALL){
-			return new Node(nt.CALL, {
-				func: new Node(nt.CTOR, { expression: n.func }),
-				args: n.args,
-				names:n.names
-			});
-		} else {
-			return new Node(nt.CALL, {
-				func: new Node(nt.CTOR, { expression: n }),
-				args: [],
-				names:[]
-			});
-		}
-	};
-	callWrappers.OPERATOR = function(node){
-		if((node.func.operatorType === nt.NOT || node.func.operatorType === nt.NEGATIVE)
-			&& (node.args.length === 1 && !node.names[0])) {
-			return new Node(node.func.operatorType, { operand: node.args[0] });
-		} else if(node.args.length === 2 && !node.names[0] && !node.names[1]) {
-			if(node.func.operatorType === nt['and'] || node.func.operatorType === nt['or']
-				|| node.func.operatorType === nt['&&'] || node.func.operatorType === nt['||'])
-				return new Node(nt.CALL, {
-					func: new Node(nt.FUNCTION, {
-							parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}, {name: 'y'}]}),
-							code: new Node(nt.RETURN, {
-								expression: new Node(node.func.operatorType, {
-									left: new Node(nt.VARIABLE, {name: 'x'}),
-									right: new Node(nt.VARIABLE, {name: 'y'})
-								})
-							})
-						}),
-					args: node.args,
-					names: node.names
-				})
-			else
-				return new Node(node.func.operatorType, {
-					left: node.args[0],
-					right: node.args[1]
-				});
-		} else if(node.args.length === 1 && !node.names[0]) {
-			return new Node(nt.CALL, {
-				func: new Node(nt.FUNCTION, {
-					parameters: new Node(nt.PARAMETERS, {names: [{name: 'y'}]}),
-					code: new Node(nt.RETURN, {
-						expression: new Node(nt.FUNCTION, {
-							parameters: new Node(nt.PARAMETERS, {names: [{name: 'x'}]}),
-							code: new Node(nt.RETURN, {
-								expression: new Node(node.func.operatorType, {
-									left: new Node(nt.VARIABLE, {name: 'x'}),
-									right: new Node(nt.VARIABLE, {name: 'y'})
-								})
-							})
-						})
-					})
-				}),
-				args: [node.args[0]],
-				names: [null]
-			});
-		}
-		return node;
-	};
-
-
 	var callExpression = NRF(function () {
 		return completeCallExpression(primary());
 	});
@@ -856,22 +771,26 @@ exports.parse = function (tokens, source, config) {
 	var completeOmissionCall = NWF(function(head){
 		var argTypeDetect;
 		if(!(argTypeDetect = argStartQ())) return head;
-		// Named arguments detected
 		if(argTypeDetect === 2){
+			// Named arguments detected
+			// f name: ...
+			//   ^
 			var node = new Node(nt.CALL, {
 				func: head
 			});
 			argList(node);
-			return wrapCall(node);
+			return node;
 		} else {
+			// f expr
+			//   ^
 			if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND) && !(shiftIs(2, LAMBDA))) {
 				advance();
 				advance();
-				return wrapCall(new Node(nt.CALL, {
+				return new Node(nt.CALL, {
 					func: head,
 					args: [],
 					names: []
-				}));
+				});
 			} else {
 				var term = callExpression();
 				if(tokenIs(COMMA)){
@@ -881,13 +800,13 @@ exports.parse = function (tokens, source, config) {
 						names: [null]
 					});
 					completeArgList(node);
-					return wrapCall(node);
+					return node;
 				} else {
-					return wrapCall(new Node(nt.CALL, {
+					return new Node(nt.CALL, {
 						func: head,
 						args: [completeOmissionCall(term)],
 						names: [null]
-					}));
+					});
 				}
 			}
 		}
@@ -970,48 +889,50 @@ exports.parse = function (tokens, source, config) {
 		return c;
 	});
 	var expression = NWF(function (c) {
-		var r = whenClausize(pipeClausize(singleExpression(c || unary())));
+		var r = whenClausize(leftPipeClausize(pipeClausize(singleExpression(c || unary()))));
 		ensure(!exprStartQ(), 'Unexpected expression termination.');
 		return r;
 	});
 
 	var pipeClausize = NWF(function(node){
 		// Pipeline calls
-		if(!tokenIs(PIPE)) return node;
-		advance();
-		var c;
-		if (tokenIs(DOT)) {
-			// |.name chaining
-			advance(DOT);
-			ensure(token && token.isName, 'Missing identifier for Chain invocation');
-			c = new Node(nt.CALL, {
-				func: MemberNode(node, name()),
-				args: [],
-				names: []
-			});
-		} else {
-			// pipeline
-			c = new Node(nt.CALL, {
+		if(tokenIs(PIPE)){
+			advance();
+			var c = new Node(nt.CALL, {
 				func: callExpression(),
 				args: [node],
 				names: [null],
 				pipeline: true
 			});
-		};
-		if(tokenIs(PIPE)) {
-			return pipeClausize(wrapCall(c))
-		} else {
 			return completePipelineCall(c)
-		};
+		} else if(tokenIs(PIPEDOT)) {
+			advance();
+			ensure(token && token.isName, 'Missing identifier for Chain invocation');
+			var c = new Node(nt.CALL, {
+				func: MemberNode(node, name()),
+				args: [],
+				names: []
+			});	
+			return completePipelineCall(c);
+		} else {
+			return node;
+		}
 	});
 
 	var completePipelineCall = NWF(function(node){
+		// The NODE is always a call node
+		if(tokenIs(PIPE) || tokenIs(PIPEDOT)) {
+			// Situation I. f |* g |*
+			//                     ~~
+
+			return pipeClausize(node);
+		}
 		var argTypeDetect = argStartQ();
 		if(!argTypeDetect) return node;
-		// Named arguments detected
 		if(argTypeDetect === 2){
+			// Named arguments detected
 			argList(node);
-			return pipeClausize(wrapCall(node));
+			return pipeClausize((node));
 		} else {
 			var term = callExpression();
 			if(tokenIs(COMMA)){
@@ -1019,13 +940,47 @@ exports.parse = function (tokens, source, config) {
 				node.names.push(null);
 				advance(COMMA);
 				argList(node);
-				return pipeClausize(wrapCall(node));
+				return pipeClausize((node));
 			} else {
 				node.args.push(completeOmissionCall(term))
 				node.names.push(null);
-				return pipeClausize(node);
+				return pipeClausize((node));
 			}
 		}
+	});
+
+	var leftPipeClausize = NWF(function(node){
+		if(tokenIs(PIPELEFT)) {
+			advance();
+			node = new Node(nt.CALL, {
+				func: node,
+				args: [],
+				names: []
+			});
+			if(tokenIs(PIPELEFT)) {
+				return (node);
+			};
+			var arglistMode = false;
+			if(argStartQ() === 2) {
+				arglistMode = true;
+			} else {
+				var c = callExpression();
+				if(tokenIs(COMMA)) arglistMode = true;
+			};
+			if(arglistMode){
+				if(c){
+					node.args.push(c);
+					node.names.push(null);
+					advance(COMMA);
+				};
+				argList(node);
+			} else {
+				node.args.push(leftPipeClausize(pipeClausize(singleExpression(completeOmissionCall(c)))));
+				node.names.push(null);
+			};
+			node = (node);
+		};
+		return node;
 	});
 
 	var whenClausize = NWF(function(node){
@@ -1051,14 +1006,6 @@ exports.parse = function (tokens, source, config) {
 			return node;
 		}
 	});
-	var nodeSideEffectiveQ = function(node){
-		while(node.type === nt.GROUP) node = node.operand;
-		return (node.type !== nt.VARIABLE 
-			&& node.type !== nt.TEMPVAR 
-			&& node.type !== nt.LITERAL 
-			&& node.type !== nt.THIS 
-			&& node.type !== nt.ARGUMENTS)
-	};
 	var assignmentExpression = NRF(function(){
 		var c = unary();
 		if (tokenIs(ASSIGN) || tokenIs(BIND)){
@@ -1400,7 +1347,7 @@ exports.parse = function (tokens, source, config) {
 			} else {
 				if(forQ) throw new PE("Invalid Declaration.")
 				var rhs = dp(constantQ);
-				return [rhs[0], wrapCall(new Node(nt.CALL, {
+				return [rhs[0], (new Node(nt.CALL, {
 					func: v,
 					args: [rhs[1]],
 					names: [null],
@@ -1702,6 +1649,111 @@ exports.parse = function (tokens, source, config) {
 	};
 	var ws_code = statements();
 	stripSemicolons();
+
+	// transformPesudoFunctionCalls: Turn pesudofunctions into their equalivent forms
+	// eg. resend f x = f.call this, x
+	var transformPesudoFunctionCalls = NWF(function(n){
+		if(n.type === nt.CALL){
+			if(n.func.type === nt.PESUDO_FUNCTION && n.args.length === 1 && !n.names[0]) {
+				return callWrappers[n.func.value](n.args[0])
+			} else if(n.func.type === nt.PESUDO_FUNCTION) {
+				throw new PE("Invalid pesudo-function usage.")
+			} else if(n.func.operatorType) {
+				return callWrappers.OPERATOR(n);
+			}
+		};
+		moecrt.walkNodeTF(n, transformPesudoFunctionCalls);
+		return n;
+	});
+	var callWrappers = [];
+	callWrappers[RESEND] = function(n){
+		if(n.type === nt.CALL){
+			return new Node(nt.CALL, {
+				func: MemberNode(n.func, 'call'),
+				args: [new Node(nt.THIS, {})].concat(n.args),
+				names:[null].concat(n.names)
+			});
+		} else {
+			return new Node(nt.CALL, {
+				func: MemberNode(n, 'apply'),
+				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
+				names:[null, null]
+			});
+		}
+	};
+	callWrappers[DO] = function(n){
+		return new Node(nt.CALL, {
+			func: MemberNode(n, 'apply'),
+			args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
+			names:[null, null]
+		});
+	};
+	callWrappers[NEW] = function(n){
+		if(n.type === nt.CALL){
+			return new Node(nt.CALL, {
+				func: new Node(nt.CTOR, { expression: n.func }),
+				args: n.args,
+				names:n.names
+			});
+		} else {
+			return new Node(nt.CALL, {
+				func: new Node(nt.CTOR, { expression: n }),
+				args: [],
+				names:[]
+			});
+		}
+	};
+	callWrappers.OPERATOR = function(node){
+		if((node.func.operatorType === nt.NOT || node.func.operatorType === nt.NEGATIVE)
+			&& (node.args.length === 1 && !node.names[0])) {
+			return new Node(node.func.operatorType, { operand: node.args[0] });
+		} else if(node.args.length === 2 && !node.names[0] && !node.names[1]) {
+			if(node.func.operatorType === nt['and'] || node.func.operatorType === nt['or']
+				|| node.func.operatorType === nt['&&'] || node.func.operatorType === nt['||'])
+				return new Node(nt.CALL, {
+					func: new Node(nt.FUNCTION, {
+							parameters: new Node(nt.PARAMETERS, {names: [
+								new Node(nt.VARIABLE, {name: 'x'}), 
+								new Node(nt.VARIABLE, {name: 'y'})
+							]}),
+							code: new Node(nt.RETURN, {
+								expression: new Node(node.func.operatorType, {
+									left: new Node(nt.VARIABLE, {name: 'x'}),
+									right: new Node(nt.VARIABLE, {name: 'y'})
+								})
+							})
+						}),
+					args: node.args,
+					names: node.names
+				})
+			else
+				return new Node(node.func.operatorType, {
+					left: node.args[0],
+					right: node.args[1]
+				});
+		} else if(node.args.length === 1 && !node.names[0]) {
+			return new Node(nt.CALL, {
+				func: new Node(nt.FUNCTION, {
+					parameters: new Node(nt.PARAMETERS, {names: [new Node(nt.VARIABLE, {name: 'y'})]}),
+					code: new Node(nt.RETURN, {
+						expression: new Node(nt.FUNCTION, {
+							parameters: new Node(nt.PARAMETERS, {names: [new Node(nt.VARIABLE, {name: 'x'})]}),
+							code: new Node(nt.RETURN, {
+								expression: new Node(node.func.operatorType, {
+									left: new Node(nt.VARIABLE, {name: 'x'}),
+									right: new Node(nt.VARIABLE, {name: 'y'})
+								})
+							})
+						})
+					})
+				}),
+				args: [node.args[0]],
+				names: [null]
+			});
+		}
+		return node;
+	};
+	moecrt.walkNodeTF(ws_code, transformPesudoFunctionCalls);
 
 	return {
 		type: nt.PROGRAM,

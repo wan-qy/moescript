@@ -192,7 +192,7 @@ var transform = exports.transform = function(code, scope, config, aux){
 		if(this.func && this.func.type === nt.BINDPOINT) return awaitCall.apply(this, arguments);
 
 		var skip = 0, skips = [];
-		var pipelineQ = this.pipeline && this.func && !(this.func.type === nt.VARIABLE || this.func.type === nt.THIS)
+		var pipelineQ = this.pipeline && this.func;
 		if(pipelineQ){
 			skip = 1;
 			this.args[0] = pep(this.args[0])
@@ -207,7 +207,7 @@ var transform = exports.transform = function(code, scope, config, aux){
 	var awaitCall = function(){
 		var skip = 0, skips = [];
 		this.names = this.names || [];
-		var pipelineQ = this.pipeline && this.func && !(this.func.type === nt.VARIABLE || this.func.type === nt.THIS)
+		var pipelineQ = this.pipeline && this.func;
 		if(pipelineQ){
 			skip = 1;
 			this.args[0] = pep(this.args[0])
