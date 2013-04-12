@@ -50,7 +50,7 @@ exports.resolve = function(ast, ts, config){
 				stack.pop();
 
 				checkBreakPosition(s);
-				checkCallWrap(s);
+				checkPesudoFunction(s);
 				fAfterScopeFormation(s);
 				generateCPSTransform(s);
 				
@@ -150,12 +150,11 @@ exports.resolve = function(ast, ts, config){
 		moecrt.walkNode(scope.code, fWalk);
 	};
 
-	var checkCallWrap = function(scope){
-		// "CALLWRAP" check
+	var checkPesudoFunction = function(scope){
+		// "PESUDO_FUNCTION" check
 		var fWalk = function(node){
-			if(node.type === nt.CALLWRAP) {
-				debugger;
-				throw PE("Invalid CALLWRAP usage.", node.position);
+			if(node.type === nt.PESUDO_FUNCTION) {
+				throw PE("Invalid pesudo-function usage.", node.position);
 			}
 			return moecrt.walkNode(node, fWalk);
 		};

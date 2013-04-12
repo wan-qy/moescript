@@ -3,6 +3,7 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 var walkRex = moecrt.walkRex;
+var nodeSideEffectiveQ = moecrt.nodeSideEffectiveQ;
 var UNIQ = moe.UNIQ;
 
 var smapinfo = require('./smapinfo');
@@ -518,7 +519,7 @@ exports.Generator = function(g_envs, g_config){
 	defineSchemata(nt.CALL, function (node, env) {
 		// this requires special pipeline processing:
 		var pipelineQ = node.pipeline && node.func // pipe line invocation...
-			&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS) // and side-effective.
+			&& (nodeSideEffectiveQ(node.func) || nodeSideEffectiveQ(node.args[0])) // and side-effective.
 		this.names = this.names || []
 		var hasNameQ = false;
 		var irregularOrderQ = pipelineQ;

@@ -37,6 +37,8 @@ var END = exports.END = TokenType('End')
 var ELSE = exports.ELSE = TokenType('Else')
 var OTHERWISE = exports.OTHERWISE = TokenType('Otherwise')
 var PIPE = exports.PIPE = TokenType('Pipeline sign')
+var PIPELEFT = exports.PIPELEFT = TokenType('Pipe Left')
+var PIPEDOT = exports.PIPEDOT = TokenType('Pipe-Dot')
 var VAR = exports.VAR = TokenType('Var')
 var SHARP = exports.SHARP = TokenType('Sharp sign')
 var DO = exports.DO = TokenType('Do')
@@ -60,6 +62,7 @@ var BIND = exports.BIND = TokenType('Bind symbol')
 var BACKSLASH = exports.BACKSLASH = TokenType('Backslash')
 var TRY = exports.TRY = TokenType('Try')
 var CATCH = exports.CATCH = TokenType('Catch')
+var DOWNSLASH = exports.DOWNSLASH = TokenType('Downslash')
 
 var NEWLINE = TokenType('Newline');
 
@@ -186,7 +189,9 @@ var symbolTypes = {
 	')': CLOSE,
 	',': COMMA,
 	':': COLON,
-	'|': PIPE,
+	'|>': PIPE,
+	'<|': PIPELEFT,
+	'|.': PIPEDOT,
 	'.': DOT,
 	'..': OPERATOR,
 	'...': OPERATOR,
@@ -194,7 +199,8 @@ var symbolTypes = {
 	';': SEMICOLON,
 	'@': MY,
 	'\\': BACKSLASH,
-	'::': PROTOMEMBER
+	'::': PROTOMEMBER,
+	'|': DOWNSLASH
 };
 var symbolType = function (m) {
 	return symbolTypes[m]
@@ -229,6 +235,8 @@ var LexerBackend = function(input, config){
 			case OPERATOR:
 			case COMMA:
 			case PIPE:
+			case PIPELEFT:
+			case PIPEDOT:
 			case DOT:
 			case PROTOMEMBER:
 			case SHARP:
@@ -238,6 +246,7 @@ var LexerBackend = function(input, config){
 			case ASSIGN:
 			case LAMBDA:
 			case BIND:
+			case DOWNSLASH:
 				make(t, s, n);
 				break;
 			case OPEN:
@@ -251,7 +260,7 @@ var LexerBackend = function(input, config){
 				make(t, s, n);
 				break;
 			default:
-				throw token_err("Unexpected symbol" + s + '.', n)
+				throw token_err("Unexpected symbol " + s + ' .', n)
 		}
 	};
 	var CTRLCHR = function (c) {
@@ -278,7 +287,7 @@ var LexerBackend = function(input, config){
 		try {
 			r = new RegExp(face, flags)
 		} catch(e) {
-			throw token_err("Wrong Regular Expression Syntax", n);
+			throw token_err("Wrong Regular Expression Syntax.", n);
 		};
 		return make(REGEX, r, n);
 	};
@@ -352,7 +361,6 @@ var LexerBackend = function(input, config){
 						|| token.type === DOT
 						|| token.type === OPEN
 						|| token.type === COMMA
-						|| token.type === PIPE
 						|| token.type === PROTOMEMBER
 						|| token.type === BACKSLASH)
 	}
@@ -362,6 +370,8 @@ var LexerBackend = function(input, config){
 						|| token.type === CLOSE
 						|| token.type === COMMA
 						|| token.type === PIPE
+						|| token.type === PIPELEFT
+						|| token.type === PIPEDOT
 						|| token.type === PROTOMEMBER
 						|| token.type === NEWLINE)
 	}
@@ -427,7 +437,7 @@ var LexMeta = exports.LexMeta = function (input, backend) {
 	});
 	var rString = /(?:`[^\\`]*(?:\\.[^\\`]*)*`)[gimx]*|'[^\\'\n]*(?:\\(?:\S|\s+\\)[^\\'\n]*)*'|"[^\\"\n]*(?:\\(?:\S|\s+\\)[^\\"\n]*)*"/
 	var rNumber = /0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?/;
-	var rSymbol = /\.{1,3}|<-|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
+	var rSymbol = /\.{1,3}|<-|\|\.|[+\-*\/<>=!%~|&][<>=~|&]*|:[:>]|[()\[\]\{\}@\\;,#:]/;
 	var rNewline = /\n[ \t]*/;
 	var rToken = composeRex(/(#comment)|(#identifier)|(#string)|(\[(=+)\[[\s\S]*?\]\5\])|(#number)|(#symbol)|(#newline)/gm, {
 		comment: rComment,
