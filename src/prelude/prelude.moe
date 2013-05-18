@@ -178,9 +178,7 @@ def export("pairsof") Enumerable pairsof(o):
 def export("table") table(G) =
 	var ans = []
 	def schemata = object MONAD_SCHEMATA_M, =>
-		def @return(x) = case(x)
-			when(undefined) pass
-			otherwise       ans.push x
+		def @return(x) = if(x != undefined) ans.push x
 		def @bind(enumerationList, callback) = rangeForEach enumerationList, callback
 
 	(do G.build schemata)()
@@ -300,45 +298,3 @@ def export('qjoin') async qjoin(nQueues, tasks) =
 
 -- function sleep: a wrap for global_.setTimeout
 def export('sleep') sleep(dt, reaction) = global_.setTimeout({reaction()}, dt)
-
-
-
-// Pattern match functions
--- function matcher: form a matcher function
-def matcher(G) = 
-    var fMatcher = (x) => undefined;
-    def schemata = object MONAD_SCHEMATA_M, =>
-        def @bindYield(extractor, thisp, fGot, fMismatch):
-            fMismatch()
-            fMatcher = extractor.formMatch.call thisp, fGot, fMatcher
-    	
-    G.build(schemata)()()
-    return fMatcher
-
--- function match: form a matcher
-def export('match') match(x, G) =
-	matcher x when(not G), matcher(G) x otherwise
-
--- function extractor: form an extractor
-def export('extractor') extractor(formFunc) =
-	def f = formFunc {true}, {false}
-	f.formMatch = formFunc
-	f.be = f
-	f
-
--- function Both: Both extractor, matches when all the branches matches
-def export('Both') Both() = 
-	extractor (got, miss) =>
-		extractors.reduceRight ((total, extractor) => extractor.formMatch total, miss), got
-	where extractors = arguments
-
--- function Either: Either extractor, matches when one of the branches matches
-def export('Either') Either() = 
-	extractor (got, miss) =>
-		extractors.reduceRight ((total, extractor) => extractor.formMatch got, total), miss
-	where extractors = arguments
-
--- function empty: detect whether x is falsy or empty Array
-def export('empty') export('Empty') extractor Empty(got, miss)(x) = 
-	got x  when(not x or (x is Array and not x.length)),
-	miss x otherwise

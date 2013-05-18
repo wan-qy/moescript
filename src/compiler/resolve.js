@@ -126,9 +126,12 @@ exports.resolve = function(ast, ts, config){
 				};
 				if(node.type === nt.VARIABLE) {
 					s.useVar(node.name, node.position);
-				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN){
-					quenchRebinds(s)[node.type === nt.THIS ? 'thisOccurs' : 
-					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 'argnOccurs'] = true;
+				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN || node.type === nt.ARG0){
+					quenchRebinds(s)[
+					  node.type === nt.THIS ?      'thisOccurs' : 
+					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 
+					  node.type === nt.ARG0 ?      'arg0Occurs' : 
+					                               'argnOccurs'] = true;
 				} else if(node.type === nt.TEMPVAR && !node.builtin){
 					s.useTemp(node.name, node.processing)
 				};

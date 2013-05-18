@@ -191,31 +191,18 @@ var transform = exports.transform = function(code, scope, config, aux){
 	schemata[nt.CALL] = function () {
 		if(this.func && this.func.type === nt.BINDPOINT) return awaitCall.apply(this, arguments);
 
-		var skip = 0, skips = [];
-		var pipelineQ = this.pipeline && this.func;
-		if(pipelineQ){
-			skip = 1;
-			this.args[0] = pep(this.args[0])
-		};
 		this.func = bindFunctionPart.call(this.func);
-		for(var i = skip; i < this.args.length; i++){
+		for(var i = 0; i < this.args.length; i++){
 			this.args[i] = pep(this.args[i]);
 		};
 		return this;
 	};
 
 	var awaitCall = function(){
-		var skip = 0, skips = [];
-		this.names = this.names || [];
-		var pipelineQ = this.pipeline && this.func;
-		if(pipelineQ){
-			skip = 1;
-			this.args[0] = pep(this.args[0])
-		};
 		if(this.func.expression){
 			var f = bindFunctionPart.call(this.func.expression);
 		}
-		for(var i = skip; i < this.args.length; i++){
+		for(var i = 0; i < this.args.length; i++){
 			this.args[i] = pep(this.args[i]);
 		};
 		if(f){
@@ -230,8 +217,6 @@ var transform = exports.transform = function(code, scope, config, aux){
 				this.args.unshift(new Node(nt.LITERAL, {value: {map: 'null'}}))
 				this.args.unshift(f);
 			}
-			this.names.unshift(null);
-			this.names.unshift(null);
 		} else {
 			this.func = new Node(nt.MEMBER, {
 				left: new Node(nt.TEMPVAR, {name: 'SCHEMATA'}),
