@@ -698,7 +698,17 @@ exports.parse = function (tokens, source, config) {
 							advance(CLOSE, RDEND);
 						} catch (e) {
 							loadState(stateSingleBracket);
-							return ms;
+							m = ms;
+							try {
+								m = new Node(nt.CALL, {
+									func: m,
+									args: [groupLike()],
+									names: [null]
+								});
+							} catch (e) {
+								loadState(stateSingleBracket);
+								return ms;
+							}
 						};
 					};
 					if(tokenIs(ASSIGN, '=') || tokenIs(COLON) || tokenIs(INDENT)) { // a declaration
@@ -1556,9 +1566,9 @@ exports.parse = function (tokens, source, config) {
 					subPatterns: pattern.args,
 					subPatternPlacements: subPatternPlacements,
 					condition: (pattern.type === nt.CALL) ? new Node(nt.CALL, {
-							func: MemberNode(pattern.func, 'unapply'),
-							args: [x, new Node(nt.LITERAL, {value: pattern.args.length - 0})]
-						}) : x
+						func: MemberNode(pattern.func, 'unapply'),
+						args: [x, new Node(nt.LITERAL, {value: pattern.args.length - 0})]
+					}) : x
 				}
 			case(nt.VARIABLE):
 			case(nt.MEMBER): 
@@ -1618,7 +1628,7 @@ exports.parse = function (tokens, source, config) {
 			condition = condition.reduceRight(function(right, left){return new Node(nt.and, {left: left, right: right})})
 		}
 		body = new Node(nt.SCRIPT, {
-			content: [formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING), body]
+			content: [new Node(nt.EXPRSTMT, {expression: formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING)}), body]
 		});
 		return new Node(nt.IF, {
 			condition: condition,
@@ -1987,67 +1997,6 @@ exports.parse = function (tokens, source, config) {
 	// Code regularization phase
 	moecrt.walkNodeTF(ws_code, transformPesudoFunctionCalls);
 	moecrt.walkNodeTF(ws_code, transformIrregularFunctionCalls);
-
-	var reduceBooleanOps = function(node){
-		if(node.type === nt.and || node.type === nt['&&']) {
-			if(node.left.type === nt.LITERAL && node.left.value && node.left.value.map === 'true') {
-				node = node.right;
-			}
-		}
-		if(node.type === nt.or || node.type === nt['||']) {
-			if(node.left.type === nt.LITERAL && node.left.value && node.left.value.map === 'false') {
-				node = node.right;
-			}
-		}
-		moecrt.walkNodeTF(node, reduceBooleanOps);
-		return node;
-	};
-
-	var ungroup = function(node){
-		while(node.type === nt.GROUP) node = node.operand;
-		moecrt.walkNodeTF(node, ungroup);
-		return node;
-	};
-
-	var reduceTHENnode = function(node){
-		moecrt.walkNodeTF(node, reduceTHENnode);
-		if(node.type === nt.then) {
-			var a = [];
-			for(var j = 0; j < node.args.length; j++) if(node.args[j]){
-				if(node.args[j].type === nt.then) a = a.concat(node.args[j].args);
-				else a.push(node.args[j]);
-			};
-			for(var j = 0; j < a.length - 1; j++){
-				if(!nodeSideEffectiveQ(a[j])) a[j] = null;
-			};
-			node.args = a.filter(function(x){return x != null});
-		}
-		return node;
-	};
-
-	var reduceScriptNode = function(node){
-		moecrt.walkNodeTF(node, reduceScriptNode);
-		if(node.type === nt.SCRIPT) {
-			var a = [];
-			for(var j = 0; j < node.content.length; j++) if(node.content[j]){
-				if(node.content[j].type === nt.SCRIPT && node.content[j].content) a = a.concat(node.content[j].content);
-				else if(!(node.content[j].type === nt.EXPRSTMT && !nodeSideEffectiveQ(node.content[j].expression))) a.push(node.content[j]);
-			};
-			// DCE
-			for(var j = 0; j < a.length; j++) {
-				if(a[j].type === nt.RETURN || a[j].type === nt.BREAK) break;
-			}
-			a = a.slice(0, j + 1);
-			node.content = a;
-		}
-		return node;
-	};
-
-	// AST optimization phase
-	moecrt.walkNodeTF(ws_code, reduceBooleanOps);
-	moecrt.walkNodeTF(ws_code, ungroup);
-	moecrt.walkNodeTF(ws_code, reduceTHENnode);
-	moecrt.walkNodeTF(ws_code, reduceScriptNode);
 
 	return {
 		type: nt.PROGRAM,

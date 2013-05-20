@@ -5,6 +5,8 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
+var reducePasses = require('./reducer').passes;
+
 var cpsTransform = require('./cps').transform;
 
 var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
@@ -221,5 +223,8 @@ exports.resolve = function(ast, ts, config){
 		throw PE("The global scope cannot be a monadic primitive.", 1);
 	}
 	resolveVariables(enter, trees, !!ast.options.explicit);
+	for(var j = 0; j < reducePasses.length; j++) for(var s = 0; s < trees.length; s++) {
+		trees[s].code = reducePasses[j](trees[s].code);
+	}
 	return trees;
 }

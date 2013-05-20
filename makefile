@@ -17,7 +17,7 @@ dirs: $(MOD)/ $(MOD)/bin/ $(MOEC)/
 
 
 runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
-compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/cps.js $(MOEC)/smapinfo.js
+compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/cps.js $(MOEC)/reducer.js $(MOEC)/smapinfo.js
 commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
 metadatas = $(MOD)/package.json $(MOEC)/package.json
 

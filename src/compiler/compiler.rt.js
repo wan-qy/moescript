@@ -81,7 +81,9 @@ var NodeType = exports.NodeType = function () {
 		'EXPRSTMT', 
 		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
 		// Large-scale
-		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK', 'PROGRAM'];
+		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK', 'PROGRAM',
+
+		'__SCOPEDSCRIPT'];
 
 	var T = {};
 	for (var i = 0; i < types.length; i++)
@@ -223,7 +225,7 @@ exports.walkNodeTF = function(node, f, aux){
 			if(res) node[each] = res;
 		}
 	};
-	return res;
+	return node;
 };
 
 exports.TMaker = function(){
