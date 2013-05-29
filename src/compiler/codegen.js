@@ -351,7 +351,7 @@ exports.Generator = function(g_envs, g_config){
 			} else {
 				left = transform(this.left)
 			}
-			if(this.right.type > this.type) {
+			if(this.right.type >= this.type) {
 				right = '(' + reduceBracketsTransform(this.right, true) + ')'
 			} else {
 				right = transform(this.right)
@@ -429,12 +429,7 @@ exports.Generator = function(g_envs, g_config){
 			s = '(' + s + ')';
 		};
 		return s;
-	}
-
-	defineSchemata(nt.EXPRSTMT, function(){
-		return reduceBracketsTransform(this.expression);
-	});
-
+	};
 	var flowPush = function(flow, env, expr){
 		var t = makeT(env);
 		flow.push(C_TEMP(t) + '=' + expr);

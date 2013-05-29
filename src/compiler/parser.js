@@ -175,9 +175,10 @@ exports.parse = function (tokens, source, config) {
 		var laststmt = node.content[last];
 		if(!laststmt) return;
 		var lasttype = laststmt.type;
-		if(lasttype === nt.EXPRSTMT){
+		debugger;
+		if(lasttype <= nt.MAX_EXPRESSIONAL){
 			node.content[last] = new Node(nt.RETURN, {
-				expression: laststmt.expression,
+				expression: laststmt,
 				begins: laststmt.begins,
 				ends: laststmt.ends,
 				implicit: true
@@ -203,17 +204,6 @@ exports.parse = function (tokens, source, config) {
 			generateImplicitReturn(node.attemption);
 			generateImplicitReturn(node.catcher);
 		}
-	};
-
-	var optimizeOnelineWhere = function(code){
-		if(code.content.length === 1                              // one statement
-			&& code.content[0]
-			&& code.content[0].type === nt.RETURN                 // it is return
-			&& code.content[0].expression.type === nt.CALLBLOCK
-			&& code.content[0].expression.isWhereClause){ // and it is a WHERE
-			return code.content[0].expression.func.code;
-		}
-		return code;
 	};
 
 	// NRF: Node returning function
@@ -330,9 +320,7 @@ exports.parse = function (tokens, source, config) {
 
 		if(firstIrregularArgI >= 0){
 			for(var i = p.names.length - 1; i >= firstIrregularArgI; i--){
-				c.content.unshift(new Node(nt.EXPRSTMT, {
-					expression: formAssignment(paramBindLefts[i], '=', p.names[i], DECLARE_SOMETHING, DECLARE_A_CONSTANT)
-				}))
+				c.content.unshift(formAssignment(paramBindLefts[i], '=', p.names[i], DECLARE_SOMETHING, DECLARE_A_CONSTANT))
 			}
 		}
 
@@ -363,60 +351,60 @@ exports.parse = function (tokens, source, config) {
 		};
 		if (tokenIs(OPEN, RDSTART)) { // currying arguments
 			f = curryBody(p);
-		} else if (tokenIs(COLON) || tokenIs(ASSIGN, '=') || tokenIs(INDENT)) {
-			f = blockBody(p);
-		} else if (tokenIs(LAMBDA)){
-			f = completeLambdaExpression(p);
-		} else {
-			f = expressionBody(p);
+		} else if (tokenIs(ASSIGN, '=') || tokenIs(OPEN, CRSTART)) {
+			f = functionBody(p);
 		};
 		return f;
 	});
 
-	var lambdaExpression = NRF(function(){
-		if(tokenIs(ID)){
-			var p = new Node(nt.PARAMETERS, {names: [new Node(nt.VARIABLE, {name: lname()})]});
-		} else if(tokenIs(LAMBDA)) {
-			var p = null;
-		} else {
-			var p = parameters();
+	var optimizeOnelineWhere = function(code){
+		if(code.content.length === 1                              // one statement
+			&& code.content[0]
+			&& code.content[0].type === nt.RETURN                 // it is return
+			&& code.content[0].expression.type === nt.CALLBLOCK
+			&& code.content[0].expression.isWhereClause){         // and it is a WHERE
+			return code.content[0].expression.func.code;
 		}
-		var f = completeLambdaExpression(p);
-		return f;
-	});
+		return code;
+	};
 
-	var expressionBody = NRF(function (p) {
-		advance(OPEN, CRSTART);
+	var functionBody = NRF(function (p) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
-		if(tokenIs(DOWNSLASH)) { // {|args| } form
-			if(p)
-				throw PE('Attempting to add parameters to a parameter-given function.');
-			advance(DOWNSLASH);
-			parameters.names = parlist();
-			advance(DOWNSLASH);
-		};
-		var code = onelineStatements();
-		generateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
-		advance(CLOSE, CREND);
-		return new Node(nt.FUNCTION, { parameters: parameters, code: code });
-	});
-
-	var blockBody = NRF(function (p) {
-		var t = advance();
-		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
-		if(tokenIs(DOWNSLASH)) { // :|args| form
-			if(p)
-				throw PE('Attempting to add parameters to a parameter-given function.');
-			advance(DOWNSLASH);
-			parameters.names = parlist();
-			advance(DOWNSLASH);
-		};
-		var code = block();
-		if(t.type === ASSIGN && t.value === '=')
+		if(tokenIs(ASSIGN, '=')) {
+			advance();
+			var e = statement(true);
+			if(e.type === nt.CALL && e.args.length === 1 && !e.names[0] && e.func.type === nt.PESUDO_FUNCTION && e.func.value === DO
+				&& e.args[0] && e.args[0].type === nt.FUNCTION && (!e.args[0].parameters || !e.args[0].parameters.names || !e.args[0].parameters.names.length)) {
+				var code = e.args[0].code;
+			} else {
+				var code = new Node(nt.SCRIPT, {
+					content: [ e ]
+				});
+			}
 			generateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
-		generateDefaultParameters(parameters, code);
+			generateDefaultParameters(parameters, code);
+		} else {
+			advance(OPEN, CRSTART);
+			if(!p) {
+				debugger;
+				var s = saveState();
+				try {
+					var a = parlist();
+					if(!tokenIs(LAMBDA)) {
+						loadState(s);
+					} else {
+						var notGenerateDefaultReturn = advance().value === ':>';
+						parameters.names = a;
+					}
+				} catch(ex) {
+					loadState(s);
+				}
+			}
+			var code = statements();
+			advance(CLOSE, CREND);
+			if(!notGenerateDefaultReturn) generateImplicitReturn(code);
+			generateDefaultParameters(parameters, code);
+		}
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
 	});
 
@@ -434,7 +422,6 @@ exports.parse = function (tokens, source, config) {
 		var code = block();
 		if(t.value === '=>')
 			generateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {
 			parameters: parameters,
@@ -557,35 +544,16 @@ exports.parse = function (tokens, source, config) {
 			});
 			advance(CLOSE, RDEND);
 			return r;
-		} else if(nextIs(CLOSE, RDEND) && !shiftIs(2, LAMBDA)) {
+		} else if(nextIs(CLOSE, RDEND)) {
 			advance();
 			advance();
 			return new Node(nt.UNIT);
 		}
-		
-		if(nextIs(CLOSE, RDEND) && shiftIs(2, LAMBDA)
-			|| nextIs(ID) && (shiftIs(2, CLOSE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))) {
-			return lambdaExpression();
-		};
-		var state = saveState();
-		try {
-			advance(OPEN, RDSTART);
-			var r = assignmentExpression();
-			advance(CLOSE, RDEND);
-		} catch(e) {
-			loadState(state);
-			try {
-				var s = lambdaExpression()
-			} catch(e2) {
-				throw e
-			}
-		};
-		if(tokenIs(LAMBDA)){
-			loadState(state);
-			return lambdaExpression()
-		} else {
-			return new Node(nt.GROUP, {operand: r})
-		};
+
+		advance(OPEN, RDSTART);
+		var r = assignmentExpression();
+		advance(CLOSE, RDEND);
+		return new Node(nt.GROUP, {operand: r})
 	});
 
 	var esp = [];
@@ -601,7 +569,7 @@ exports.parse = function (tokens, source, config) {
 		} else if (token.value === RDSTART) {
 			return groupLike();
 		} else if (token.value === CRSTART) {
-			return expressionBody();
+			return functionBody();
 		}
 	};
 	esp[SHARP] = function(){
@@ -634,7 +602,6 @@ exports.parse = function (tokens, source, config) {
 		advance(FUNCTION);
 		return functionLiteral();
 	};
-	esp[LAMBDA] = lambdaExpression;
 	esp[NEW] = esp[RESEND] = esp[DO] = function(){
 		return new Node(nt.PESUDO_FUNCTION, {value: advance().type})
 	};
@@ -643,7 +610,7 @@ exports.parse = function (tokens, source, config) {
 		return token && esp[token.type];
 	};
 	var argStartQ = function(){
-		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, INDENT) || shiftIs(2, PIPE)))
+		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, PIPE)))
 			return 2;
 		else if(exprStartQ())
 			return 1;
@@ -711,7 +678,7 @@ exports.parse = function (tokens, source, config) {
 							}
 						};
 					};
-					if(tokenIs(ASSIGN, '=') || tokenIs(COLON) || tokenIs(INDENT)) { // a declaration
+					if(tokenIs(ASSIGN, '=') || tokenIs(OPEN, CRSTART)) { // a declaration
 						loadState(state);
 						return m_;
 					};
@@ -758,7 +725,7 @@ exports.parse = function (tokens, source, config) {
 		}
 	}
 	var completeArgList = function(nc, bracedQ){
-		while(tokenIs(COMMA)) {
+		while(tokenIs(COMMA) || (bracedQ && tokenIs(SEMICOLON))) {
 			advance();
 			pusharg(nc, bracedQ);
 		};
@@ -1052,7 +1019,7 @@ exports.parse = function (tokens, source, config) {
 			return expression(c);
 		}
 	});
-	var formAssignment = function(left, oper, right, declVarQ, constantQ, whereClauseQ){
+	var formAssignment = function(left, oper, right, declVarQ, constantQ, insideWhereClauseQ){
 		ensure( left.type === nt.VARIABLE 
 			 || left.type === nt.MEMBER 
 			 || left.type === nt.TEMPVAR 
@@ -1080,10 +1047,10 @@ exports.parse = function (tokens, source, config) {
 				if(left.args[i].type !== nt.UNIT) {
 					if(left.names[i]) {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ, whereClauseQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ, insideWhereClauseQ));
 					} else {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ, whereClauseQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ, insideWhereClauseQ));
 					}
 					seed.names.push(null);
 				}
@@ -1108,7 +1075,7 @@ exports.parse = function (tokens, source, config) {
 				}),
 				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
 				constantQ: constantQ,
-				whereClauseQ: whereClauseQ
+				insideWhereClauseQ: insideWhereClauseQ
 			});
 			if(tLeft !== left){
 				node = new Node(nt.then, {
@@ -1120,28 +1087,21 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var whereClausedExpression = NRF(function(singleLineQ){
-		return whereClausize(assignmentExpression(), singleLineQ);
-	});
 	var whereClausize = function(node, singleLineQ){
 		// Clearify WHERE in oneline statements
 		if(singleLineQ && !(tokenIs(WHERE))) return node;
 
 		var shift = 0;
-		while(shiftIs(shift, SEMICOLON)) shift++;
+		while(shiftIs(shift, SEMICOLON, 'Implicit')) shift++;
 		if(shiftIs(shift, WHERE)) {
 			stripSemicolons();
 			advance(WHERE);
 			var stmts = whereClauses();
-			stmts.push(new Node(nt.RETURN, { 
-				expression: node,
-				begins: node.begins,
-				ends: node.ends
-			}));
+			stmts.push(node);
 			return whereClausize(new Node(nt.CALLBLOCK, {
 				func: new Node(nt.FUNCTION, {
 					parameters: new Node(nt.PARAMETERS, {names: []}),
-					code: new Node(nt.SCRIPT, {content: stmts}),
+					code: generateImplicitReturn(new Node(nt.SCRIPT, {content: stmts})),
 					blockQ: true
 				}),
 				isWhereClause: true
@@ -1152,45 +1112,28 @@ exports.parse = function (tokens, source, config) {
 	};
 	var whereClauses = function(){
 		var stmts = [];
-		if(tokenIs(OPEN, CRSTART)) {
-			advance();
-			do {
-				while(tokenIs(SEMICOLON, "Explicit")) advance();
-				if (tokenIs(CLOSE)) break;
-				stmts.push(whereClause());
-			} while(token && !(tokenIs(CLOSE, CREND)));
-			advance(CLOSE, CREND);
-			return stmts;
-		} else {
-			if(!tokenIs(INDENT)){
-				stmts.push(whereClause());
-				var s = 0;
-				if(!(tokenIs(INDENT) || tokenIs(SEMICOLON, "Implicit") && nextIs(INDENT)))
-					return stmts;
-			};
-			stripSemicolons();
-			advance(INDENT);
-			while(token && !tokenIs(OUTDENT)){
-				stmts.push(whereClause());
-				stripSemicolons();
-			};
-			advance(OUTDENT);
-			return stmts;
-		}
+		advance(OPEN, CRSTART);
+		do {
+			while(tokenIs(SEMICOLON)) advance();
+			if (tokenIs(CLOSE)) break;
+			stmts.push(whereClause());
+		} while(token && !(tokenIs(CLOSE, CREND)));
+		advance(CLOSE, CREND);
+		return stmts;
 	};
 	var whereClause = NRF(function(){
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, SINGLE_LINE, INSIDE_WHERE_CLAUSE)})
+		return varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, SINGLE_LINE, INSIDE_WHERE_CLAUSE)
 	});
 
 	var stover = function () {
-		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE || token.type === OUTDENT);
+		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE);
 	};
 	var nextstover = function () {
-		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE || next.type === OUTDENT);
+		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE);
 	};
 	var aStatementEnded = false;
 
-	var statement = function(singleLineQ){
+	var statement = function(hangingStatementQ){
 		aStatementEnded = false;
 		var begins = pos();
 		var r = statement_r.apply(this, arguments);
@@ -1199,95 +1142,73 @@ exports.parse = function (tokens, source, config) {
 		if(r){
 			r.begins = begins;
 			r.ends = ends;
-			if(r.type === nt.EXPRSTMT){
-				r.expression.begins = begins;
-				r.expression.ends = ends;
-			}
+			r.hangingStatementQ = hangingStatementQ;
 		};
-		return r;
+		return whereClausize(r, hangingStatementQ);
 	};
 	var block = function(){
-		if(tokenIs(INDENT)){
-			return statements()
+		if(tokenIs(OPEN, CRSTART)) {
+			advance(OPEN, CRSTART);
+			var stmts = statements()
+			advance(CLOSE, CREND);
+			return stmts;
 		} else {
-			return blocky(statement(SINGLE_LINE))
-		};
-	};
-	var statements = function () {
-		if(tokenIs(INDENT)){
-			advance(INDENT);
-			var r = statements();
-			advance(OUTDENT);
-			return r;
-		} else {
-			var script = new Node(nt.SCRIPT, {content: []});
-			var s;
-			do {
-				var slQ = stripSemicolons();
-				if (tokenIs(OUTDENT)) break;
-				if(slQ)
-					script.content.push(statement(SINGLE_LINE));
-				else
-					script.content.push(statement());
-			} while(aStatementEnded && token);
-			aStatementEnded = false;
-			return script;
+			return blocky(statement(true))
 		}
 	};
-	var onelineStatements = function(){
+	var statements = function () {
 		var script = new Node(nt.SCRIPT, {content: []});
 		var s;
 		do {
-			while(tokenIs(SEMICOLON, "Explicit")) advance();
+			stripSemicolons();
 			if (tokenIs(CLOSE)) break;
-			script.content.push(statement(SINGLE_LINE));
+			script.content.push(statement());
 		} while(aStatementEnded && token);
 		aStatementEnded = false;
-
 		return script;
 	};
 
-	var statement_r = function (singleLineQ) {
+	var statement_r = function (hangingStatementQ) {
 		if (token)
 			switch (token.type) {
 			case RETURN:
-				return returnstmt(singleLineQ)
+				return returnstmt(hangingStatementQ)
 			case IF:
-				return ifstmt(singleLineQ);
+				return ifstmt(hangingStatementQ);
 			case WHILE:
-				return whilestmt(singleLineQ);
+				return whilestmt(hangingStatementQ);
 			case REPEAT:
-				return repeatstmt(singleLineQ);
+				return repeatstmt(hangingStatementQ);
 			case PIECEWISE:
-				return piecewise(false, singleLineQ);
+				return piecewise(false, hangingStatementQ);
 			case CASE:
-				return caseStmt(singleLineQ);
+				return caseStmt(hangingStatementQ);
 			case FOR:
-				return forstmt(singleLineQ);
+				return forstmt(hangingStatementQ);
 			case LABEL:
-				return labelstmt(singleLineQ);
+				return labelstmt(hangingStatementQ);
 			case BREAK:
-				return brkstmt(singleLineQ);
+				return brkstmt(hangingStatementQ);
 			case TRY:
-				return trystmt(singleLineQ);
+				return trystmt(hangingStatementQ);
 			case END:
 			case ELSE:
 			case OTHERWISE:
-			case WHEN:
 			case CLOSE:
 			case CATCH:
+			case WHEN:
 				throw PE('Unexpected statement symbol.');
 			case VAR:
 				advance();
-				return varstmt(singleLineQ);
+				return varstmt(hangingStatementQ);
 			case DEF:
 				advance();
-				return defstmt(singleLineQ);
+				return defstmt(hangingStatementQ);
 			case PASS:
 				advance(PASS);
 				return;
 			default:
-				return new Node(nt.EXPRSTMT, {expression: whereClausedExpression(singleLineQ), exprStmtQ : true});
+				return assignmentExpression();
 		};
 	};
 	var blocky = function(node){
@@ -1297,24 +1218,24 @@ exports.parse = function (tokens, source, config) {
 			return node
 		}
 	};
-	var returnstmt = function(singleLineQ){
+	var returnstmt = function(hangingStatementQ){
 		advance(RETURN);
 		if(tokenIs(BIND)){
 			advance(BIND);
 			return new Node(nt.CALL, {
 				func: new Node(nt.BINDPOINT),
-				args: [whereClausedExpression(singleLineQ)],
+				args: [assignmentExpression()],
 				names: [null]
 			});
 		} else {
-			return new Node(nt.RETURN, { expression: whereClausedExpression(singleLineQ) })
+			return new Node(nt.RETURN, { expression: assignmentExpression() })
 		}
 	}
-	var varstmt = function(singleLineQ){
+	var varstmt = function(hangingStatementQ){
 		if(tokenIs(ID) && (nextIs(COMMA) || nextstover())){
 			return vardecls();
 		} else {
-			return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_VARIABLE, OUTSIDE_FOR_STATEMENT, singleLineQ)});
+			return varDefinition(DECLARE_A_VARIABLE, OUTSIDE_FOR_STATEMENT, hangingStatementQ);
 		};
 	};
 	var vardecls = function () {
@@ -1329,8 +1250,8 @@ exports.parse = function (tokens, source, config) {
 		return new Node(nt.VAR, {terms: a});
 	};
 
-	var defstmt = function (singleLineQ) {
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, singleLineQ)});
+	var defstmt = function (hangingStatementQ) {
+		return varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, hangingStatementQ)
 	};
 
 	var DEF_ASSIGNMENT = 1;
@@ -1347,7 +1268,7 @@ exports.parse = function (tokens, source, config) {
 	var defPartQ = function(){
 		if(tokenIs(ASSIGN, '=')) return DEF_ASSIGNMENT;
 		else if(tokenIs(BIND)) return DEF_BIND;
-		else if(tokenIs(COLON) || tokenIs(OPEN, RDSTART)) return DEF_FUNCTIONAL;
+		else if(tokenIs(OPEN, RDSTART)) return DEF_FUNCTIONAL;
 	};
 
 	var varDefinition = function(){
@@ -1384,10 +1305,10 @@ exports.parse = function (tokens, source, config) {
 				}))]
 			}
 		};
-		return function(constantQ, forQ, singleLineQ, insideWhereClauseQ){
+		return function(constantQ, forQ, hangingStatementQ, insideWhereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			return whereClausize(formAssignment(r[0], "=", r[1], DECLARE_SOMETHING, constantQ, insideWhereClauseQ), singleLineQ);
+			return formAssignment(r[0], "=", r[1], DECLARE_SOMETHING, constantQ, insideWhereClauseQ);
 		}
 	}();
 
@@ -1415,26 +1336,22 @@ exports.parse = function (tokens, source, config) {
 		return SLQ;
 	};
 
-	var ifstmt = function (singleLineQ) {
+	var ifstmt = function (hangingStatementQ) {
 		advance(IF);
 		var n = new Node(nt.IF);
 		n.condition = controlExpression();
 		n.thenPart = block();
-		if(singleLineQ) {
-			if(tokenIs(ELSE)){
-				advance(ELSE);
-				n.elsePart = blocky(statement(SINGLE_LINE));
-			};
-		} else {
-			var newlinedElse = !tokenIs(ELSE);
-			stripSemicolons();
-			if(tokenIs(ELSE)){
-				advance(ELSE);
-				if(newlinedElse && tokenIs(IF)){
-					n.elsePart = blocky(ifstmt());
-				} else {
-					n.elsePart = block();
-				}
+		if(!hangingStatementQ) stripSemicolons();
+		if(tokenIs(ELSE)){
+			debugger;
+			if(n.thenPart.content.length === 1 && n.thenPart.content[0].type === nt.IF && !n.thenPart.content[0].elsePart && n.thenPart.content[0].hangingStatementQ) {
+				throw new PE('Attempt to append ELSE into a hanging IF statement without ELSE clause.')
+			}
+			advance(ELSE);
+			if(tokenIs(IF)){
+				n.elsePart = blocky(ifstmt(true));
+			} else {
+				n.elsePart = block();
 			}
 		}
 		return n;
@@ -1509,8 +1426,8 @@ exports.parse = function (tokens, source, config) {
 			} else {
 				var tEv = new Node(nt.TEMPVAR, {name: makeT()})
 			}
-			return new Node(nt.OLD_FOR, {
-				start: formAssignment(tEv, '=', new Node(nt.CALL, {
+			return new Node(nt.SCRIPT, {content: [
+				formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(
 						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
 							func: new Node(nt.TEMPVAR, {name: 'GETENUM', builtin: true}),
@@ -1522,16 +1439,19 @@ exports.parse = function (tokens, source, config) {
 					args: [],
 					names: []
 				}), DECLARE_SOMETHING),
-				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
-				step: formAssignment(tEv, '=', new Node(nt.CALL, {
-					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
-					args: [],
-					names: []
-				})),
-				body: new Node(nt.SCRIPT, {
-					content: [(tEv === bind ? null : formAssignment(bind, '=', tEv, DECLARE_SOMETHING))].concat(body.type === nt.SCRIPT ? body.content : [body])
+				new Node(nt.WHILE, {
+					condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
+					body: new Node(nt.SCRIPT, {
+						content: [(tEv === bind ? null : formAssignment(bind, '=', tEv, DECLARE_SOMETHING))]
+							.concat(body.type === nt.SCRIPT ? body.content : [body])
+							.concat(formAssignment(tEv, '=', new Node(nt.CALL, {
+								func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
+								args: [],
+								names: []
+							})))
+					})
 				})
-			})
+			]});
 		}
 	};
 
@@ -1554,21 +1474,30 @@ exports.parse = function (tokens, source, config) {
 			case(nt.OBJECT):
 				pattern.names = pattern.names || [];
 				var subPatternPlacements = [];
+				var subPatternNamesList = [];
 				var t = 0;
 				for(var j = 0; j < pattern.names.length; j++){
 					if(typeof pattern.names[j] === 'string') {
-						subPatternPlacements[j] = new Node(nt.LITERAL, {value: pattern.names[j]})
+						subPatternPlacements[j] = new Node(nt.LITERAL, {value: pattern.names[j]});
+						subPatternNamesList.push(subPatternPlacements[j]);
 					} else {
 						subPatternPlacements[j] = new Node(nt.LITERAL, {value: (t++)})
 					}
-				}
+				};
 				return {
 					subPatterns: pattern.args,
 					subPatternPlacements: subPatternPlacements,
-					condition: (pattern.type === nt.CALL) ? new Node(nt.CALL, {
-						func: MemberNode(pattern.func, 'unapply'),
-						args: [x, new Node(nt.LITERAL, {value: pattern.args.length - 0})]
-					}) : x
+					condition: new Node(nt.CALL, {
+						func: pattern.type === nt.CALL ? MemberNode(pattern.func, 'unapply') : new Node(nt.LITERAL, {value: {tid: 'UA_LIST'}}),
+						args: [
+							x, 
+							new Node(nt.LITERAL, {value: t}), 
+							(subPatternNamesList.length ? new Node(nt.OBJECT, {
+								args: subPatternNamesList,
+								names: subPatternNamesList.map(function(){return null})
+							}) : new Node(nt.UNIT))
+						]
+					})
 				}
 			case(nt.VARIABLE):
 			case(nt.MEMBER): 
@@ -1614,9 +1543,9 @@ exports.parse = function (tokens, source, config) {
 		} else {
 			return [];
 		}
-	}
+	};
 
-	var caseStmt = function(singleLineQ) {
+	var caseStmt = function(hangingStatementQ) {
 		advance(CASE);
 		var pattern = controlExpression();
 		var body = generateImplicitReturn(block());
@@ -1628,7 +1557,7 @@ exports.parse = function (tokens, source, config) {
 			condition = condition.reduceRight(function(right, left){return new Node(nt.and, {left: left, right: right})})
 		}
 		body = new Node(nt.SCRIPT, {
-			content: [new Node(nt.EXPRSTMT, {expression: formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING)}), body]
+			content: [formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING), body]
 		});
 		return new Node(nt.IF, {
 			condition: condition,
@@ -1643,7 +1572,7 @@ exports.parse = function (tokens, source, config) {
 			var caseExpression = controlExpression();
 			var tCaseExpression = makeT();
 		};
-		advance(INDENT);
+		advance(OPEN, CRSTART);
 		stripSemicolons();
 		ensure(token, 'Unterminated piecewise/case block');
 		while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
@@ -1683,7 +1612,7 @@ exports.parse = function (tokens, source, config) {
 				break;
 			}
 		};
-		advance(OUTDENT);
+		advance(CLOSE, CREND);
 		
 		var n = new Node(nt.IF, {
 			condition: conditions[conditions.length - 1],
@@ -1732,11 +1661,11 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var trystmt = function(singleLineQ){
+	var trystmt = function(hangingStatementQ){
 		advance(TRY);
 		var n = new Node(nt.TRY);
 		n.attemption = block();
-		if(singleLineQ) {
+		if(hangingStatementQ) {
 			advance(CATCH);
 			advance(OPEN, RDSTART);
 			n.eid = variable();

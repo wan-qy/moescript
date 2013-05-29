@@ -211,6 +211,13 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	return f
 };
 
+// << UA_LIST >>
+
+var UA_LIST = function(x, arity, names){
+	if(names) return x;
+	if(x instanceof Array && x.length === arity) return x
+}
+
 // << export-interface >>
 // All functions used for the runtime
 exports.runtime = {
@@ -231,7 +238,8 @@ exports.runtime = {
 	NARGS2: CREATE_NARGS2,
 	NARGS3: CREATE_NARGS3,
 	NARGS4: CREATE_NARGS4,
-	GETENUM: GETENUM
+	GETENUM: GETENUM,
+	UA_LIST: UA_LIST
 };
 
 // util functions used for the compiler or the prelude

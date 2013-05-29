@@ -9,16 +9,16 @@ everything: __all
 MOD = dist/moe
 MOEC = $(MOD)/compiler
 
-DIRS = $(MOD)/ $(MOD)/bin/ $(MOEC)/
+DIRS = $(MOD)/ $(MOD)/bin/ $(MOEC)/ $(MOEC)/passes
 
 $(DIRS):
 	$(MKDIR) $@
-dirs: $(MOD)/ $(MOD)/bin/ $(MOEC)/
+dirs: $(DIRS)
 
 
 runtimeMods = $(MOD)/runtime.js $(MOD)/dummy.js
-compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/cps.js $(MOEC)/reducer.js $(MOEC)/smapinfo.js
-commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/moec.js  $(MOD)/bin/moei.js $(MOD)/bin/moec $(MOD)/bin/moei
+compilerMods = $(MOEC)/compiler.rt.js $(MOEC)/compiler.js $(MOEC)/codegen.js $(MOEC)/lexer.js $(MOEC)/parser.js $(MOEC)/resolve.js $(MOEC)/passes/cps-transform.js $(MOEC)/passes/ast-reduce-1.js $(MOEC)/smapinfo.js
+commandLineMods = $(MOD)/bin/options.js $(MOD)/bin/asoic $(MOD)/bin/asoi
 metadatas = $(MOD)/package.json $(MOEC)/package.json
 
 moecCompoments = $(runtimeMods) $(compilerMods) $(commandLineMods) $(metadatas)
@@ -30,7 +30,7 @@ moec: dirs $(moecCompoments)
 
 PRELUDE_CONFIG = --explicit --bare -g exports -g moert --runtime-bind moert.runtime
 $(MOD)/prelude.js: src/prelude/overture.js src/prelude/prelude.moe $(moecCompoments)
-	node $(MOD)/bin/moec $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
+	node $(MOD)/bin/asoic $(PRELUDE_CONFIG) --include-js $(word 1,$^) $(word 2,$^) -o $@
 
 moePrelude: $(MOD)/prelude.js
 
@@ -50,6 +50,7 @@ webtestDir:
 	$(MKDIR) $(WEBTEST)
 	$(MKDIR) $(WEBMOD)
 	$(MKDIR) $(WEBMOD)/compiler
+	$(MKDIR) $(WEBMOD)/compiler/passes
 
 nessatEXE = node tools/nessat
 
@@ -80,9 +81,9 @@ force:
 
 __all: webtest webmin
 
-publish:
-	git push origin master:master
-	git push cafe   master:master
+update:
+	git push origin  asoi:asoi
+	git push gitcafe asoi:asoi
 
 release: webtest webmin
 	rm -rf channel-release/moe/

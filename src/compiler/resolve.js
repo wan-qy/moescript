@@ -5,9 +5,8 @@ var moecrt = require('./compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 
-var reducePasses = require('./reducer').passes;
-
-var cpsTransform = require('./cps').transform;
+var reducePasses = require('./passes/ast-reduce-1').passes;
+var cpsTransform = require('./passes/cps-transform').transform;
 
 var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
 
@@ -117,7 +116,7 @@ exports.resolve = function(ast, ts, config){
 					node.position)
 			} else {
 				if(node.declareVariable){
-					if(node.whereClauseQ) {
+					if(node.insideWhereClauseQ) {
 						declareMessage = s.pendNewVar(node.declareVariable, false, node.constantQ, node.begins || node.position);
 					} else {
 						declareMessage = quenchRebinds(s).pendNewVar(node.declareVariable, false, node.constantQ, node.begins || node.position);
@@ -147,7 +146,6 @@ exports.resolve = function(ast, ts, config){
 		var fWalk = function (node) {
 			if(node.type === nt.WHILE || node.type === nt.FOR || node.type === nt.REPEAT || node.type === nt.OLD_FOR)
 				return;
-			if(node.type === nt.EXPRSTMT) return;
 			if(node.type === nt.BREAK)
 				throw PE("Break is at the outside of a loop.", node.position);
 			return moecrt.walkNode(node, fWalk);
@@ -223,8 +221,6 @@ exports.resolve = function(ast, ts, config){
 		throw PE("The global scope cannot be a monadic primitive.", 1);
 	}
 	resolveVariables(enter, trees, !!ast.options.explicit);
-	for(var j = 0; j < reducePasses.length; j++) for(var s = 0; s < trees.length; s++) {
-		trees[s].code = reducePasses[j](trees[s].code);
-	}
+	for(var j = 0; j < reducePasses.length; j++) trees = reducePasses[j](trees)
 	return trees;
 }

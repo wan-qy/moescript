@@ -156,6 +156,11 @@ reg('Function', internalClassWrapper(Function));
 reg('Number', internalClassWrapper(Number, function(){
 	this.be = function(x){return typeof x === 'number' || x instanceof Number}
 	this.convertFrom = function(x){return x - 0}
+	this.MAX_VALUE = Number.MAX_VALUE;
+	this.POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+	this.MIN_VALUE = Number.MIN_VALUE;
+	this.NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
+	this.NaN = Number.NaN;
 }));
 reg('Boolean', internalClassWrapper(Boolean, function(){
 	this.be = function(x){return x === true || x === false}

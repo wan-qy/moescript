@@ -51,7 +51,7 @@ var NodeType = exports.NodeType = function () {
 		// Unknown type
 		'UNKNOWN',
 		// Primary
-		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
+		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'FUNCTION', 'BLOCK',
 		'ARGUMENTS', 'ARGN', 'ARG0', 'GROUP', 'PESUDO_FUNCTION', 'UNIT',
 		// Wrappers
 		'BINDPOINT', 'CTOR',
@@ -70,7 +70,8 @@ var NodeType = exports.NodeType = function () {
 		'and', '&&',
 		'or', '||',
 		'..', '...',
-		'as', 
+		'as',
+		// Sequence 
 		'then',
 		// Conditional
 		'CONDITIONAL',
@@ -78,12 +79,9 @@ var NodeType = exports.NodeType = function () {
 		'ASSIGN',
 
 		// Statements
-		'EXPRSTMT', 
 		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
 		// Large-scale
-		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK', 'PROGRAM',
-
-		'__SCOPEDSCRIPT'];
+		'TRY', 'PARAMETERS', 'SCRIPT', 'PROGRAM'];
 
 	var T = {};
 	for (var i = 0; i < types.length; i++)
@@ -93,6 +91,10 @@ var NodeType = exports.NodeType = function () {
 			valueOf: function(){return j},
 			toString: function(){return types[j]}
 		}}(i);
+
+	T.MIN_BINARY_OPERATOR = T['*']
+	T.MAX_BINARY_OPERATOR = T['as']
+	T.MAX_EXPRESSIONAL = T['ASSIGN']
 	return T;
 } ();
 var nt = NodeType;

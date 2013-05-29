@@ -1,3 +1,16 @@
+#!/usr/bin/env node
+// -*- js -*-
+
+// ARGV processing
+(function(){
+	var ARGV = process.argv;
+
+	for(var j = 0; j < ARGV.length; j++)
+		if(ARGV[j] === require.main.filename) {
+			process.argv = ARGV.slice(j);
+			return;
+		}
+}());
 var dummy = require('../dummy');
 var path  = require('path');
 

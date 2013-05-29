@@ -1,6 +1,6 @@
-var moe = require('../runtime');
+var moe = require('../../runtime');
 var OWNS = moe.OWNS;
-var moecrt = require('./compiler.rt');
+var moecrt = require('../compiler.rt');
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 var Node = moecrt.MakeNode;
@@ -33,11 +33,9 @@ var ScriptFlow = function(makeT){
 			|| node.type === nt.LITERAL)) return node;
 
 		var t = makeT();
-		this.pushStatement(new Node(nt.EXPRSTMT, {
-			expression: new Node(nt.ASSIGN, {
-				left: new Node(nt.TEMPVAR, {name: t}),
-				right: node
-			})
+		this.pushStatement(new Node(nt.ASSIGN, {
+			left: new Node(nt.TEMPVAR, {name: t}),
+			right: node
 		}));
 		return new Node(nt.TEMPVAR, {name: t});
 	}
@@ -67,13 +65,11 @@ var ScriptFlow = function(makeT){
 						blockScript.content.push(this.GoTo(this.labels[j]));
 					}
 					// Create a label assignment
-					script.content.push(new Node(nt.EXPRSTMT, {
-						expression: new Node(nt.ASSIGN, {
-							left: new Node(nt.TEMPVAR, {name: currentLabel}),
-							right: new Node(nt.BLOCK, {
-								code: blockScript,
-								arg: currentEnterId
-							})
+					script.content.push(new Node(nt.ASSIGN, {
+						left: new Node(nt.TEMPVAR, {name: currentLabel}),
+						right: new Node(nt.BLOCK, {
+							code: blockScript,
+							arg: currentEnterId
 						})
 					}));
 				};
@@ -91,27 +87,23 @@ var ScriptFlow = function(makeT){
 		}
 
 		// Process last block
-		script.content.push(new Node(nt.EXPRSTMT, {
-			expression: new Node(nt.ASSIGN, {
-				left: new Node(nt.TEMPVAR, {name: currentLabel}),
-				right: new Node(nt.BLOCK, {
-					code: blockScript,
-					arg: currentEnterId
-				})
+		script.content.push(new Node(nt.ASSIGN, {
+			left: new Node(nt.TEMPVAR, {name: currentLabel}),
+			right: new Node(nt.BLOCK, {
+				code: blockScript,
+				arg: currentEnterId
 			})
 		}));
 
 		for(each in this.identLabel) if(OWNS(this.identLabel, each)) {
-			script.content.push(new Node(nt.EXPRSTMT, {
-				expression: new Node(nt.ASSIGN, {
-					left: new Node(nt.TEMPVAR, {name: each}),
-					right: new Node(nt.TEMPVAR, {name: this.identLabel[each]})
-				})
-			}))
+			script.content.push(new Node(nt.ASSIGN, {
+				left: new Node(nt.TEMPVAR, {name: each}),
+				right: new Node(nt.TEMPVAR, {name: this.identLabel[each]})
+			}));
 		}
 
 		script.content.push(new Node(nt.RETURN, {
-			expression: script.content[0].expression.left
+			expression: script.content[0].left
 		}))
 
 		return script;
@@ -306,11 +298,9 @@ var transform = exports.transform = function(code, scope, config, aux){
 		var lEnd = makeT();
 		flow.pushStatement(flow.GoTo(lEnd));
 		flow.label(lElse);
-		flow.pushStatement(new Node(nt.EXPRSTMT, {
-			expression: new Node(nt.ASSIGN, {
-				left: right, 
-				right: new Node(nt.LITERAL, {value: {map: 'false'}})
-			})
+		flow.pushStatement(new Node(nt.ASSIGN, {
+			left: right, 
+			right: new Node(nt.LITERAL, {value: {map: 'false'}})
 		}));
 		flow.label(lEnd);
 		this.left = left;
@@ -325,11 +315,9 @@ var transform = exports.transform = function(code, scope, config, aux){
 		var lEnd = makeT();
 		flow.pushStatement(flow.GoTo(lEnd));
 		flow.label(lElse);
-		flow.pushStatement(new Node(nt.EXPRSTMT, {
-			expression: new Node(nt.ASSIGN, {
-				left: right, 
-				right: new Node(nt.LITERAL, {value: {map: 'true'}})
-			})
+		flow.pushStatement(new Node(nt.ASSIGN, {
+			left: right, 
+			right: new Node(nt.LITERAL, {value: {map: 'true'}})
 		}));
 		flow.label(lEnd);
 		this.left = left;
@@ -370,11 +358,6 @@ var transform = exports.transform = function(code, scope, config, aux){
 		for(var i = 0; i < this.content.length; i++){
 			pct(this.content[i]);
 		}
-	}
-	schemata[nt.EXPRSTMT] = function(){
-		var e = this.expression;
-		while(e.type === nt.GROUP) e = e.operand;
-		pct(e);
 	}
 	schemata[nt.IF] = function(){
 		var lElse = makeT();
