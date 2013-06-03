@@ -83,7 +83,7 @@ __all: webtest webmin
 
 update:
 	git push origin  asoi:asoi
-	git push gitcafe asoi:asoi
+	git push cafe    asoi:asoi
 
 release: webtest webmin
 	rm -rf channel-release/moe/

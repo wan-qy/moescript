@@ -80,7 +80,6 @@ Type.outof = function(T){
 Type.inherits = function(T){
 	return function(f){
 		return Type.outof(T)(function(){
-			debugger;
 			if(typeof T === 'function') T.apply(this, arguments);
 			return f.apply(this, arguments);
 		})

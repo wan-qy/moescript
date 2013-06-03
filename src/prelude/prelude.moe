@@ -23,6 +23,7 @@ def export(n)(x) = (exports[n] = x)
 
 
 // Util functions
+def export('nothing') nothing = undefined
 def export('its') its(prop)(o) = o[prop]
 def export('returns') returns(x)() = x
 def export('itself') itself(x) = x
@@ -166,8 +167,9 @@ def export('getEnumeratorOf') getEnumeratorOf = moert.runtime.GETENUM
 -- rangeForEach: (Enumerable T, T -> *) -> *
 def export('rangeForEach') rangeForEach(range, f) {
 	def e = getEnumeratorOf range
-	if(e.each) e.each f
-	else {
+	if(e.each) {
+		e.each f
+	} else {
 		var t = e.emit()
 		while(not e.stop) {
 			f t; t = e.emit()

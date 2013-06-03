@@ -118,7 +118,14 @@ var transform = exports.transform = function(code, scope, config, aux){
 		var propList = arguments;
 		return function(){
 			for(var j = 0; j < propList.length; j++){
-				this[propList[j]] = pep(this[propList[j]])
+				if('*' === propList[j].charAt(0)) {
+					var listProp = propList[j].slice(1);
+					for(var k = 0; k < this[listProp].length; k++){
+						this[listProp][k] = pep(this[listProp][k])
+					}
+				} else {
+					this[propList[j]] = pep(this[propList[j]])
+				}
 			}
 			return this;
 		}
@@ -340,12 +347,7 @@ var transform = exports.transform = function(code, scope, config, aux){
 		this.elsePart = elsePart;
 		return this;
 	}
-	schemata[nt['then']] = function(){
-		for(var j = 0; j < this.args.length; j++){
-			this.args[j] = pep(this.args[j]);
-		};
-		return this;
-	}
+	schemata[nt['then']] = NaturalTransform('*args')
 
 
 
@@ -395,22 +397,6 @@ var transform = exports.transform = function(code, scope, config, aux){
 		flow.label(lLoop);
 		pct(this.body);
 		flow.pushStatement(BT(ct(this.condition), lLoop));
-		flow.label(lLoopEnd);
-		lNearestLoop = bk;
-	}
-	schemata[nt.OLD_FOR] = function(){
-		var lLoop = makeT();
-		var lLoopEnd = makeT();
-		var bk = lNearestLoop;
-		lNearestLoop = lLoopEnd;
-
-		if(this.start) pct(this.start);
-
-		flow.label(lLoop);
-		flow.pushStatement(BN(ct(this.condition), lLoopEnd));
-		pct(this.body);
-		if(this.step) pct(this.step);
-		flow.pushStatement(flow.GoTo(lLoop));
 		flow.label(lLoopEnd);
 		lNearestLoop = bk;
 	}

@@ -79,7 +79,7 @@ var NodeType = exports.NodeType = function () {
 		'ASSIGN',
 
 		// Statements
-		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
+		'IF', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
 		// Large-scale
 		'TRY', 'PARAMETERS', 'SCRIPT', 'PROGRAM'];
 

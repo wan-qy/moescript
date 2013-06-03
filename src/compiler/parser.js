@@ -175,7 +175,6 @@ exports.parse = function (tokens, source, config) {
 		var laststmt = node.content[last];
 		if(!laststmt) return;
 		var lasttype = laststmt.type;
-		debugger;
 		if(lasttype <= nt.MAX_EXPRESSIONAL){
 			node.content[last] = new Node(nt.RETURN, {
 				expression: laststmt,
@@ -386,7 +385,6 @@ exports.parse = function (tokens, source, config) {
 		} else {
 			advance(OPEN, CRSTART);
 			if(!p) {
-				debugger;
 				var s = saveState();
 				try {
 					var a = parlist();
@@ -1092,7 +1090,7 @@ exports.parse = function (tokens, source, config) {
 		if(singleLineQ && !(tokenIs(WHERE))) return node;
 
 		var shift = 0;
-		while(shiftIs(shift, SEMICOLON, 'Implicit')) shift++;
+		while(shiftIs(shift, SEMICOLON)) shift++;
 		if(shiftIs(shift, WHERE)) {
 			stripSemicolons();
 			advance(WHERE);
@@ -1343,7 +1341,6 @@ exports.parse = function (tokens, source, config) {
 		n.thenPart = block();
 		if(!hangingStatementQ) stripSemicolons();
 		if(tokenIs(ELSE)){
-			debugger;
 			if(n.thenPart.content.length === 1 && n.thenPart.content[0].type === nt.IF && !n.thenPart.content[0].elsePart && n.thenPart.content[0].hangingStatementQ) {
 				throw new PE('Attempt to append ELSE into a hanging IF statement without ELSE clause.')
 			}
@@ -1401,24 +1398,27 @@ exports.parse = function (tokens, source, config) {
 		var range = declAssignment[1];
 		while(range.type === nt.GROUP) range = range.operand;
 		if(bind.type === nt.VARIABLE && (range.type === nt['..'] || range.type === nt['...'])){
-			var hightmp = makeT()
-			return new Node(nt.OLD_FOR, {
-					start: new Node(nt.then, {
-						args: [
-							formAssignment(bind, '=', range.left, DECLARE_SOMETHING),
-							formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right)
-						],
-						names: [null, null]
-					}),
-					condition: new Node((range.type === nt['..'] ? nt['<'] : nt['<=']), {
-						left: bind,
-						right: new Node(nt.TEMPVAR, {name: hightmp})}),
-					step: formAssignment(bind, '=',
-						new Node(nt['+'], {
+			var hightmp = makeT();
+			return new Node(nt.SCRIPT, {
+				content: [
+					formAssignment(bind, '=', range.left, DECLARE_SOMETHING),
+					formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right),
+					new Node(nt.WHILE, {
+						condition: new Node((range.type === nt['..'] ? nt['<'] : nt['<=']), {
 							left: bind,
-							right: new Node(nt.LITERAL, {value: 1})})),
-					body: body
-				});
+							right: new Node(nt.TEMPVAR, {name: hightmp})}),
+						body: new Node(nt.SCRIPT, {
+							content: [
+								body, 
+								formAssignment(bind, '=',
+									new Node(nt['+'], {
+										left: bind,
+										right: new Node(nt.LITERAL, {value: 1})}))
+							]
+						})
+					})
+				]
+			});
 		} else {
 			var t = makeT();
 			if(bind.type === nt.VARIABLE || bind.type === nt.TEMPVAR){
@@ -1685,7 +1685,11 @@ exports.parse = function (tokens, source, config) {
 				n.catcher = block();
 			}
 		};
-		if(n.eid) n.declareVariable = n.eid.name;
+		if(n.eid) {
+			n.declareVariable = n.eid.name;
+		} else {
+			n.eid = new Node(nt.TEMPVAR, {name: makeT()});
+		}
 		return n;
 	}
 

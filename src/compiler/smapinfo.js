@@ -148,9 +148,7 @@ var generateSmapJson = function(generated, sources, points){
 			})
 		}
 	};
-
-	debugger;
-
+	
 	var previousGeneratedColumn = 0;
 	var previousGeneratedLine = 1;
 	var previousOriginalColumn = 0;

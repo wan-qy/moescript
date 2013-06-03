@@ -153,7 +153,6 @@ var listTemp = GListTmpType(ScopedScript.VARIABLETEMP);
 
 exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
-	var makeT = g_config.makeT;
 
 	var g_options = g_config.options || {}
 
@@ -430,11 +429,6 @@ exports.Generator = function(g_envs, g_config){
 		};
 		return s;
 	};
-	var flowPush = function(flow, env, expr){
-		var t = makeT(env);
-		flow.push(C_TEMP(t) + '=' + expr);
-		return C_TEMP(t);
-	};
 	var transformArgs = function(node){
 		var _ = [];
 		for(var j = 0; j < node.args.length; j++) {
@@ -477,13 +471,6 @@ exports.Generator = function(g_envs, g_config){
 	defineSchemata(nt.WHILE, function () {
 		return $('while (%1) {%2}', reduceBracketsTransform(this.condition, true), transform(this.body));
 	});
-	defineSchemata(nt.OLD_FOR, function(){
-		return $('for (%1; %2; %3) {%4}',
-			this.start ? reduceBracketsTransform(this.start) : '',
-			reduceBracketsTransform(this.condition),
-			this.step ? reduceBracketsTransform(this.step) : '',
-			transform(this.body));
-	});
 
 	defineSchemata(nt.BREAK, function () {
 		return 'break ' + (this.destination ? C_LABELNAME(this.destination) : '');
@@ -493,11 +480,9 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	defineSchemata(nt.TRY, function(){
-		var t = makeT();
-		return $('try {%1} catch (%2) {%3;%4}',
+		return $('try {%1} catch (%2) {%3}',
 			transform(this.attemption),
-			C_TEMP(t),
-			(this.eid ? C_NAME(this.eid.name) + '=' + C_TEMP(t) : ''),
+			transform(this.eid),
 			transform(this.catcher))
 	});
 	
