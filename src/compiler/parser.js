@@ -639,7 +639,7 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var completeCallExpression = function(m){
+	var completeCallExpression = function(m, inDeclarationQ){
 		while (tokenIs(OPEN) && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
 		switch (token.type) {
 			case EXCLAM:
@@ -676,7 +676,7 @@ exports.parse = function (tokens, source, config) {
 							}
 						};
 					};
-					if(tokenIs(ASSIGN, '=') || tokenIs(OPEN, CRSTART)) { // a declaration
+					if(tokenIs(ASSIGN, '=') || (tokenIs(OPEN, CRSTART) && inDeclarationQ)) { // a declaration
 						loadState(state);
 						return m_;
 					};
@@ -746,8 +746,8 @@ exports.parse = function (tokens, source, config) {
 		}
 	});
 
-	var callExpression = NRF(function () {
-		return completeCallExpression(primary());
+	var callExpression = NRF(function (inDeclarationQ) {
+		return completeCallExpression(primary(), inDeclarationQ);
 	});
 
 	var completeOmissionCall = NWF(function(head){
@@ -1271,7 +1271,7 @@ exports.parse = function (tokens, source, config) {
 
 	var varDefinition = function(){
 		var dp = function(constantQ, forQ){
-			var v = callExpression();
+			var v = callExpression(true);
 			var defType;
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable

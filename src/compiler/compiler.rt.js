@@ -76,10 +76,10 @@ var NodeType = exports.NodeType = function () {
 		// Conditional
 		'CONDITIONAL',
 		// Assignment
-		'ASSIGN',
+		'ASSIGN', 'RETURN',
 
 		// Statements
-		'IF', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
+		'IF', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 
 		// Large-scale
 		'TRY', 'PARAMETERS', 'SCRIPT', 'PROGRAM'];
 
@@ -95,6 +95,7 @@ var NodeType = exports.NodeType = function () {
 	T.MIN_BINARY_OPERATOR = T['*']
 	T.MAX_BINARY_OPERATOR = T['as']
 	T.MAX_EXPRESSIONAL = T['ASSIGN']
+	T.MAX_INTERNAL_EXPRESSIONAL = T['RETURN']
 	return T;
 } ();
 var nt = NodeType;
