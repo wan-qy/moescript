@@ -75,10 +75,13 @@ var reduceThenNode = Pass(nt.then, function(recurse){
 
 var reduceScriptNode = Pass(nt.SCRIPT, function(recurse){
 	var a = [];
-	for(var j = 0; j < this.content.length; j++) if(this.content[j]){
+	for(var j = 0; j < this.content.length; j++) if(this.content[j]) {
 		var sub = this.content[j];
 		if(sub.type === nt.SCRIPT && sub.content) {
 			a = a.concat(sub.content);
+			if(a[a.length - 1] && a[a.length - 1].type === nt.RETURN) {
+				break;
+			}
 		} else if(sub.type === nt.then){
 			for(var k = 0; k < sub.args.length; k++){
 				if(sub.args[k] && nodeSideEffectiveQ(sub.args[k])) {

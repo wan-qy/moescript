@@ -185,8 +185,8 @@ exports.parse = function (tokens, source, config) {
 		} else if(lasttype === nt.RETURN) {
 			// pass
 		} else {
-			generateImplicitReturnForStructure(laststmt, false);
-			node.content.push(new Node(nt.RETURN, {expression: new Node(nt.UNIT)}))
+			var r = generateImplicitReturnForStructure(laststmt, false);
+			if(!r) node.content.push(new Node(nt.RETURN, {expression: new Node(nt.UNIT)}))
 		};
 		return node;
 	};
@@ -194,14 +194,15 @@ exports.parse = function (tokens, source, config) {
 		var lasttype = node.type;
 		if(lasttype === nt.SCRIPT){
 			generateImplicitReturn(node);
+			return true;
 		} else if(lasttype === nt.IF){
 			generateImplicitReturn(node.thenPart);
 			if(node.elsePart){
 				generateImplicitReturn(node.elsePart);
 			}
+			return true;
 		} else if(lasttype === nt.TRY) {
 			generateImplicitReturn(node.attemption);
-			generateImplicitReturn(node.catcher);
 		}
 	};
 
@@ -211,7 +212,7 @@ exports.parse = function (tokens, source, config) {
 			var begins = pos();
 			var r = f.apply(this, arguments);
 			var ends = pos();
-			if(r && r.type){
+			if(r && r.type && !('begins' in r && 'ends' in r)){
 				r.begins = begins;
 				r.ends = ends;
 			};
@@ -225,7 +226,7 @@ exports.parse = function (tokens, source, config) {
 			var begins = node ? node.begins : pos();
 			var r = f.apply(this, arguments);
 			var ends = pos();
-			if(r && r.type){
+			if(r && r.type && !('begins' in r && 'ends' in r)){
 				r.begins = begins;
 				r.ends = ends;
 			};
@@ -401,6 +402,7 @@ exports.parse = function (tokens, source, config) {
 			var code = statements();
 			advance(CLOSE, CREND);
 			if(!notGenerateDefaultReturn) generateImplicitReturn(code);
+			code = optimizeOnelineWhere(code);
 			generateDefaultParameters(parameters, code);
 		}
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
@@ -1557,7 +1559,11 @@ exports.parse = function (tokens, source, config) {
 			condition = condition.reduceRight(function(right, left){return new Node(nt.and, {left: left, right: right})})
 		}
 		body = new Node(nt.SCRIPT, {
-			content: [formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING), body]
+			content: [
+				formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING), 
+				body, 
+				new Node(nt.RETURN, { expression: new Node(nt.UNIT) })
+			]
 		});
 		return new Node(nt.IF, {
 			condition: condition,

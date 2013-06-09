@@ -140,17 +140,21 @@ var generateSmapJson = function(generated, sources, points){
 					mappingNameId = _nameHash[points[j].q] = _names.length - 1;
 				}
 			};
-			_mappings.push({
-				sourceId: currentFileId, // source#
-				nameId: mappingNameId, // name#
-				generated: generatedRev[point.p],
-				original: currentFileRev[point.q]
-			})
+
+			if(currentFileRev[point.q]) {
+				debugger;
+				_mappings.push({
+					sourceId: currentFileId, // source#
+					nameId: mappingNameId,   // name#
+					generated: generatedRev[point.p],
+					original: currentFileRev[point.q]
+				})
+			}
 		}
 	};
 	
 	var previousGeneratedColumn = 0;
-	var previousGeneratedLine = 1;
+	var previousGeneratedLine = 0;
 	var previousOriginalColumn = 0;
 	var previousOriginalLine = 0;
 	var previousName = 0;
@@ -188,8 +192,8 @@ var generateSmapJson = function(generated, sources, points){
 			previousSource = mapping.sourceId;
 
 			// lines are stored 0-based in SourceMap spec version 3
-			result += base64VLQ_encode(mapping.original.line - 1 - previousOriginalLine);
-			previousOriginalLine = mapping.original.line - 1;
+			result += base64VLQ_encode(mapping.original.line - previousOriginalLine);
+			previousOriginalLine = mapping.original.line;
 
 			result += base64VLQ_encode(mapping.original.column - previousOriginalColumn);
 			previousOriginalColumn = mapping.original.column;

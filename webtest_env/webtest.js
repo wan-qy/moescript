@@ -1,9 +1,9 @@
 var run = function(){};
 var terr = G_TRACE('err').tracel;
 
-var source2html = function(s){
+var source2html = function(s, flag){
 	return '<ol>'
-		+ ('' + s.trim())
+		+ ('' + (flag ? s : s.trim()))
 			.replace(/&/g, '&amp;')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;')
@@ -58,7 +58,8 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 		var tracer = infoout.traceraw;
 
 		var fAfterUsing = function(ts){
-			var script = moec.compile(document.getElementById('input').value, ts, {
+			var source = document.getElementById('input').value
+			var script = moec.compile(source, ts, {
 				warn: tracel,
 				keepSourceMap: true
 			});
@@ -66,10 +67,14 @@ module.provide(['moe/runtime', 'moe/compiler/compiler', 'moe/prelude', 'moe/comp
 			
 			var si = smapinfo.calculateSmapPoints(script.generatedCode);
 			tracer('Generated Code:' + source2html(si.codeWithoutSmap));
-			tracer('Smap points:' + source2html(si.smapPoints.map(function(p){
+			var sourceMap = smapinfo.generateSmapJson(si.codeWithoutSmap, [source], si.smapPoints);
+			sourceMap.mappings = sourceMap.mappings.split(';');
+			tracer('Source Map:' + source2html(JSON.stringify(sourceMap, null, 2), true));
+			tracer('Internal source-map points:' + source2html(si.smapPoints.map(function(p){
 				return '(Type: ' + p.type + ') ' + p.p + ' -> ' + p.q;
 			}).join('\n')));
 			tracer('Initialization Code:' + source2html(initCode));
+
 
 			var func = Function(ts.runtimeName, initCode + '\n;' + si.codeWithoutSmap);
 			func.call(this, moert.runtime);
