@@ -29,7 +29,7 @@ def export('returns') returns(x)() = x
 def export('itself') itself(x) = x
 def export('compose') compose(f, g)() = f (do g)
 def export('doon') doon(o, f) = f.call o
-def export('tee') tee(o, f) = do {
+def export('tee') tee(o, f) {
 	f.call o, o
 	o
 }
@@ -250,7 +250,7 @@ def createAsyncSchemata(rLocal, rLongJump = rLocal) {
 	def schemata.bindYield(f, t) {
 		f.apply t, arguments.slice(2, (-1)).concat([reaction])
 		where {
-			reaction(err, x) = do {
+			reaction(err, x) {
 				if(err) rLocal err, undefined
 				else {
 					try g x
