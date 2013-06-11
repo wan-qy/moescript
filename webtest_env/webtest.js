@@ -3,7 +3,7 @@ var terr = G_TRACE('err').tracel;
 
 var source2html = function(s, flag){
 	return '<ol>'
-		+ ('' + (flag ? s : s.trim()))
+		+ ('' + s.trimRight())
 			.replace(/&/g, '&amp;')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;')

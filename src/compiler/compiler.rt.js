@@ -21,22 +21,24 @@ var PW_flatLine = function(line){
 var PWMeta = exports.PWMeta = function(source, positionGetter){
 	positionGetter = positionGetter || function(p){ return p == undefined ? source.length : p };
 	var lines = source.split('\n');
-	lines.unshift('');
-	lines.push('', '');
 	return function(message, p){
+		debugger;
 		var pos = 2 + positionGetter(p);
 		var posSofar = 0;
 		for(var i = 0; i < lines.length; i++){
 			posSofar += 1 + lines[i].length;
 			if(posSofar >= pos) break;
 		};
+		var linePrev = lines[i - 1] || ''
 		var line = lines[i];
+		var lineNext = lines[i + 1] || ''
 		var lineFront = line.slice(0, line.length - posSofar + pos);
-		message = $('%1 \n %2: %3\n---%4^',
+		message = $('%1 \n %2\n %3\n   %4^^^\n %5',
 				message,
-				i - 1,
-				line,
-				(i + lineFront).replace(/./g, '-'));
+				(i > 0 ? (i) + ': ' + linePrev : ''),
+				((i + 1) + ': ' + line),
+				((i + 1) + lineFront).replace(/\S/g, ' ').slice(0, -1),
+				((i + 2) + ': ' + lineNext));
 		return message;
 	};
 };

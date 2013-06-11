@@ -321,7 +321,7 @@ exports.Generator = function(g_envs, g_config){
 			terms.push(right);
 		};
 		if(hasNameQ)
-			return $('{%1}',
+			return $('({%1})',
 				(this.args.length < 4 ? inits.join(', ') : '\n' + INDENT(inits.join(',\n')) + '\n'));
 		else
 			return $('[%1]', terms.join(', '));

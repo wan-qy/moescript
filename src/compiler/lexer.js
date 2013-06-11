@@ -299,6 +299,7 @@ var LexerBackend = function(input, config){
 
 	var ignoresIncomingNewline = function(token){
 		return token &&  ( token.type === OPERATOR 
+						|| token.type === ASSIGN
 						|| token.type === DOT
 						|| token.type === OPEN
 						|| token.type === COMMA
@@ -307,6 +308,7 @@ var LexerBackend = function(input, config){
 	}
 	var ignoresPreviousNewline = function(token){
 		return token &&  ( token.type === OPERATOR 
+						|| token.type === ASSIGN
 						|| token.type === DOT
 						|| token.type === CLOSE
 						|| token.type === COMMA
