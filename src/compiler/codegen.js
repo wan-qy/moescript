@@ -142,10 +142,11 @@ var GListTmpType = function(type){
 	type = type + 1;
 	return function(scope){
 		var l = [];
-		for(var each in scope.usedTemps){
-			if(scope.usedTemps[each] === type)
-				l.push(each);
-		}
+		debugger;
+		scope.usedTemps.forEach(function(tid, tempType){
+			if(tempType === type)
+				l.push(tid);
+		});
 		return l;
 	};
 };
@@ -194,10 +195,11 @@ exports.Generator = function(g_envs, g_config){
 
 		var pars = tree.parameters.names.slice(0);
 
-		for (var i = 0; i < locals.length; i++)
-			if (!(tree.varIsArg[locals[i]])){
+		for (var i = 0; i < locals.length; i++) {
+			if (!tree.variables.get(locals[i]).parQ){
 				vars.push(C_NAME(locals[i]));
 			}
+		}
 
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = TEMP_BIND(tree, temps[i]);

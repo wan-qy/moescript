@@ -142,7 +142,6 @@ var generateSmapJson = function(generated, sources, points){
 			};
 
 			if(currentFileRev[point.q]) {
-				debugger;
 				_mappings.push({
 					sourceId: currentFileId, // source#
 					nameId: mappingNameId,   // name#
