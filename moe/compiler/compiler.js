@@ -78,8 +78,7 @@ var parse = exports.parse = moec_parser.parse;
 var Generator = moec_codegen.Generator;
 
 var inputNormalize = exports.inputNormalize = function(s){
-	s = s.replace(/^\ufeff/, '').replace(/^\ufffe/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-	return '\n' + s + '\n';
+	return s.replace(/^\ufeff/, '').replace(/^\ufffe/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 };
 
 var compile = function (source, ts, config) {

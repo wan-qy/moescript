@@ -9,6 +9,42 @@ Nai.prototype = {
 	propertyIsEnumerable: undefined
 };
 
+var Hash = function() {};
+(function() {
+	var MANGLE = '.';
+	var MANGLELENGTH = MANGLE.length;
+	Hash.prototype = {};
+	Object.defineProperty(Hash.prototype, 'put', {
+		value: function(key, val){
+			return this[MANGLE + key] = val
+		},
+		enumerable: false
+	});
+	Object.defineProperty(Hash.prototype, 'get', {
+		value: function(key) {
+			return this[MANGLE + key]
+		},
+		enumerable: false
+	});
+	Object.defineProperty(Hash.prototype, 'has', {
+		value: function(key) {
+			return OWNS(this, MANGLE + key)
+		},
+		enumerable: false
+	});
+	Object.defineProperty(Hash.prototype, 'forEach', {
+		value: function(f) {
+			for(var _key in this) {
+				if(OWNS(this, _key)) {
+					f(_key.slice(MANGLELENGTH), this[_key]);
+				}
+			}
+		},
+		enumerable: false
+	});
+})();
+
+
 // << derive >>
 var derive = Object.craate ? Object.create : function() {
 	var F = function() {};
@@ -211,6 +247,13 @@ InclusiveAscRange.prototype.getEnumerator = function(){
 	return f
 };
 
+// << UA_LIST >>
+
+var UA_LIST = function(x, arity, names){
+	if(names) return x;
+	if(x instanceof Array && x.length === arity) return x
+}
+
 // << export-interface >>
 // All functions used for the runtime
 exports.runtime = {
@@ -231,12 +274,14 @@ exports.runtime = {
 	NARGS2: CREATE_NARGS2,
 	NARGS3: CREATE_NARGS3,
 	NARGS4: CREATE_NARGS4,
-	GETENUM: GETENUM
+	GETENUM: GETENUM,
+	UA_LIST: UA_LIST
 };
 
 // util functions used for the compiler or the prelude
 exports.derive = derive;
 exports.Nai = Nai;
+exports.Hash = Hash;
 exports.MONAD_SCHEMATA_M = MONAD_SCHEMATA_M;
 exports.OWNS = OWNS;
 exports.UNIQ = UNIQ;

@@ -189,9 +189,6 @@ var symbolTypes = {
 	')': CLOSE,
 	',': COMMA,
 	':': COLON,
-	'|>': PIPE,
-	'<|': PIPELEFT,
-	'|.': PIPEDOT,
 	'.': DOT,
 	'..': OPERATOR,
 	'...': OPERATOR,
@@ -299,65 +296,10 @@ var LexerBackend = function(input, config){
 				return make(STRING, match.slice($4.length + 2, -($4.length + 2)))
 		}
 	};
-	var LayoutComputer = function(start, make){
-		var compare = function(a, b, p){
-			if(a === b) return 0;
-			else if (a.length < b.length && b.slice(0, a.length) === a) return 1
-			else if (a.length > b.length && a.slice(0, b.length) === b) return -1
-			else throw token_err("Wrong indentation.", p)
-		};
-		var stack = [''], top = 0;
-		var process = function(b, p){
-			var c = compare(stack[top], b, p);
-			if(c === 1){
-				// indent
-				stack[++top] = b;
-				make(INDENT, 0, p);
-			} else if(c === -1) {
-				// outdent
-				dump(b, p);
-			} else {
-				// a semicolon
-				make(SEMICOLON, "Implicit", p);
-			};
-		};
-		var dump = function(b, p){
-			var n = b.length;
-			while(stack[top].length > n){
-				top --;
-				noSemicolons();
-				if(tokens[tokl - 1] && tokens[tokl - 1].type === INDENT){
-					// Remove INDENT-SEMICOLON-OUTDENT sequences.
-					tokl --;
-				} else {
-					make(OUTDENT, 0, p);
-				}
-				make(SEMICOLON, "Implicit", p);
-			};
-			if(stack[top] < b) {
-					// indent
-					stack[++top] = b;
-					make(INDENT, 0, p);
-			};
-		};
-		var desemi = function(){
-			while(tokens[tokl - 1] && (tokens[tokl - 1].type === INDENT ||
-					tokens[tokl - 1].type === SEMICOLON && tokens[tokl - 1].value === "Implicit")){
-				tokl --;
-				if(tokens[tokl].type === INDENT)
-					top --;
-			}
-		};
-		process(start);
-		return {
-			process: process,
-			dump: dump,
-			desemi: desemi
-		}
-	};
 
 	var ignoresIncomingNewline = function(token){
 		return token &&  ( token.type === OPERATOR 
+						|| token.type === ASSIGN
 						|| token.type === DOT
 						|| token.type === OPEN
 						|| token.type === COMMA
@@ -366,6 +308,7 @@ var LexerBackend = function(input, config){
 	}
 	var ignoresPreviousNewline = function(token){
 		return token &&  ( token.type === OPERATOR 
+						|| token.type === ASSIGN
 						|| token.type === DOT
 						|| token.type === CLOSE
 						|| token.type === COMMA
@@ -381,15 +324,14 @@ var LexerBackend = function(input, config){
 		var fmake = function(t, s, n){
 			ans.push(new Token(t, s, n, false, false))
 		};
-		var icomp = LayoutComputer(input.match(/^[ \t]*/)[0], fmake);
 		var nBrackets = 0;
 		for(var i = 0; i < tokens.length; i++){
 			var token = tokens[i];
 			if(token.type === NEWLINE) {
-				if(ignoresIncomingNewline(tokens[i - 1]) || ignoresPreviousNewline(tokens[i + 1]) || nBrackets) {
+				if(ignoresIncomingNewline(tokens[i - 1]) || ignoresPreviousNewline(tokens[i + 1])) {
 					// Ignore this line break
 				} else {
-					icomp.process(token.value, token.position)
+					fmake(SEMICOLON, 'Implicit', token.position);
 				}
 			} else {
 				if(token.type === OPEN)
@@ -399,7 +341,7 @@ var LexerBackend = function(input, config){
 				if(token.type !== BACKSLASH)
 					ans.push(token);
 			}
-		}
+		};
 		return ans;
 	}
 

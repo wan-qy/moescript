@@ -4,6 +4,7 @@
 var moe = require('../runtime');
 var moecrt = require('./compiler.rt');
 var lexer = require('./lexer');
+var nodeSideEffectiveQ = moecrt.nodeSideEffectiveQ;
 
 var COMMENT = lexer.COMMENT;
 var ID = lexer.ID;
@@ -93,6 +94,9 @@ exports.parse = function (tokens, source, config) {
 	var token_value = token ? token.value : undefined;
 
 	var makeT = config.makeT;
+	var makeTNode = function(){
+		return new Node(nt.TEMPVAR, {name: makeT()})
+	}
 	var initInterator = config.initInterator;
 
 	// Token processor
@@ -164,49 +168,42 @@ exports.parse = function (tokens, source, config) {
 	};
 
 	// Implicit return generation
-	var geenerateImplicitReturn = function(node){
+	var generateImplicitReturn = function(node){
 		if(!node || !node.content || node.type !== nt.SCRIPT) return node;
 		var last = node.content.length - 1;
 		while(last >= 0 && node.content[last] && node.content[last].type === nt.BREAK) last--;
 		var laststmt = node.content[last];
 		if(!laststmt) return;
 		var lasttype = laststmt.type;
-		if(lasttype === nt.EXPRSTMT){
+		if(lasttype <= nt.MAX_EXPRESSIONAL){
 			node.content[last] = new Node(nt.RETURN, {
-				expression: laststmt.expression,
+				expression: laststmt,
 				begins: laststmt.begins,
 				ends: laststmt.ends,
 				implicit: true
 			})
+		} else if(lasttype === nt.RETURN) {
+			// pass
 		} else {
-			geenerateImplicitReturnForStructure(laststmt, false);
-		}
+			var r = generateImplicitReturnForStructure(laststmt, false);
+			if(!r) node.content.push(new Node(nt.RETURN, {expression: new Node(nt.UNIT)}))
+		};
 		return node;
 	};
-	var geenerateImplicitReturnForStructure = function(node, caseQ){
+	var generateImplicitReturnForStructure = function(node, caseQ){
 		var lasttype = node.type;
 		if(lasttype === nt.SCRIPT){
-			geenerateImplicitReturn(node);
+			generateImplicitReturn(node);
+			return true;
 		} else if(lasttype === nt.IF){
-			geenerateImplicitReturn(node.thenPart);
+			generateImplicitReturn(node.thenPart);
 			if(node.elsePart){
-				geenerateImplicitReturn(node.elsePart);
+				generateImplicitReturn(node.elsePart);
 			}
+			return true;
 		} else if(lasttype === nt.TRY) {
-			geenerateImplicitReturn(node.attemption);
-			geenerateImplicitReturn(node.catcher);
+			generateImplicitReturn(node.attemption);
 		}
-	};
-
-	var optimizeOnelineWhere = function(code){
-		if(code.content.length === 1                              // one statement
-			&& code.content[0]
-			&& code.content[0].type === nt.RETURN                 // it is return
-			&& code.content[0].expression.type === nt.CALLBLOCK
-			&& code.content[0].expression.isWhereClause){ // and it is a WHERE
-			return code.content[0].expression.func.code;
-		}
-		return code;
 	};
 
 	// NRF: Node returning function
@@ -215,7 +212,7 @@ exports.parse = function (tokens, source, config) {
 			var begins = pos();
 			var r = f.apply(this, arguments);
 			var ends = pos();
-			if(r && r.type){
+			if(r && r.type && !('begins' in r && 'ends' in r)){
 				r.begins = begins;
 				r.ends = ends;
 			};
@@ -229,7 +226,7 @@ exports.parse = function (tokens, source, config) {
 			var begins = node ? node.begins : pos();
 			var r = f.apply(this, arguments);
 			var ends = pos();
-			if(r && r.type){
+			if(r && r.type && !('begins' in r && 'ends' in r)){
 				r.begins = begins;
 				r.ends = ends;
 			};
@@ -323,9 +320,7 @@ exports.parse = function (tokens, source, config) {
 
 		if(firstIrregularArgI >= 0){
 			for(var i = p.names.length - 1; i >= firstIrregularArgI; i--){
-				c.content.unshift(new Node(nt.EXPRSTMT, {
-					expression: formAssignment(paramBindLefts[i], '=', p.names[i], DECLARE_SOMETHING, DECLARE_A_CONSTANT)
-				}))
+				c.content.unshift(formAssignment(paramBindLefts[i], '=', p.names[i], DECLARE_SOMETHING, DECLARE_A_CONSTANT))
 			}
 		}
 
@@ -356,60 +351,60 @@ exports.parse = function (tokens, source, config) {
 		};
 		if (tokenIs(OPEN, RDSTART)) { // currying arguments
 			f = curryBody(p);
-		} else if (tokenIs(COLON) || tokenIs(ASSIGN, '=') || tokenIs(INDENT)) {
-			f = blockBody(p);
-		} else if (tokenIs(LAMBDA)){
-			f = completeLambdaExpression(p);
-		} else {
-			f = expressionBody(p);
+		} else if (tokenIs(ASSIGN, '=') || tokenIs(OPEN, CRSTART)) {
+			f = functionBody(p);
 		};
 		return f;
 	});
 
-	var lambdaExpression = NRF(function(){
-		if(tokenIs(ID)){
-			var p = new Node(nt.PARAMETERS, {names: [new Node(nt.VARIABLE, {name: lname()})]});
-		} else if(tokenIs(LAMBDA)) {
-			var p = null;
-		} else {
-			var p = parameters();
+	var optimizeOnelineWhere = function(code){
+		if(code.content.length === 1                              // one statement
+			&& code.content[0]
+			&& code.content[0].type === nt.RETURN                 // it is return
+			&& code.content[0].expression.type === nt.CALLBLOCK
+			&& code.content[0].expression.isWhereClause){         // and it is a WHERE
+			return code.content[0].expression.func.code;
 		}
-		var f = completeLambdaExpression(p);
-		return f;
-	});
+		return code;
+	};
 
-	var expressionBody = NRF(function (p) {
-		advance(OPEN, CRSTART);
+	var functionBody = NRF(function (p) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
-		if(tokenIs(DOWNSLASH)) { // {|args| } form
-			if(p)
-				throw PE('Attempting to add parameters to a parameter-given function.');
-			advance(DOWNSLASH);
-			parameters.names = parlist();
-			advance(DOWNSLASH);
-		};
-		var code = onelineStatements();
-		geenerateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
-		advance(CLOSE, CREND);
-		return new Node(nt.FUNCTION, { parameters: parameters, code: code });
-	});
-
-	var blockBody = NRF(function (p) {
-		var t = advance();
-		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
-		if(tokenIs(DOWNSLASH)) { // :|args| form
-			if(p)
-				throw PE('Attempting to add parameters to a parameter-given function.');
-			advance(DOWNSLASH);
-			parameters.names = parlist();
-			advance(DOWNSLASH);
-		};
-		var code = block();
-		if(t.type === ASSIGN && t.value === '=')
-			geenerateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
-		generateDefaultParameters(parameters, code);
+		if(tokenIs(ASSIGN, '=')) {
+			advance();
+			var e = statement(true);
+			if(e.type === nt.CALL && e.args.length === 1 && !e.names[0] && e.func.type === nt.PESUDO_FUNCTION && e.func.value === DO
+				&& e.args[0] && e.args[0].type === nt.FUNCTION && (!e.args[0].parameters || !e.args[0].parameters.names || !e.args[0].parameters.names.length)) {
+				var code = e.args[0].code;
+			} else {
+				var code = new Node(nt.SCRIPT, {
+					content: [ e ]
+				});
+			}
+			generateImplicitReturn(code);
+			generateDefaultParameters(parameters, code);
+		} else {
+			advance(OPEN, CRSTART);
+			if(!p) {
+				var s = saveState();
+				try {
+					var a = parlist();
+					if(!tokenIs(LAMBDA)) {
+						loadState(s);
+					} else {
+						var notGenerateDefaultReturn = advance().value === ':>';
+						parameters.names = a;
+					}
+				} catch(ex) {
+					loadState(s);
+				}
+			}
+			var code = statements();
+			advance(CLOSE, CREND);
+			if(!notGenerateDefaultReturn) generateImplicitReturn(code);
+			code = optimizeOnelineWhere(code);
+			generateDefaultParameters(parameters, code);
+		}
 		return new Node(nt.FUNCTION, {parameters: parameters, code: code});
 	});
 
@@ -426,8 +421,7 @@ exports.parse = function (tokens, source, config) {
 		var parameters = p || new Node(nt.PARAMETERS, { names: [] });
 		var code = block();
 		if(t.value === '=>')
-			geenerateImplicitReturn(code);
-		code = optimizeOnelineWhere(code);
+			generateImplicitReturn(code);
 		generateDefaultParameters(parameters, code);
 		return new Node(nt.FUNCTION, {
 			parameters: parameters,
@@ -482,44 +476,48 @@ exports.parse = function (tokens, source, config) {
 		return node;
 	});
 
+	var BinaryOperatorFunctionForm = function(opType) {
+		return new Node(nt.FUNCTION, {
+			parameters: new Node(nt.PARAMETERS, {names: [
+				new Node(nt.VARIABLE, {name: 'x'}),
+				new Node(nt.VARIABLE, {name: 'y'})
+			]}),
+			code: new Node(nt.SCRIPT, {content: [
+				new Node(nt.IF, { 
+					condition: new Node(nt['<'], {
+						left: MemberNode(new Node(nt.ARGUMENTS), 'length'),
+						right: new Node(nt.LITERAL, {value: 2})
+					}),
+					thenPart: new Node(nt.RETURN, {
+						expression: new Node(nt.FUNCTION, {
+							parameters: new Node(nt.PARAMETERS, {names: [
+								new Node(nt.VARIABLE, {name: 'z'})
+							]}),
+							code: new Node(nt.RETURN, {
+								expression: new Node(opType, {
+									left: new Node(nt.VARIABLE, {name: 'z'}),
+									right: new Node(nt.VARIABLE, {name: 'x'})
+								})
+							})
+						})
+					}),
+					elsePart: new Node(nt.RETURN, {
+						expression: new Node(opType, {
+							left: new Node(nt.VARIABLE, {name: 'x'}),
+							right: new Node(nt.VARIABLE, {name: 'y'})
+						})
+					})
+				})
+			]}),
+			operatorType: opType
+		})
+	}
+
 	var groupOperatorForm = function(){
 		var opType = nt[advance(OPERATOR).value];
 		if(tokenIs(CLOSE, RDEND)) {
 			advance();
-			return new Node(nt.FUNCTION, {
-				parameters: new Node(nt.PARAMETERS, {names: [
-					new Node(nt.VARIABLE, {name: 'x'}),
-					new Node(nt.VARIABLE, {name: 'y'})
-				]}),
-				code: new Node(nt.SCRIPT, {content: [
-					new Node(nt.IF, { 
-						condition: new Node(nt['<'], {
-							left: MemberNode(new Node(nt.ARGUMENTS), 'length'),
-							right: new Node(nt.LITERAL, {value: 2})
-						}),
-						thenPart: new Node(nt.RETURN, {
-							expression: new Node(nt.FUNCTION, {
-								parameters: new Node(nt.PARAMETERS, {names: [
-									new Node(nt.VARIABLE, {name: 'z'})
-								]}),
-								code: new Node(nt.RETURN, {
-									expression: new Node(opType, {
-										left: new Node(nt.VARIABLE, {name: 'z'}),
-										right: new Node(nt.VARIABLE, {name: 'x'})
-									})
-								})
-							})
-						}),
-						elsePart: new Node(nt.RETURN, {
-							expression: new Node(opType, {
-								left: new Node(nt.VARIABLE, {name: 'x'}),
-								right: new Node(nt.VARIABLE, {name: 'y'})
-							})
-						})
-					})
-				]}),
-				operatorType: opType
-			})
+			return BinaryOperatorFunctionForm(opType);
 		} else if(opType === nt['-']) {
 			var r = new Node(nt.NEGATIVE, {
 				operand: unary()
@@ -550,35 +548,16 @@ exports.parse = function (tokens, source, config) {
 			});
 			advance(CLOSE, RDEND);
 			return r;
-		} else if(nextIs(CLOSE, RDEND) && !shiftIs(2, LAMBDA)) {
+		} else if(nextIs(CLOSE, RDEND)) {
 			advance();
 			advance();
 			return new Node(nt.UNIT);
 		}
-		
-		if(nextIs(CLOSE, RDEND) && shiftIs(2, LAMBDA)
-			|| nextIs(ID) && (shiftIs(2, CLOSE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))) {
-			return lambdaExpression();
-		};
-		var state = saveState();
-		try {
-			advance(OPEN, RDSTART);
-			var r = assignmentExpression();
-			advance(CLOSE, RDEND);
-		} catch(e) {
-			loadState(state);
-			try {
-				var s = lambdaExpression()
-			} catch(e2) {
-				throw e
-			}
-		};
-		if(tokenIs(LAMBDA)){
-			loadState(state);
-			return lambdaExpression()
-		} else {
-			return new Node(nt.GROUP, {operand: r})
-		};
+
+		advance(OPEN, RDSTART);
+		var r = assignmentExpression();
+		advance(CLOSE, RDEND);
+		return new Node(nt.GROUP, {operand: r})
 	});
 
 	var esp = [];
@@ -594,7 +573,7 @@ exports.parse = function (tokens, source, config) {
 		} else if (token.value === RDSTART) {
 			return groupLike();
 		} else if (token.value === CRSTART) {
-			return expressionBody();
+			return functionBody();
 		}
 	};
 	esp[SHARP] = function(){
@@ -627,7 +606,6 @@ exports.parse = function (tokens, source, config) {
 		advance(FUNCTION);
 		return functionLiteral();
 	};
-	esp[LAMBDA] = lambdaExpression;
 	esp[NEW] = esp[RESEND] = esp[DO] = function(){
 		return new Node(nt.PESUDO_FUNCTION, {value: advance().type})
 	};
@@ -636,7 +614,7 @@ exports.parse = function (tokens, source, config) {
 		return token && esp[token.type];
 	};
 	var argStartQ = function(){
-		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, INDENT) || shiftIs(2, PIPE)))
+		if(token && (token.isName || tokenIs(STRING)) && nextIs(COLON) && !(shiftIs(2, SEMICOLON) || shiftIs(2, PIPE)))
 			return 2;
 		else if(exprStartQ())
 			return 1;
@@ -667,8 +645,8 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var completeCallExpression = function(m){
-		while (tokenIs(OPEN) && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
+	var completeCallExpression = function(m, inDeclarationQ){
+		while (tokenIs(OPEN, RDSTART) || tokenIs(OPEN, SQSTART) && token && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
 		switch (token.type) {
 			case EXCLAM:
 				var m = new Node(nt.BINDPOINT, { expression: m });
@@ -689,12 +667,27 @@ exports.parse = function (tokens, source, config) {
 							if (tokenIs(CLOSE, RDEND)) { m.args = []; advance(); continue; };
 							argList(m, true);
 							advance(CLOSE, RDEND);
-						} catch (e) {
+						} catch (e1) {
 							loadState(stateSingleBracket);
-							return ms;
+							m = ms;
+							try {
+								m = new Node(nt.CALL, {
+									func: m,
+									args: [groupLike()],
+									names: [null]
+								});
+							} catch (e2) {
+								loadState(stateSingleBracket);
+								// 2013-7-13: Once this function is not called by varDefinition, there MUST be an error
+								// in the arguments. throw it.
+								if(!inDeclarationQ && (e1 || e2)) {
+									throw (e1 ? e1 : e2)
+								}
+								return ms;
+							}
 						};
 					};
-					if(tokenIs(ASSIGN, '=') || tokenIs(COLON) || tokenIs(INDENT)) { // a declaration
+					if(tokenIs(ASSIGN, '=') || (tokenIs(OPEN, CRSTART) && inDeclarationQ)) { // a declaration
 						loadState(state);
 						return m_;
 					};
@@ -705,12 +698,6 @@ exports.parse = function (tokens, source, config) {
 						right: callItem()
 					});
 					advance(CLOSE, SQEND);
-				} else if (token.value === CRSTART) {
-					m = new Node(nt.CALL, {
-						func: m,
-						args:[expressionBody()],
-						names: [null]
-					});
 				};
 				continue;
 			case DOT:
@@ -720,7 +707,7 @@ exports.parse = function (tokens, source, config) {
 		}
 		return m;
 	};
-	var pusharg = function(nc, bracedQ, relaxQ){
+	var pusharg = function(nc, relaxQ){
 		var argTypeDetect = argStartQ()
 		if (argTypeDetect) {
 			if (argTypeDetect === 2) {
@@ -732,7 +719,7 @@ exports.parse = function (tokens, source, config) {
 			} else {
 				nc.names.push(null);
 			}
-			nc.args.push((bracedQ ? callItem : callExpression)());
+			nc.args.push(singleExpression(unary()));
 			return true
 		} else if(relaxQ){
 			return false
@@ -740,18 +727,18 @@ exports.parse = function (tokens, source, config) {
 			throw new PE("Expecting argument.")
 		}
 	}
-	var completeArgList = function(nc, bracedQ){
-		while(tokenIs(COMMA)) {
+	var completeArgList = function(nc){
+		while(tokenIs(COMMA) || tokenIs(SEMICOLON)) {
 			advance();
-			pusharg(nc, bracedQ);
+			pusharg(nc);
 		};
 		return nc;
 	}
-	var argList = function (nc, bracedQ) {
+	var argList = function (nc) {
 		nc.args = nc.args || []
 		nc.names = nc.names || []
-		if(pusharg(nc, bracedQ, true)) {
-			completeArgList(nc, bracedQ)
+		if(pusharg(nc, true)) {
+			completeArgList(nc)
 		};
 		return nc;
 	};
@@ -764,8 +751,8 @@ exports.parse = function (tokens, source, config) {
 		}
 	});
 
-	var callExpression = NRF(function () {
-		return completeCallExpression(primary());
+	var callExpression = NRF(function (inDeclarationQ) {
+		return completeCallExpression(primary(), inDeclarationQ);
 	});
 
 	var completeOmissionCall = NWF(function(head){
@@ -781,34 +768,11 @@ exports.parse = function (tokens, source, config) {
 			argList(node);
 			return node;
 		} else {
-			// f expr
-			//   ^
-			if(tokenIs(OPEN, RDSTART) && nextIs(CLOSE, RDEND) && !(shiftIs(2, LAMBDA))) {
-				advance();
-				advance();
-				return new Node(nt.CALL, {
-					func: head,
-					args: [],
-					names: []
-				});
-			} else {
-				var term = callExpression();
-				if(tokenIs(COMMA)){
-					var node = new Node(nt.CALL, {
-						func: head,
-						args: [term],
-						names: [null]
-					});
-					completeArgList(node);
-					return node;
-				} else {
-					return new Node(nt.CALL, {
-						func: head,
-						args: [completeOmissionCall(term)],
-						names: [null]
-					});
-				}
-			}
+			return new Node(nt.CALL, {
+				func: head,
+				args: [completeOmissionCall(callExpression())],
+				names: [null]
+			});
 		}
 	});
 
@@ -889,98 +853,9 @@ exports.parse = function (tokens, source, config) {
 		return c;
 	});
 	var expression = NWF(function (c) {
-		var r = whenClausize(leftPipeClausize(pipeClausize(singleExpression(c || unary()))));
+		var r = whenClausize(singleExpression(c || unary()));
 		ensure(!exprStartQ(), 'Unexpected expression termination.');
 		return r;
-	});
-
-	var pipeClausize = NWF(function(node){
-		// Pipeline calls
-		if(tokenIs(PIPE)){
-			advance();
-			var c = new Node(nt.CALL, {
-				func: callExpression(),
-				args: [node],
-				names: [null],
-				pipeline: true
-			});
-			return completePipelineCall(c)
-		} else if(tokenIs(PIPEDOT)) {
-			advance();
-			ensure(token && token.isName, 'Missing identifier for Chain invocation');
-			var c = new Node(nt.CALL, {
-				func: MemberNode(node, name()),
-				args: [],
-				names: []
-			});	
-			return completePipelineCall(c);
-		} else {
-			return node;
-		}
-	});
-
-	var completePipelineCall = NWF(function(node){
-		// The NODE is always a call node
-		if(tokenIs(PIPE) || tokenIs(PIPEDOT)) {
-			// Situation I. f |* g |*
-			//                     ~~
-
-			return pipeClausize(node);
-		}
-		var argTypeDetect = argStartQ();
-		if(!argTypeDetect) return node;
-		if(argTypeDetect === 2){
-			// Named arguments detected
-			argList(node);
-			return pipeClausize((node));
-		} else {
-			var term = callExpression();
-			if(tokenIs(COMMA)){
-				node.args.push(term);
-				node.names.push(null);
-				advance(COMMA);
-				argList(node);
-				return pipeClausize((node));
-			} else {
-				node.args.push(completeOmissionCall(term))
-				node.names.push(null);
-				return pipeClausize((node));
-			}
-		}
-	});
-
-	var leftPipeClausize = NWF(function(node){
-		if(tokenIs(PIPELEFT)) {
-			advance();
-			node = new Node(nt.CALL, {
-				func: node,
-				args: [],
-				names: []
-			});
-			if(tokenIs(PIPELEFT)) {
-				return (node);
-			};
-			var arglistMode = false;
-			if(argStartQ() === 2) {
-				arglistMode = true;
-			} else {
-				var c = callExpression();
-				if(tokenIs(COMMA)) arglistMode = true;
-			};
-			if(arglistMode){
-				if(c){
-					node.args.push(c);
-					node.names.push(null);
-					advance(COMMA);
-				};
-				argList(node);
-			} else {
-				node.args.push(leftPipeClausize(pipeClausize(singleExpression(completeOmissionCall(c)))));
-				node.names.push(null);
-			};
-			node = (node);
-		};
-		return node;
 	});
 
 	var whenClausize = NWF(function(node){
@@ -992,8 +867,8 @@ exports.parse = function (tokens, source, config) {
 				thenPart: node
 			});
 			advance(CLOSE, RDEND);
-			if(tokenIs(COMMA)){
-				advance(COMMA);
+			if(tokenIs(OPERATOR, 'or')){
+				advance(OPERATOR, 'or');
 				c.elsePart = expression()
 			} else {
 				c.elsePart = new Node(nt.LITERAL, {value: {map: undefined}});
@@ -1022,7 +897,7 @@ exports.parse = function (tokens, source, config) {
 			return expression(c);
 		}
 	});
-	var formAssignment = function(left, oper, right, declVarQ, constantQ, whereClauseQ){
+	var formAssignment = function(left, oper, right, declVarQ, constantQ, insideWhereClauseQ){
 		ensure( left.type === nt.VARIABLE 
 			 || left.type === nt.MEMBER 
 			 || left.type === nt.TEMPVAR 
@@ -1050,10 +925,10 @@ exports.parse = function (tokens, source, config) {
 				if(left.args[i].type !== nt.UNIT) {
 					if(left.names[i]) {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ, whereClauseQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), left.names[i]), declVarQ, constantQ, insideWhereClauseQ));
 					} else {
 						seed.args.push(formAssignment(left.args[i], oper, 
-								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ, whereClauseQ));
+								MemberNode(new Node(nt.TEMPVAR, {name: objt}), j - 1), declVarQ, constantQ, insideWhereClauseQ));
 					}
 					seed.names.push(null);
 				}
@@ -1078,7 +953,7 @@ exports.parse = function (tokens, source, config) {
 				}),
 				declareVariable: (declVarQ && left.type === nt.VARIABLE ? left.name : undefined),
 				constantQ: constantQ,
-				whereClauseQ: whereClauseQ
+				insideWhereClauseQ: insideWhereClauseQ
 			});
 			if(tLeft !== left){
 				node = new Node(nt.then, {
@@ -1090,9 +965,6 @@ exports.parse = function (tokens, source, config) {
 		}
 	};
 
-	var whereClausedExpression = NRF(function(singleLineQ){
-		return whereClausize(assignmentExpression(), singleLineQ);
-	});
 	var whereClausize = function(node, singleLineQ){
 		// Clearify WHERE in oneline statements
 		if(singleLineQ && !(tokenIs(WHERE))) return node;
@@ -1103,15 +975,11 @@ exports.parse = function (tokens, source, config) {
 			stripSemicolons();
 			advance(WHERE);
 			var stmts = whereClauses();
-			stmts.push(new Node(nt.RETURN, { 
-				expression: node,
-				begins: node.begins,
-				ends: node.ends
-			}));
+			stmts.push(node);
 			return whereClausize(new Node(nt.CALLBLOCK, {
 				func: new Node(nt.FUNCTION, {
 					parameters: new Node(nt.PARAMETERS, {names: []}),
-					code: new Node(nt.SCRIPT, {content: stmts}),
+					code: generateImplicitReturn(new Node(nt.SCRIPT, {content: stmts})),
 					blockQ: true
 				}),
 				isWhereClause: true
@@ -1122,45 +990,28 @@ exports.parse = function (tokens, source, config) {
 	};
 	var whereClauses = function(){
 		var stmts = [];
-		if(tokenIs(OPEN, CRSTART)) {
-			advance();
-			do {
-				while(tokenIs(SEMICOLON, "Explicit")) advance();
-				if (tokenIs(CLOSE)) break;
-				stmts.push(whereClause());
-			} while(token && !(tokenIs(CLOSE, CREND)));
-			advance(CLOSE, CREND);
-			return stmts;
-		} else {
-			if(!tokenIs(INDENT)){
-				stmts.push(whereClause());
-				var s = 0;
-				if(!(tokenIs(INDENT) || tokenIs(SEMICOLON, "Implicit") && nextIs(INDENT)))
-					return stmts;
-			};
-			stripSemicolons();
-			advance(INDENT);
-			while(token && !tokenIs(OUTDENT)){
-				stmts.push(whereClause());
-				stripSemicolons();
-			};
-			advance(OUTDENT);
-			return stmts;
-		}
+		advance(OPEN, CRSTART);
+		do {
+			while(tokenIs(SEMICOLON)) advance();
+			if (tokenIs(CLOSE)) break;
+			stmts.push(whereClause());
+		} while(token && !(tokenIs(CLOSE, CREND)));
+		advance(CLOSE, CREND);
+		return stmts;
 	};
 	var whereClause = NRF(function(){
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, SINGLE_LINE, INSIDE_WHERE_CLAUSE)})
+		return varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, SINGLE_LINE, INSIDE_WHERE_CLAUSE)
 	});
 
 	var stover = function () {
-		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE || token.type === OUTDENT);
+		return !token || (token.type === SEMICOLON || token.type === END || token.type === CLOSE);
 	};
 	var nextstover = function () {
-		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE || next.type === OUTDENT);
+		return !next || (next.type === SEMICOLON || next.type === END || next.type === CLOSE);
 	};
 	var aStatementEnded = false;
 
-	var statement = function(singleLineQ){
+	var statement = function(hangingStatementQ){
 		aStatementEnded = false;
 		var begins = pos();
 		var r = statement_r.apply(this, arguments);
@@ -1169,95 +1020,73 @@ exports.parse = function (tokens, source, config) {
 		if(r){
 			r.begins = begins;
 			r.ends = ends;
-			if(r.type === nt.EXPRSTMT){
-				r.expression.begins = begins;
-				r.expression.ends = ends;
-			}
+			r.hangingStatementQ = hangingStatementQ;
 		};
-		return r;
+		return whereClausize(r, hangingStatementQ);
 	};
 	var block = function(){
-		if(tokenIs(INDENT)){
-			return statements()
+		if(tokenIs(OPEN, CRSTART)) {
+			advance(OPEN, CRSTART);
+			var stmts = statements()
+			advance(CLOSE, CREND);
+			return stmts;
 		} else {
-			return blocky(statement(SINGLE_LINE))
-		};
-	};
-	var statements = function () {
-		if(tokenIs(INDENT)){
-			advance(INDENT);
-			var r = statements();
-			advance(OUTDENT);
-			return r;
-		} else {
-			var script = new Node(nt.SCRIPT, {content: []});
-			var s;
-			do {
-				var slQ = stripSemicolons();
-				if (tokenIs(OUTDENT)) break;
-				if(slQ)
-					script.content.push(statement(SINGLE_LINE));
-				else
-					script.content.push(statement());
-			} while(aStatementEnded && token);
-			aStatementEnded = false;
-			return script;
+			return blocky(statement(true))
 		}
 	};
-	var onelineStatements = function(){
+	var statements = function () {
 		var script = new Node(nt.SCRIPT, {content: []});
 		var s;
 		do {
-			while(tokenIs(SEMICOLON, "Explicit")) advance();
+			stripSemicolons();
 			if (tokenIs(CLOSE)) break;
-			script.content.push(statement(SINGLE_LINE));
+			script.content.push(statement());
 		} while(aStatementEnded && token);
 		aStatementEnded = false;
-
 		return script;
 	};
 
-	var statement_r = function (singleLineQ) {
+	var statement_r = function (hangingStatementQ) {
 		if (token)
 			switch (token.type) {
 			case RETURN:
-				return returnstmt(singleLineQ)
+				return returnstmt(hangingStatementQ)
 			case IF:
-				return ifstmt(singleLineQ);
+				return ifstmt(hangingStatementQ);
 			case WHILE:
-				return whilestmt(singleLineQ);
+				return whilestmt(hangingStatementQ);
 			case REPEAT:
-				return repeatstmt(singleLineQ);
+				return repeatstmt(hangingStatementQ);
 			case PIECEWISE:
-				return piecewise(false, singleLineQ);
+				return piecewise(false, hangingStatementQ);
 			case CASE:
-				return piecewise(true, singleLineQ);
+				return caseStmt(hangingStatementQ);
 			case FOR:
-				return forstmt(singleLineQ);
+				return forstmt(hangingStatementQ);
 			case LABEL:
-				return labelstmt(singleLineQ);
+				return labelstmt(hangingStatementQ);
 			case BREAK:
-				return brkstmt(singleLineQ);
+				return brkstmt(hangingStatementQ);
 			case TRY:
-				return trystmt(singleLineQ);
+				return trystmt(hangingStatementQ);
 			case END:
 			case ELSE:
 			case OTHERWISE:
-			case WHEN:
 			case CLOSE:
 			case CATCH:
+			case WHEN:
 				throw PE('Unexpected statement symbol.');
 			case VAR:
 				advance();
-				return varstmt(singleLineQ);
+				return varstmt(hangingStatementQ);
 			case DEF:
 				advance();
-				return defstmt(singleLineQ);
+				return defstmt(hangingStatementQ);
 			case PASS:
 				advance(PASS);
 				return;
 			default:
-				return new Node(nt.EXPRSTMT, {expression: whereClausedExpression(singleLineQ), exprStmtQ : true});
+				return assignmentExpression();
 		};
 	};
 	var blocky = function(node){
@@ -1267,24 +1096,24 @@ exports.parse = function (tokens, source, config) {
 			return node
 		}
 	};
-	var returnstmt = function(singleLineQ){
+	var returnstmt = function(hangingStatementQ){
 		advance(RETURN);
 		if(tokenIs(BIND)){
 			advance(BIND);
 			return new Node(nt.CALL, {
 				func: new Node(nt.BINDPOINT),
-				args: [whereClausedExpression(singleLineQ)],
+				args: [assignmentExpression()],
 				names: [null]
 			});
 		} else {
-			return new Node(nt.RETURN, { expression: whereClausedExpression(singleLineQ) })
+			return new Node(nt.RETURN, { expression: assignmentExpression() })
 		}
 	}
-	var varstmt = function(singleLineQ){
+	var varstmt = function(hangingStatementQ){
 		if(tokenIs(ID) && (nextIs(COMMA) || nextstover())){
 			return vardecls();
 		} else {
-			return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_VARIABLE, OUTSIDE_FOR_STATEMENT, singleLineQ)});
+			return varDefinition(DECLARE_A_VARIABLE, OUTSIDE_FOR_STATEMENT, hangingStatementQ);
 		};
 	};
 	var vardecls = function () {
@@ -1299,8 +1128,8 @@ exports.parse = function (tokens, source, config) {
 		return new Node(nt.VAR, {terms: a});
 	};
 
-	var defstmt = function (singleLineQ) {
-		return new Node(nt.EXPRSTMT, {expression: varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, singleLineQ)});
+	var defstmt = function (hangingStatementQ) {
+		return varDefinition(DECLARE_A_CONSTANT, OUTSIDE_FOR_STATEMENT, hangingStatementQ)
 	};
 
 	var DEF_ASSIGNMENT = 1;
@@ -1317,12 +1146,12 @@ exports.parse = function (tokens, source, config) {
 	var defPartQ = function(){
 		if(tokenIs(ASSIGN, '=')) return DEF_ASSIGNMENT;
 		else if(tokenIs(BIND)) return DEF_BIND;
-		else if(tokenIs(COLON) || tokenIs(OPEN, RDSTART)) return DEF_FUNCTIONAL;
+		else if(tokenIs(OPEN, RDSTART)) return DEF_FUNCTIONAL;
 	};
 
 	var varDefinition = function(){
 		var dp = function(constantQ, forQ){
-			var v = callExpression();
+			var v = callExpression(true);
 			var defType;
 			if (defType = defPartQ()){
 				if (defType === DEF_ASSIGNMENT) { // assigned variable
@@ -1354,10 +1183,10 @@ exports.parse = function (tokens, source, config) {
 				}))]
 			}
 		};
-		return function(constantQ, forQ, singleLineQ, insideWhereClauseQ){
+		return function(constantQ, forQ, hangingStatementQ, insideWhereClauseQ){
 			var r = dp(constantQ, forQ);
 			if(forQ) return r;
-			return whereClausize(formAssignment(r[0], "=", r[1], DECLARE_SOMETHING, constantQ, insideWhereClauseQ), singleLineQ);
+			return formAssignment(r[0], "=", r[1], DECLARE_SOMETHING, constantQ, insideWhereClauseQ);
 		}
 	}();
 
@@ -1385,26 +1214,21 @@ exports.parse = function (tokens, source, config) {
 		return SLQ;
 	};
 
-	var ifstmt = function (singleLineQ) {
+	var ifstmt = function (hangingStatementQ) {
 		advance(IF);
 		var n = new Node(nt.IF);
 		n.condition = controlExpression();
 		n.thenPart = block();
-		if(singleLineQ) {
-			if(tokenIs(ELSE)){
-				advance(ELSE);
-				n.elsePart = blocky(statement(SINGLE_LINE));
-			};
-		} else {
-			var newlinedElse = !tokenIs(ELSE);
-			stripSemicolons();
-			if(tokenIs(ELSE)){
-				advance(ELSE);
-				if(newlinedElse && tokenIs(IF)){
-					n.elsePart = blocky(ifstmt());
-				} else {
-					n.elsePart = block();
-				}
+		if(!hangingStatementQ) stripSemicolons();
+		if(tokenIs(ELSE)){
+			if(n.thenPart.content.length === 1 && n.thenPart.content[0].type === nt.IF && !n.thenPart.content[0].elsePart && n.thenPart.content[0].hangingStatementQ) {
+				throw new PE('Attempt to append ELSE into a hanging IF statement without ELSE clause.')
+			}
+			advance(ELSE);
+			if(tokenIs(IF)){
+				n.elsePart = blocky(ifstmt(true));
+			} else {
+				n.elsePart = block();
 			}
 		}
 		return n;
@@ -1417,7 +1241,7 @@ exports.parse = function (tokens, source, config) {
 		});
 		return n;
 	};
-	var repeatstmt = function () {
+	var repeatstmt = function (hangingStatementQ) {
 		advance(REPEAT);
 		if(tokenIs(WHILE) || tokenIs(UNTIL)) {
 			var untilQ = tokenIs(UNTIL);
@@ -1454,24 +1278,27 @@ exports.parse = function (tokens, source, config) {
 		var range = declAssignment[1];
 		while(range.type === nt.GROUP) range = range.operand;
 		if(bind.type === nt.VARIABLE && (range.type === nt['..'] || range.type === nt['...'])){
-			var hightmp = makeT()
-			return new Node(nt.OLD_FOR, {
-					start: new Node(nt.then, {
-						args: [
-							formAssignment(bind, '=', range.left, DECLARE_SOMETHING),
-							formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right)
-						],
-						names: [null, null]
-					}),
-					condition: new Node((range.type === nt['..'] ? nt['<'] : nt['<=']), {
-						left: bind,
-						right: new Node(nt.TEMPVAR, {name: hightmp})}),
-					step: formAssignment(bind, '=',
-						new Node(nt['+'], {
+			var hightmp = makeT();
+			return new Node(nt.SCRIPT, {
+				content: [
+					formAssignment(bind, '=', range.left, DECLARE_SOMETHING),
+					formAssignment(new Node(nt.TEMPVAR, {name: hightmp}), '=', range.right),
+					new Node(nt.WHILE, {
+						condition: new Node((range.type === nt['..'] ? nt['<'] : nt['<=']), {
 							left: bind,
-							right: new Node(nt.LITERAL, {value: 1})})),
-					body: body
-				});
+							right: new Node(nt.TEMPVAR, {name: hightmp})}),
+						body: new Node(nt.SCRIPT, {
+							content: [
+								body, 
+								formAssignment(bind, '=',
+									new Node(nt['+'], {
+										left: bind,
+										right: new Node(nt.LITERAL, {value: 1})}))
+							]
+						})
+					})
+				]
+			});
 		} else {
 			var t = makeT();
 			if(bind.type === nt.VARIABLE || bind.type === nt.TEMPVAR){
@@ -1479,8 +1306,8 @@ exports.parse = function (tokens, source, config) {
 			} else {
 				var tEv = new Node(nt.TEMPVAR, {name: makeT()})
 			}
-			return new Node(nt.OLD_FOR, {
-				start: formAssignment(tEv, '=', new Node(nt.CALL, {
+			return new Node(nt.SCRIPT, {content: [
+				formAssignment(tEv, '=', new Node(nt.CALL, {
 					func: MemberNode(
 						formAssignment(new Node(nt.TEMPVAR, {name: t}), '=', new Node(nt.CALL, {
 							func: new Node(nt.TEMPVAR, {name: 'GETENUM', builtin: true}),
@@ -1492,17 +1319,152 @@ exports.parse = function (tokens, source, config) {
 					args: [],
 					names: []
 				}), DECLARE_SOMETHING),
-				condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
-				step: formAssignment(tEv, '=', new Node(nt.CALL, {
-					func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
-					args: [],
-					names: []
-				})),
-				body: new Node(nt.SCRIPT, {
-					content: [(tEv === bind ? null : formAssignment(bind, '=', tEv, DECLARE_SOMETHING))].concat(body.type === nt.SCRIPT ? body.content : [body])
+				new Node(nt.WHILE, {
+					condition: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'active'),
+					body: new Node(nt.SCRIPT, {
+						content: [(tEv === bind ? null : formAssignment(bind, '=', tEv, DECLARE_SOMETHING))]
+							.concat(body.type === nt.SCRIPT ? body.content : [body])
+							.concat(formAssignment(tEv, '=', new Node(nt.CALL, {
+								func: MemberNode(new Node(nt.TEMPVAR, {name: t}), 'emit'),
+								args: [],
+								names: []
+							})))
+					})
 				})
-			})
+			]});
 		}
+	};
+
+	var formPatternTestNode = function(pattern, x) {
+		// node must be ARG0 or TEMPVAR node.
+		switch(pattern.type) {
+			case(nt.GROUP): return formPatternTestNode(pattern.operand, x);
+			case(nt.CALL):
+				if(pattern.func.operatorType === nt['=='] || pattern.func.operatorType === nt['==='] || pattern.func.operatorType === nt['is']){
+					return new Node(pattern.func.operatorType, {left: x, right: pattern.args[0]})
+				}
+			case(nt.OBJECT):
+				pattern.names = pattern.names || [];
+				var subPatternPlacements = [];
+				var subPatternNamesList = [];
+				var t = 0;
+				for(var j = 0; j < pattern.names.length; j++){
+					if(typeof pattern.names[j] === 'string') {
+						subPatternPlacements[j] = new Node(nt.LITERAL, {value: pattern.names[j]});
+						subPatternNamesList.push(subPatternPlacements[j]);
+					} else {
+						subPatternPlacements[j] = new Node(nt.LITERAL, {value: (t++)})
+					}
+				};
+				return {
+					subPatterns: pattern.args,
+					subPatternPlacements: subPatternPlacements,
+					condition: new Node(nt.CALL, {
+						func: pattern.type === nt.CALL ? MemberNode(pattern.func, 'unapply') : new Node(nt.LITERAL, {value: {tid: 'UA_LIST'}}),
+						args: [
+							x, 
+							new Node(nt.LITERAL, {value: t}), 
+							(subPatternNamesList.length ? new Node(nt.OBJECT, {
+								args: subPatternNamesList,
+								names: subPatternNamesList.map(function(){return null})
+							}) : new Node(nt.UNIT))
+						]
+					})
+				}
+			case(nt.VARIABLE):
+			case(nt.MEMBER): 
+			case(nt.UNIT): return null;
+			case(nt.LITERAL): return new Node(nt['=='], {left: pattern, right: x});
+			default: throw new PE("Invalid Pattern");
+		}
+	};
+	var formPatternLeftPart = function(pattern) {
+		switch(pattern.type) {
+			case(nt.GROUP): return formPatternLeftPart(pattern.operand);
+			case(nt.CALL):
+				if(pattern.func.operatorType === nt['=='] || pattern.func.operatorType === nt['==='] || pattern.func.operatorType === nt['is']) {
+					return new Node(nt.UNIT)
+				} else {
+					return new Node(nt.OBJECT, {
+						args: pattern.args.map(formPatternLeftPart),
+						names: pattern.names
+					});
+				}
+			case(nt.OBJECT):
+				return new Node(nt.OBJECT, {
+					args: pattern.args.map(formPatternLeftPart),
+					names: pattern.names
+				});
+			case(nt.MEMBER):
+			case(nt.UNIT):
+			case(nt.VARIABLE): return pattern
+			case(nt.LITERAL): return new Node(nt.UNIT);
+			default: throw new PE("Invalid Pattern");
+		}
+	};
+	var formMatchingConditions = function(pattern, t, x) {
+		var tn = formPatternTestNode(pattern, x);
+		if(tn) {
+			if(tn.subPatterns) {
+				var subs = [formAssignment(t, '=', tn.condition)];
+				for(var j = 0; j < tn.subPatterns.length; j++){
+					subs = subs.concat(formMatchingConditions(tn.subPatterns[j], 
+						               new Node(nt.MEMBER, {left: t, right: tn.subPatternPlacements[j]}),
+						               new Node(nt.MEMBER, {left: t, right: tn.subPatternPlacements[j]})));
+				};
+				return subs;
+			} else {
+				return [tn]
+			}
+		} else {
+			return [];
+		}
+	};
+
+	var caseStmt = function(hangingStatementQ) {
+		advance(CASE);
+		if(tokenIs(OPEN, RDSTART) && (nextIs(OPERATOR, '==') || nextIs(OPERATOR, '===') || nextIs(OPERATOR, 'is'))) {
+			advance(OPEN, RDSTART);
+			var opType = nt[advance(OPERATOR).value];
+			var isVal = unary();
+			var pattern = new Node(nt.CALL, {
+				func: BinaryOperatorFunctionForm(opType),
+				args: [isVal],
+				names: [null]
+			});
+			advance(CLOSE, RDEND);
+		} else if(tokenIs(OPEN, RDSTART) && nextIs(ASSIGN, '=')) {
+			advance(OPEN, RDSTART);
+			advance();
+			var isVal = unary();
+			var pattern = new Node(nt.CALL, {
+				func: BinaryOperatorFunctionForm(nt['==']),
+				args: [isVal],
+				names: [null]
+			});
+			advance(CLOSE, RDEND);
+		} else {
+			var pattern = controlExpression();
+		}
+		var body = generateImplicitReturn(block());
+		var t = makeTNode();
+		var condition = formMatchingConditions(pattern, t, new Node(nt.ARG0, {}));
+		if(!condition.length) {
+			condition = new Node(nt.LITERAL, {value: {map: 'true'}});
+		} else {
+			condition = condition.reduceRight(function(right, left){return new Node(nt.and, {left: left, right: right})})
+		}
+		body = new Node(nt.SCRIPT, {
+			content: [
+				formAssignment(formPatternLeftPart(pattern), '=', t, DECLARE_SOMETHING), 
+				body, 
+				new Node(nt.RETURN, { expression: new Node(nt.UNIT) })
+			]
+		});
+		return new Node(nt.IF, {
+			condition: condition,
+			thenPart: body
+		})
 	};
 
 	var piecewise = function (caseQ) {
@@ -1512,7 +1474,7 @@ exports.parse = function (tokens, source, config) {
 			var caseExpression = controlExpression();
 			var tCaseExpression = makeT();
 		};
-		advance(INDENT);
+		advance(OPEN, CRSTART);
 		stripSemicolons();
 		ensure(token, 'Unterminated piecewise/case block');
 		while (tokenIs(WHEN) || tokenIs(OTHERWISE)) {
@@ -1552,7 +1514,7 @@ exports.parse = function (tokens, source, config) {
 				break;
 			}
 		};
-		advance(OUTDENT);
+		advance(CLOSE, CREND);
 		
 		var n = new Node(nt.IF, {
 			condition: conditions[conditions.length - 1],
@@ -1591,21 +1553,14 @@ exports.parse = function (tokens, source, config) {
 	};
 	var brkstmt = function () {
 		advance(BREAK);
-		if (tokenIs(ID)) {
-			var name = token.value;
-			advance();
-			return new Node(nt.BREAK, { destination: name });
-		} else {
-			ensure(stover(), 'Something more after BREAK statement');
-			return new Node(nt.BREAK, { destination: null });
-		}
+		return new Node(nt.BREAK, { destination: advance(ID, undefined, 'A label name is required.').value });
 	};
 
-	var trystmt = function(singleLineQ){
+	var trystmt = function(hangingStatementQ){
 		advance(TRY);
 		var n = new Node(nt.TRY);
 		n.attemption = block();
-		if(singleLineQ) {
+		if(hangingStatementQ) {
 			advance(CATCH);
 			advance(OPEN, RDSTART);
 			n.eid = variable();
@@ -1625,7 +1580,11 @@ exports.parse = function (tokens, source, config) {
 				n.catcher = block();
 			}
 		};
-		if(n.eid) n.declareVariable = n.eid.name;
+		if(n.eid) {
+			n.declareVariable = n.eid.name;
+		} else {
+			n.eid = new Node(nt.TEMPVAR, {name: makeT()});
+		}
 		return n;
 	}
 
@@ -1655,11 +1614,11 @@ exports.parse = function (tokens, source, config) {
 	var transformPesudoFunctionCalls = NWF(function(n){
 		if(n.type === nt.CALL){
 			if(n.func.type === nt.PESUDO_FUNCTION && n.args.length === 1 && !n.names[0]) {
-				return callWrappers[n.func.value](n.args[0])
+				n = callWrappers[n.func.value](n.args[0])
 			} else if(n.func.type === nt.PESUDO_FUNCTION) {
-				throw new PE("Invalid pesudo-function usage.")
+				throw new PE("Invalid pesudo-function usage.", n.func.begins)
 			} else if(n.func.operatorType) {
-				return callWrappers.OPERATOR(n);
+				n = callWrappers.OPERATOR(n);
 			}
 		};
 		moecrt.walkNodeTF(n, transformPesudoFunctionCalls);
@@ -1668,17 +1627,24 @@ exports.parse = function (tokens, source, config) {
 	var callWrappers = [];
 	callWrappers[RESEND] = function(n){
 		if(n.type === nt.CALL){
-			return new Node(nt.CALL, {
-				func: MemberNode(n.func, 'call'),
-				args: [new Node(nt.THIS, {})].concat(n.args),
-				names:[null].concat(n.names)
-			});
+			if(n.func.type === nt.BINDPOINT) {
+				// for resend f ! args
+				return new Node(nt.CALL, {
+					func: new Node(nt.BINDPOINT, {expression: MemberNode(n.func.expression, 'call')}),
+					args: [new Node(nt.THIS, {})].concat(n.args),
+					names:[null].concat(n.names)
+				});
+			} else {
+				// for resend f args
+				return new Node(nt.CALL, {
+					func: MemberNode(n.func, 'call'),
+					args: [new Node(nt.THIS, {})].concat(n.args),
+					names:[null].concat(n.names)
+				});
+			}
 		} else {
-			return new Node(nt.CALL, {
-				func: MemberNode(n, 'apply'),
-				args: [new Node(nt.THIS, {}), new Node(nt.ARGUMENTS, {})],
-				names:[null, null]
-			});
+			// for resend f
+			return callWrappers[DO](n);
 		}
 	};
 	callWrappers[DO] = function(n){
@@ -1690,12 +1656,18 @@ exports.parse = function (tokens, source, config) {
 	};
 	callWrappers[NEW] = function(n){
 		if(n.type === nt.CALL){
+			if(n.func.type === nt.BINDPOINT) {
+				throw new PE('Connot combine with `new` and `!` .', n.func.ends)
+			}
 			return new Node(nt.CALL, {
 				func: new Node(nt.CTOR, { expression: n.func }),
 				args: n.args,
 				names:n.names
 			});
 		} else {
+			if(n.type === nt.BINDPOINT) {
+				throw new PE('Connot combine with `new` and `!` .', n.begins)
+			}
 			return new Node(nt.CALL, {
 				func: new Node(nt.CTOR, { expression: n }),
 				args: [],
@@ -1753,7 +1725,106 @@ exports.parse = function (tokens, source, config) {
 		}
 		return node;
 	};
+
+	var transformIrregularFunctionCalls = NWF(function(node){
+		if(node.type === nt.CALL && node.names) {
+			var hasNameQ = false;
+			var irregularOrderQ = false;
+			for(var i = 0; i < node.names.length; i++) {
+				if(node.names[i])
+					hasNameQ = true;
+				// Irregular evaluation order found.
+				if(hasNameQ && !node.names[i])
+					irregularOrderQ = true;
+			};
+			var callNode = node;
+			if(irregularOrderQ) {
+				var flow = [];
+				var _args = [];
+				var _bp = false;
+				// Create T for function itself
+				if(node.func.type === nt.BINDPOINT) {
+					_bp = true;
+					node.func = node.func.expression;
+				}
+				if(node.func.type === nt.MEMBER) {
+					// obj.method
+					var t = makeTNode();
+					flow.push(formAssignment(t, '=', node.func.left));
+					var tm = makeTNode();
+					flow.push(formAssignment(tm, '=', node.func.right));
+					callNode = new Node(nt.CALL, {
+						func: new Node(nt.MEMBER, { left: t, right: tm }),
+						args: _args,
+						names: node.names
+					});
+				} else if(node.func.type === nt.CTOR) {
+					// new Type
+					var t = makeTNode();
+					flow.push(formAssignment(t, '=', node.func.expression));
+					callNode = new Node(nt.CALL, {
+						func: new Node(nt.CTOR, { expression: t }),
+						args: _args,
+						names: node.names
+					})
+				} else {
+					var t = makeTNode();
+					flow.push(formAssignment(t, '=', node.func));
+					callNode = new Node(nt.CALL, {
+						func: t,
+						args: _args,
+						names: node.names
+					})
+				}
+				if(_bp) {
+					callNode.func = new Node(nt.BINDPOINT, {
+						expression: callNode.func
+					})
+				}
+				// Create T's for arguments
+				for(var j = 0; j < node.args.length; j++) {
+					var t = new Node(nt.TEMPVAR, {name: makeT()});
+					flow.push(formAssignment(t, '=', node.args[j]));
+					_args[j] = t;
+				};
+				node = new Node(nt.then, {
+					args: flow.concat([callNode])
+				});
+			};
+			if(hasNameQ) {
+				// Node has named arguments, reduce it to NARGS.
+				var argsNARGS = [];
+				var argsCN = []
+				for(var j = 0; j < callNode.args.length; j++) {
+					if(callNode.names[j]) {
+						argsNARGS.push(new Node(nt.LITERAL, { value: callNode.names[j] }));
+						argsNARGS.push(callNode.args[j]);
+					} else {
+						argsCN.push(callNode.args[j]);
+					}
+				};
+				if(argsNARGS.length <= 8) {
+					argsCN.push(new Node(nt.CALL, {
+						func: new Node(nt.TEMPVAR, {name: 'NARGS' + (argsNARGS.length >>> 1)}),
+						args: argsNARGS
+					}))
+				} else {
+					argsCN.push(new Node(nt.CALL, {
+						func: new Node(nt.TEMPVAR, {name: 'NARGS'}),
+						args: [new Node(nt.OBJECT, {args: argsNARGS, names: []})]
+					}));
+				}
+				callNode.args = argsCN;
+				callNode.names = []
+			}
+		};
+		moecrt.walkNodeTF(node, transformIrregularFunctionCalls);
+		return node;
+	});
+
+	// Code regularization phase
 	moecrt.walkNodeTF(ws_code, transformPesudoFunctionCalls);
+	moecrt.walkNodeTF(ws_code, transformIrregularFunctionCalls);
 
 	return {
 		type: nt.PROGRAM,

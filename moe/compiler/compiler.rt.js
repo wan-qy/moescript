@@ -4,6 +4,7 @@
 
 var moe = require('../runtime');
 var Nai = moe.Nai;
+var Hash = moe.Hash;
 
 var derive = moe.derive;
 
@@ -21,8 +22,6 @@ var PW_flatLine = function(line){
 var PWMeta = exports.PWMeta = function(source, positionGetter){
 	positionGetter = positionGetter || function(p){ return p == undefined ? source.length : p };
 	var lines = source.split('\n');
-	lines.unshift('');
-	lines.push('', '');
 	return function(message, p){
 		var pos = 2 + positionGetter(p);
 		var posSofar = 0;
@@ -30,13 +29,16 @@ var PWMeta = exports.PWMeta = function(source, positionGetter){
 			posSofar += 1 + lines[i].length;
 			if(posSofar >= pos) break;
 		};
-		var line = lines[i];
+		var linePrev = lines[i - 1] || ''
+		var line = lines[i] || '';
+		var lineNext = lines[i + 1] || ''
 		var lineFront = line.slice(0, line.length - posSofar + pos);
-		message = $('%1 \n %2: %3\n---%4^',
+		message = $('%1 \n %2\n %3\n   %4^^^\n %5',
 				message,
-				i - 1,
-				line,
-				(i + lineFront).replace(/./g, '-'));
+				(i > 0 ? (i) + ': ' + linePrev : ''),
+				((i + 1) + ': ' + line),
+				((i + 1) + lineFront).replace(/\S/g, ' ').slice(0, -1),
+				((i + 2) + ': ' + lineNext));
 		return message;
 	};
 };
@@ -51,8 +53,8 @@ var NodeType = exports.NodeType = function () {
 		// Unknown type
 		'UNKNOWN',
 		// Primary
-		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-		'ARGUMENTS', 'ARGN', 'GROUP', 'PESUDO_FUNCTION', 'UNIT',
+		'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT', 'FUNCTION', 'BLOCK',
+		'ARGUMENTS', 'ARGN', 'ARG0', 'GROUP', 'PESUDO_FUNCTION', 'UNIT',
 		// Wrappers
 		'BINDPOINT', 'CTOR',
 		// Membering
@@ -70,18 +72,18 @@ var NodeType = exports.NodeType = function () {
 		'and', '&&',
 		'or', '||',
 		'..', '...',
-		'as', 
+		'as',
+		// Sequence 
 		'then',
 		// Conditional
 		'CONDITIONAL',
 		// Assignment
-		'ASSIGN',
+		'ASSIGN', 'RETURN',
 
 		// Statements
-		'EXPRSTMT', 
-		'IF', 'OLD_FOR', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 'RETURN',
+		'IF', 'WHILE', 'REPEAT', 'VAR', 'BREAK', 'LABEL', 
 		// Large-scale
-		'TRY', 'FUNCTION', 'PARAMETERS', 'SCRIPT', 'BLOCK', 'PROGRAM'];
+		'TRY', 'PARAMETERS', 'SCRIPT', 'PROGRAM'];
 
 	var T = {};
 	for (var i = 0; i < types.length; i++)
@@ -91,24 +93,27 @@ var NodeType = exports.NodeType = function () {
 			valueOf: function(){return j},
 			toString: function(){return types[j]}
 		}}(i);
+
+	T.MIN_BINARY_OPERATOR = T['*']
+	T.MAX_BINARY_OPERATOR = T['as']
+	T.MAX_EXPRESSIONAL = T['ASSIGN']
+	T.MAX_INTERNAL_EXPRESSIONAL = T['RETURN']
 	return T;
 } ();
 var nt = NodeType;
 var ScopedScript = exports.ScopedScript = function (id, env) {
 	this.id = id;
-	this.variables = new Nai;
-	this.varIsArg = new Nai;
-	this.varIsConst = new Nai;
+	this.variables = new Hash;
 	this.labels = {};
 	this.upper = null;
 	this.type = NodeType.SCOPE;
 	this.nest = [];
 	this.locals = [];
 	this.fid = "F" + id.toString(36);
-	this.usedVariables = new Nai;
-	this.usedVariablesOcc = new Nai;
-	this.usedVariablesAssignOcc = new Nai;
-	this.usedTemps = new Nai;
+	this.usedVariables = new Hash;
+	this.usedVariablesOcc = new Hash;
+	this.usedVariablesAssignOcc = new Hash;
+	this.usedTemps = new Hash;
 	this.grDepth = 0;
 	this.sharpNo = 0;
 	this.finNo = 0;
@@ -120,7 +125,6 @@ var ScopedScript = exports.ScopedScript = function (id, env) {
 		env.nest.push(this.id);
 		this.parent = env;
 		this.variables = derive(env.variables);
-		this.varIsConst = derive(env.varIsConst);
 	}
 };
 ScopedScript.prototype.pendNewVar = function (name, parQ, constQ, pos) {
@@ -132,59 +136,51 @@ ScopedScript.prototype.pendNewVar = function (name, parQ, constQ, pos) {
 	})
 }
 ScopedScript.prototype.newVar = function (name, parQ, constQ, explicitQ) {
-	if(!this.variables[name]){
+	if(!this.variables.get(name)){
 		// New variable
-		this.varIsArg[name] = parQ === true;
-		this.varIsConst[name] = constQ;
-		this.variables[name] = this.id;
-		//
-		this.variables[name] = {
+		this.variables.put(name, {
 			id: this.id,
 			parQ: parQ,
 			constQ: constQ
-		}
-	} else if (this.variables[name].id === this.id) {
+		})
+	} else if (this.variables.get(name).id === this.id) {
 		// Same scope redeclare
-		if(this.variables[name].constQ || constQ){
+		if(this.variables.get(name).constQ || constQ){
 			throw ("Attempt to redefine constant " + name)
 		}
 		return;
 	} else {
 		// Shadowing
 		var rv;
-		if(this.variables[name].constQ && !parQ) {
+		if(this.variables.get(name).constQ && !parQ) {
 			if(explicitQ){
 				throw ("Attempt to shadow constant " + name)
 			} else {
 				rv = "Shadowing constant " + name;
 			}
-		}
-		this.variables[name] = {
+		};
+		this.variables.put(name, {
 			id: this.id,
 			parQ: parQ,
 			constQ: constQ
-		}
+		});
 		return rv;
 	};
 };
 ScopedScript.prototype.useVar = function (name, position) {
-	this.usedVariables[name] = true;
-	if(this.usedVariablesOcc[name] === undefined)
-		this.usedVariablesOcc[name] = position;
-};
-ScopedScript.prototype.cleanup = function(){
-	delete this.sharpNo;
-	delete this.labels;
-	delete this.variables;
-	delete this.usedVariablesOcc;
+	this.usedVariables.put(name, true);
+	if(this.usedVariablesOcc.get(name) === undefined) {
+		this.usedVariablesOcc.put(name, position);
+	}
 };
 ScopedScript.prototype.useTemp = function(name, processing){
 	// Processing:
 	// 0: As variable
 	// 1: As Parameter
 	// 2: Special
-	if(!this.usedTemps[name])
-		this.usedTemps[name] = (processing || 0) + 1;
+	if(!this.usedTemps.get(name)) {
+		this.usedTemps.put(name, (processing || 0) + 1);
+	}
 };
 ScopedScript.VARIABLETEMP = 0;
 ScopedScript.PARAMETERTEMP = 1;
@@ -223,7 +219,7 @@ exports.walkNodeTF = function(node, f, aux){
 			if(res) node[each] = res;
 		}
 	};
-	return res;
+	return node;
 };
 
 exports.TMaker = function(){

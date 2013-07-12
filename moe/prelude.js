@@ -1,4 +1,3 @@
-
 // Moe Standard Prelude
 //    ...'s overture
 // Copyright(c) 2012 Belleve Invis
@@ -81,7 +80,6 @@ Type.outof = function(T){
 Type.inherits = function(T){
 	return function(f){
 		return Type.outof(T)(function(){
-			debugger;
 			if(typeof T === 'function') T.apply(this, arguments);
 			return f.apply(this, arguments);
 		})
@@ -157,6 +155,11 @@ reg('Function', internalClassWrapper(Function));
 reg('Number', internalClassWrapper(Number, function(){
 	this.be = function(x){return typeof x === 'number' || x instanceof Number}
 	this.convertFrom = function(x){return x - 0}
+	this.MAX_VALUE = Number.MAX_VALUE;
+	this.POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+	this.MIN_VALUE = Number.MIN_VALUE;
+	this.NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
+	this.NaN = Number.NaN;
 }));
 reg('Boolean', internalClassWrapper(Boolean, function(){
 	this.be = function(x){return x === true || x === false}
@@ -294,7 +297,6 @@ reg('keysof', Object.keys || (function () {
 })());
 
 reg('defaultMonadSchemata', moert.MONAD_SCHEMATA_M);
-
 ;
 (function(){var RUNTIME$_ = moert.runtime
 var undefined;
@@ -316,13 +318,14 @@ var NARGS2$_ = RUNTIME$_.NARGS2;
 var NARGS3$_ = RUNTIME$_.NARGS3;
 var NARGS4$_ = RUNTIME$_.NARGS4;
 var GETENUM$_ = RUNTIME$_.GETENUM;
+var UA_LIST$_ = RUNTIME$_.UA_LIST;
 var exports$ = exports;
 var moert$ = moert;
 
 
 var _$_ARGS = [];
 var _$_ARGND = {};
-var Array$, Both$, Date$, Either$, Empty$, Enumerable$, Function$, MONAD_SCHEMATA_M$, OWNS$, Object$, Primitive$, Reaction$, RegExp$, async$, compose$, createAsyncSchemata$, derive$, doon$, enumeration$, export$, extractor$, getEnumeratorOf$, global_$, hash$, inspect$, instanceof$, its$, itself$, join$, keysof$, list$, match$, matcher$, math$, object$, pairsof$, pcl$, pcr$, qjoin$, rangeForEach$, returns$, select$, sleep$, start$, table$, takeWhile$, tee$, time$, type$;
+var Array$, Date$, Enumerable$, Function$, MONAD_SCHEMATA_M$, OWNS$, Object$, Primitive$, Reaction$, RegExp$, async$, compose$, cons$, createAsyncSchemata$, derive$, doon$, enumeration$, export$, getEnumeratorOf$, global_$, hash$, inspect$, instanceof$, its$, itself$, join$, keysof$, list$, match$, math$, nothing$, object$, pairsof$, pcl$, pcr$, qjoin$, rangeForEach$, returns$, select$, sleep$, start$, table$, takeWhile$, tee$, time$, type$;
 derive$ = exports$.derive;
 Object$ = exports$.Object;
 Function$ = exports$.Function;
@@ -343,6 +346,7 @@ export$ = (function (n$){
         return (exports$[n$] = x$);
     });
 });
+nothing$ = export$("nothing")(undefined);
 its$ = export$("its")((function (prop$){
     return (function (o$){
         return o$[prop$];
@@ -383,7 +387,7 @@ list$ = export$("list")(object$((function (){
         return a$.slice(0, (-(1)));
     });
     _$_THIS.last = (function (a$){
-        return a$[(a$.length - 1)];
+        return a$[a$.length - 1];
     });
     cat$ = (function (a$,b$){
         return a$.concat(b$);
@@ -431,11 +435,14 @@ list$ = export$("list")(object$((function (){
         var _0$_;
         var b$, i$, j$, t$;
         b$ = a$.slice(0);
-        for (((i$ = 0),(_0$_ = b$.length)); i$ < _0$_; i$ = i$ + 1) {
+        i$ = 0;
+        _0$_ = b$.length;
+        while (i$ < _0$_) {
             j$ = math$.randInt(i$, b$.length);
             t$ = b$[i$];
             b$[i$] = b$[j$];
             b$[j$] = t$;
+            i$ = i$ + 1;
         };
         return b$;
     }));
@@ -477,22 +484,28 @@ time$ = export$("time")((function (args$,f$){
         var _2$_, _1$_;
         var a$, foundCircle$, j$, p$, prop$;
         a$ = [];
-        for (p$ = (_2$_ = GETENUM$_(keysof$(x$))).emit(); _2$_.active; p$ = _2$_.emit()) {
+        p$ = (_2$_ = GETENUM$_(keysof$(x$))).emit();
+        while (_2$_.active) {
             prop$ = x$[p$];
             foundCircle$ = false;
-            for (j$ = (_1$_ = GETENUM$_(stack$)).emit(); _1$_.active; j$ = _1$_.emit()) {
-                if (j$ === prop$) {
-                    foundCircle$ = true;
-                    break ;
-                } ;
+            s$L:{
+                j$ = (_1$_ = GETENUM$_(stack$)).emit();
+                while (_1$_.active) {
+                    if (j$ === prop$) {
+                        foundCircle$ = true;
+                        break s$L;
+                    } ;
+                    j$ = _1$_.emit();
+                };
             };
             if (foundCircle$) {
                 a$.push(tPropName$(p$) + ": " + "[Circular]");
             } else {
                 a$.push(tPropName$(p$) + ": " + inspectObject$(prop$, stack$, depth$ + 1, targetDepth$));
             };
+            p$ = _2$_.emit();
         };
-        return ((depth$ === 0) ? (" " + (a$.join(",\n  ")) + " ") : a$.join(", "));
+        return (depth$ === 0 ? " " + a$.join(",\n  ") + " " : a$.join(", "));
     });
     inspectObject$ = (function (x$,stack$,depth$,targetDepth$){
         if (depth$ >= targetDepth$) {
@@ -522,11 +535,11 @@ enumeration$ = export$("enumeration")((function (G$){
         var _$_THIS = this;
         var _$_ARGS = SLICE$_(arguments, 0);
         var e$, fCont$, g$;
-        e$ = {"emit": (function (){
+        e$ = ({"emit": (function (){
             var _$_THIS = this;
             var _$_ARGS = SLICE$_(arguments, 0);
             return fCont$.apply(_$_THIS, _$_ARGS);
-        }), "active": true};
+        }), "active": true});
         (function (){
             var fBind$, fBindYield$, fRet$;
             fRet$ = (function (x$){
@@ -539,9 +552,9 @@ enumeration$ = export$("enumeration")((function (G$){
             });
             fBindYield$ = (function (f$,t$,x$,cont$){
                 var _$_ARGS = SLICE$_(arguments, 0);
-                return fBind$(f$.call(t$, x$), _$_ARGS[(_$_ARGS.length - 1)]);
+                return fBind$(f$.call(t$, x$), _$_ARGS[_$_ARGS.length - 1]);
             });
-            return (g$ = G$.build({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$}));
+            return (g$ = G$.build(({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$})));
         })();
         fCont$ = g$.apply(_$_THIS, _$_ARGS);
         return e$;
@@ -554,36 +567,38 @@ Enumerable$ = export$("Enumerable")((function (G$){
     return (function (){
         var _$_THIS = this;
         var _$_ARGS = SLICE$_(arguments, 0);
-        var argsp$, fGetEnumerator$, thisp$;
-        thisp$ = _$_THIS;
-        argsp$ = _$_ARGS;
-        fGetEnumerator$ = (function (){
-            var e$, fCont$, g$;
-            e$ = {"emit": (function (){
-                var _$_THIS = this;
-                var _$_ARGS = SLICE$_(arguments, 0);
-                return fCont$.apply(_$_THIS, _$_ARGS);
-            }), "active": true};
-            (function (){
-                var fBind$, fBindYield$, fRet$;
-                fRet$ = (function (x$){
-                    e$.active = false;
-                    return x$;
-                });
-                fBind$ = (function (x$,cont$){
-                    fCont$ = cont$;
-                    return x$;
-                });
-                fBindYield$ = (function (f$,t$,x$,cont$){
+        return ((function (){
+            var argsp$, fGetEnumerator$, thisp$;
+            thisp$ = _$_THIS;
+            argsp$ = _$_ARGS;
+            fGetEnumerator$ = (function (){
+                var e$, fCont$, g$;
+                e$ = ({"emit": (function (){
+                    var _$_THIS = this;
                     var _$_ARGS = SLICE$_(arguments, 0);
-                    return fBind$(f$.call(t$, x$), _$_ARGS[(_$_ARGS.length - 1)]);
-                });
-                return (g$ = G$.build({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$}));
-            })();
-            fCont$ = g$.apply(thisp$, argsp$);
-            return e$;
-        });
-        return {"getEnumerator": fGetEnumerator$};
+                    return fCont$.apply(_$_THIS, _$_ARGS);
+                }), "active": true});
+                (function (){
+                    var fBind$, fBindYield$, fRet$;
+                    fRet$ = (function (x$){
+                        e$.active = false;
+                        return x$;
+                    });
+                    fBind$ = (function (x$,cont$){
+                        fCont$ = cont$;
+                        return x$;
+                    });
+                    fBindYield$ = (function (f$,t$,x$,cont$){
+                        var _$_ARGS = SLICE$_(arguments, 0);
+                        return fBind$(f$.call(t$, x$), _$_ARGS[_$_ARGS.length - 1]);
+                    });
+                    return (g$ = G$.build(({"return": fRet$, "bind": fBind$, "bindYield": fBindYield$})));
+                })();
+                fCont$ = g$.apply(thisp$, argsp$);
+                return e$;
+            });
+            return ({"getEnumerator": fGetEnumerator$});
+        })());
     });
 }));
 getEnumeratorOf$ = export$("getEnumeratorOf")(moert$.runtime.GETENUM);
@@ -598,6 +613,7 @@ rangeForEach$ = export$("rangeForEach")((function (range$,f$){
             f$(t$);
             t$ = e$.emit();
         };
+        return undefined;
     };
 }));
 takeWhile$ = export$("takeWhile")(Enumerable$(({build: function(SCHEMATA$_){return function (I$,condition$){
@@ -625,7 +641,7 @@ takeWhile$ = export$("takeWhile")(Enumerable$(({build: function(SCHEMATA$_){retu
         return es_f$_();
     });
     es_g$_ = (function(){
-        return es_d$_();
+        return es_d$_(undefined);
     });
     es_d$_ = (function(es_e$_){
         return SCHEMATA$_["return"](es_e$_);
@@ -657,7 +673,7 @@ select$ = export$("select")(Enumerable$(({build: function(SCHEMATA$_){return fun
         return es_o$_();
     });
     es_p$_ = (function(){
-        return es_m$_();
+        return es_m$_(undefined);
     });
     es_m$_ = (function(es_n$_){
         return SCHEMATA$_["return"](es_n$_);
@@ -698,26 +714,25 @@ table$ = export$("table")((function (G$){
     schemata$ = object$(MONAD_SCHEMATA_M$, (function (){
         var _$_THIS = this;
         _$_THIS["return"] = (function (x$){
-            var _6$_;
-            if ((_6$_ = x$) === undefined) {
-                ;
-            } else {
+            if (x$ !== undefined) {
                 return ans$.push(x$);
-            };
+            } ;
         });
         return (_$_THIS.bind = (function (enumerationList$,callback$){
             return rangeForEach$(enumerationList$, callback$);
         }));
     }));
-    (G$.build(schemata$).apply(_$_THIS, _$_ARGS))();
+    G$.build(schemata$).apply(_$_THIS, _$_ARGS)();
     return ans$;
 }));
 hash$ = export$("hash")((function (t$){
-    var _7$_;
+    var _6$_;
     var o$, term$;
-    o$ = {};
-    for (term$ = (_7$_ = GETENUM$_(t$)).emit(); _7$_.active; term$ = _7$_.emit()) {
+    o$ = ({});
+    term$ = (_6$_ = GETENUM$_(t$)).emit();
+    while (_6$_.active) {
         o$[term$[0]] = o$[term$[1]];
+        term$ = _6$_.emit();
     };
     return o$;
 }));
@@ -745,9 +760,10 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             } else {
                 try {
                     return g$(x$);
-                } catch (_c$_) {e$=_c$_;
-                    return rLocal$(e$, undefined);
+                } catch (e$) {
+                    rLocal$(e$, undefined);
                 };
+                return undefined;
             };
         }));
     });
@@ -761,12 +777,13 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             } else {
                 try {
                     return g$(x$);
-                } catch (_d$_) {e$=_d$_;
-                    return rLocal$(e$, undefined);
+                } catch (e$) {
+                    rLocal$(e$, undefined);
                 };
+                return undefined;
             };
         });
-        g$ = _$_ARGS[(_$_ARGS.length - 1)];
+        g$ = _$_ARGS[_$_ARGS.length - 1];
         return f$.apply(t$, _$_ARGS.slice(2, (-(1))).concat([reaction$]));
     });
     schemata$["try"] = (function (MAttempt$,MCatch$,g$){
@@ -776,27 +793,31 @@ createAsyncSchemata$ = (function (rLocal$,rLongJump$){
             if (err$) {
                 try {
                     return MCatch$(catchSchemata$)(err$);
-                } catch (_e$_) {ex$=_e$_;
-                    return rCatch$(ex$, undefined);
+                } catch (ex$) {
+                    rCatch$(ex$, undefined);
                 };
+                return undefined;
             } else {
                 return g$(x$);
             };
         });
         trySchemata$ = createAsyncSchemata$(r$, rLongJump$);
         rCatch$ = (function (err$,x$){
-            if (err$) {
-                return rLocal$(err$, undefined);
-            } else {
-                return g$(x$);
-            };
+            return (function (){
+                if (err$) {
+                    return rLocal$(err$, undefined);
+                } else {
+                    return g$(x$);
+                };
+            });
         });
         catchSchemata$ = createAsyncSchemata$(rCatch$, rLongJump$);
         try {
             return MAttempt$(trySchemata$)();
-        } catch (_f$_) {ex$=_f$_;
-            return r$(ex$, undefined);
+        } catch (ex$) {
+            r$(ex$, undefined);
         };
+        return undefined;
     });
     schemata$["return"] = (function (x$){
         return rLocal$(null, x$);
@@ -811,7 +832,7 @@ async$ = export$("async")((function (M$){
             var a$, reaction$, t$;
             a$ = _$_ARGS.slice(0, (-(1)));
             t$ = _$_THIS;
-            reaction$ = _$_ARGS[(_$_ARGS.length - 1)];
+            reaction$ = _$_ARGS[_$_ARGS.length - 1];
             return M$.build(createAsyncSchemata$(reaction$)).apply(t$, a$)();
         });
     } else {
@@ -821,11 +842,11 @@ async$ = export$("async")((function (M$){
             var a$, e$, r$, reaction$, t$;
             t$ = _$_THIS;
             a$ = _$_ARGS.slice(0, (-(1)));
-            reaction$ = _$_ARGS[(_$_ARGS.length - 1)];
+            reaction$ = _$_ARGS[_$_ARGS.length - 1];
             ;
             try {
                 r$ = M$.apply(t$, a$);
-            } catch (_g$_) {e$=_g$_;
+            } catch (e$) {
                 return reaction$(e$, undefined);
             };
             return reaction$(null, r$);
@@ -849,7 +870,7 @@ join$ = export$("join")((function (o$,reaction$){
     nActivities$ = 0;
     nDone$ = 0;
     failed$ = false;
-    res$ = ((IS$_(o$, Array$)) ? [] : {});
+    res$ = (IS$_(o$, Array$) ? [] : ({}));
     checkContinue$ = (function (term$){
         var f$, s$;
         s$ = (function (val$){
@@ -876,29 +897,38 @@ join$ = export$("join")((function (o$,reaction$){
     }));
 }));
 qjoin$ = export$("qjoin")(async$(({build: function(SCHEMATA$_){return function (nQueues$,tasks$){
-    var _8$_, _9$_, _b$_, es_1b$_, es_1c$_, es_1d$_, es_1e$_, es_1f$_, es_1g$_, es_1h$_;
+    var _7$_, _8$_, _a$_, es_1b$_, es_1c$_, es_1d$_, es_1e$_, es_1f$_, es_1g$_, es_1h$_;
     var i$, q$;
     es_1b$_ = (function(){
         q$ = [];
-        for (((i$ = 0),(_8$_ = nQueues$)); i$ < _8$_; i$ = i$ + 1) {
+        i$ = 0;
+        _7$_ = nQueues$;
+        while (i$ < _7$_) {
             q$[i$] = [];
+            i$ = i$ + 1;
         };
-        for (((i$ = 0),(_9$_ = tasks$.length)); i$ < _9$_; i$ = i$ + 1) {
-            q$[(i$ % nQueues$)].push(tasks$[i$]);
+        i$ = 0;
+        _8$_ = tasks$.length;
+        while (i$ < _8$_) {
+            q$[i$ % nQueues$].push(tasks$[i$]);
+            i$ = i$ + 1;
         };
-        for (((i$ = 0),(_b$_ = nQueues$)); i$ < _b$_; i$ = i$ + 1) {
+        i$ = 0;
+        _a$_ = nQueues$;
+        while (i$ < _a$_) {
             (function (){
                 var queue$;
                 queue$ = q$[i$];
                 return (q$[i$] = async$(({build: function(SCHEMATA$_){return function (){
-                    var _a$_, es_12$_, es_13$_, es_14$_, es_15$_, es_16$_, es_17$_, es_18$_, es_19$_, es_1a$_;
+                    var _9$_, es_12$_, es_13$_, es_14$_, es_15$_, es_16$_, es_17$_, es_18$_, es_19$_, es_1a$_;
                     var j$;
                     es_12$_ = (function(){
-                        ((j$ = 0),(_a$_ = queue$.length));
+                        j$ = 0;
+                        _9$_ = queue$.length;
                         return es_15$_();
                     });
                     es_15$_ = (function(){
-                        if (!(j$ < _a$_)) {
+                        if (!(j$ < _9$_)) {
                             return es_16$_();
                         };
                         es_17$_ = queue$;
@@ -910,7 +940,7 @@ qjoin$ = export$("qjoin")(async$(({build: function(SCHEMATA$_){return function (
                         return es_15$_();
                     });
                     es_16$_ = (function(){
-                        return es_13$_();
+                        return es_13$_(undefined);
                     });
                     es_13$_ = (function(es_14$_){
                         return SCHEMATA$_["return"](es_14$_);
@@ -918,6 +948,7 @@ qjoin$ = export$("qjoin")(async$(({build: function(SCHEMATA$_){return function (
                     return es_12$_;
                 }}})));
             })();
+            i$ = i$ + 1;
         };
         es_1e$_ = join$;
         es_1f$_ = q$;
@@ -936,61 +967,18 @@ sleep$ = export$("sleep")((function (dt$,reaction$){
         return reaction$();
     }), dt$);
 }));
-matcher$ = (function (G$){
-    var fMatcher$, schemata$;
-    fMatcher$ = (function (x$){
-        return undefined;
+match$ = export$("match")((function (x$){
+    return (function (f$){
+        return f$(x$);
     });
-    schemata$ = object$(MONAD_SCHEMATA_M$, (function (){
-        var _$_THIS = this;
-        return (_$_THIS.bindYield = (function (extractor$,thisp$,fGot$,fMismatch$){
-            var extractor$;
-            fMismatch$();
-            fMatcher$ = extractor$.formMatch.call(thisp$, fGot$, fMatcher$);
-        }));
-    }));
-    G$.build(schemata$)()();
-    return fMatcher$;
+}));
+cons$ = export$("cons")((function (_args_$){
+    var _$_ARGS = SLICE$_(arguments, 0);
+    return _$_ARGS.slice(0, (-(1))).concat(_$_ARGS[_$_ARGS.length - 1]);
+}));
+cons$.unapply = (function (list$,arity$){
+    if (IS$_(list$, Array$) && list$.length >= arity$ - 1) {
+        return list$.slice(0, arity$ - 1).concat([list$.slice(arity$ - 1)]);
+    } ;
 });
-match$ = export$("match")((function (x$,G$){
-    return ((!(G$)) ? matcher$(x$) : matcher$(G$)(x$));
-}));
-extractor$ = export$("extractor")((function (formFunc$){
-    var f$;
-    f$ = formFunc$((function (){
-        return true;
-    }), (function (){
-        return false;
-    }));
-    f$.formMatch = formFunc$;
-    f$.be = f$;
-    return f$;
-}));
-Both$ = export$("Both")((function (){
-    var _$_ARGS = SLICE$_(arguments, 0);
-    var extractors$;
-    extractors$ = _$_ARGS;
-    return extractor$((function (got$,miss$){
-        return extractors$.reduceRight((function (total$,extractor$){
-            var extractor$;
-            return extractor$.formMatch(total$, miss$);
-        }), got$);
-    }));
-}));
-Either$ = export$("Either")((function (){
-    var _$_ARGS = SLICE$_(arguments, 0);
-    var extractors$;
-    extractors$ = _$_ARGS;
-    return extractor$((function (got$,miss$){
-        return extractors$.reduceRight((function (total$,extractor$){
-            var extractor$;
-            return extractor$.formMatch(got$, total$);
-        }), miss$);
-    }));
-}));
-Empty$ = export$("empty")(export$("Empty")(extractor$((function (got$,miss$){
-    return (function (x$){
-        return (((!(x$)) || (IS$_(x$, Array$) && (!(x$.length)))) ? got$(x$) : miss$(x$));
-    });
-}))));
 }());

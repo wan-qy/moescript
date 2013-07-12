@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+// -*- js -*-
+
+// ARGV processing
+(function(){
+	var ARGV = process.argv;
+
+	for(var j = 0; j < ARGV.length; j++)
+		if(ARGV[j] === require.main.filename) {
+			process.argv = ARGV.slice(j);
+			return;
+		}
+}());
+var dummy = require('../dummy');
+var path  = require('path');
+
+if(process.argv[1]) {
+	return require(path.resolve(process.argv[1]));
+} else {
+	process.stderr.write("REPL is still TO-DO. It will be here soon. I hope :)" + "\n")
+	process.exit();
+}

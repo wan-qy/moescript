@@ -1,13 +1,15 @@
 {
-	"name": "moe",
-	"version": "0.8.0",
+	"name": "moe-asoi",
+	"version": "0.9.2",
 	"author": "Belleve Invis",
 	"description": "New generation language. JavaScript targeted.",
 	"homepage": "https://github.com/be5invis/moe",
 	"engines": ["node >= 0.8.0"],
 	"main": "./dummy",
 	"bin" : {
-		"moec": "./bin/moec",
-		"moei": "./bin/moei"
+		"asoic": "./bin/asoic",
+		"asoi": "./bin/asoi",
+		"moec": "./bin/asoic",
+		"moei": "./bin/asoi"
 	}
 }

@@ -59,6 +59,7 @@ var C_NAME = exports.C_NAME = function (name) { return ENCODE_IDENTIFIER(name) +
 	C_TEMP = exports.C_TEMP = function (type){ return type + '$_' },
 	T_THIS = function (env) { return '_$_THIS' },
 	T_ARGN = function(){ return '_$_ARGND' },
+	T_ARG0 = function(){ return '_$_ARG0' },
 	T_ARGS = function(){ return '_$_ARGS' },
 	C_BLOCK = function(label){ return 'block_' + label },
 	C_STRING = moecrt.C_STRING;
@@ -77,6 +78,9 @@ var JOIN_STMTS = function (statements) {
 
 var THIS_BIND = function (env) {
 	return (env.thisOccurs) ? 'var ' + T_THIS() + ' = this' : '';
+};
+var ARG0_BIND = function (env) {
+	return (env.arg0Occurs) ? 'var ' + T_ARG0() + ' = arguments[0]' : '';
 };
 var ARGS_BIND = function (env, ReplGlobalQ) {
 	if(ReplGlobalQ) return 'var ' + T_ARGS() + ' = ' + '[]';
@@ -138,10 +142,11 @@ var GListTmpType = function(type){
 	type = type + 1;
 	return function(scope){
 		var l = [];
-		for(var each in scope.usedTemps){
-			if(scope.usedTemps[each] === type)
-				l.push(each);
-		}
+
+		scope.usedTemps.forEach(function(tid, tempType){
+			if(tempType === type)
+				l.push(tid);
+		});
 		return l;
 	};
 };
@@ -149,7 +154,6 @@ var listTemp = GListTmpType(ScopedScript.VARIABLETEMP);
 
 exports.Generator = function(g_envs, g_config){
 	var env = g_envs[0];
-	var makeT = g_config.makeT;
 
 	var g_options = g_config.options || {}
 
@@ -191,10 +195,11 @@ exports.Generator = function(g_envs, g_config){
 
 		var pars = tree.parameters.names.slice(0);
 
-		for (var i = 0; i < locals.length; i++)
-			if (!(tree.varIsArg[locals[i]])){
+		for (var i = 0; i < locals.length; i++) {
+			if (!tree.variables.get(locals[i]).parQ){
 				vars.push(C_NAME(locals[i]));
 			}
+		}
 
 		for (var i = 0; i < temps.length; i++)
 			temps[i] = TEMP_BIND(tree, temps[i]);
@@ -202,6 +207,7 @@ exports.Generator = function(g_envs, g_config){
 		s = JOIN_STMTS([
 			THIS_BIND(tree),
 			ARGS_BIND(tree, ReplGlobalQ),
+			ARG0_BIND(tree, ReplGlobalQ),
 			ARGN_BIND(tree, ReplGlobalQ),
 			(temps.length ? 'var ' + temps.join(', '): ''),
 			(vars.length ? 'var ' + vars.join(', ') : ''),
@@ -282,6 +288,9 @@ exports.Generator = function(g_envs, g_config){
 	defineSchemata(nt.ARGN, function (){
 		return T_ARGN();
 	});
+	defineSchemata(nt.ARG0, function (){
+		return T_ARG0();
+	});
 	defineSchemata(nt.ARGUMENTS, function () {
 		return T_ARGS();
 	});
@@ -303,7 +312,7 @@ exports.Generator = function(g_envs, g_config){
 			x = 0,
 			hasNameQ = this.nameused;
 		for (var i = 0; i < this.args.length; i++) {
-			var right = transform(ungroup(this.args[i]))
+			var right = transform(this.args[i])
 			if (typeof this.names[i] === "string") {
 				hasNameQ = true;
 				inits.push(C_STRING(this.names[i]) + ': ' + right);
@@ -314,7 +323,7 @@ exports.Generator = function(g_envs, g_config){
 			terms.push(right);
 		};
 		if(hasNameQ)
-			return $('{%1}',
+			return $('({%1})',
 				(this.args.length < 4 ? inits.join(', ') : '\n' + INDENT(inits.join(',\n')) + '\n'));
 		else
 			return $('[%1]', terms.join(', '));
@@ -339,12 +348,12 @@ exports.Generator = function(g_envs, g_config){
 		defineSchemata(nt[operator], function () {
 			var left, right;
 			if(this.left.type > this.type) {
-				left = '(' + reduceBracketsTransform(ungroup(this.left), true) + ')'
+				left = '(' + reduceBracketsTransform(this.left, true) + ')'
 			} else {
 				left = transform(this.left)
 			}
-			if(this.right.type > this.type) {
-				right = '(' + reduceBracketsTransform(ungroup(this.right), true) + ')'
+			if(this.right.type >= this.type) {
+				right = '(' + reduceBracketsTransform(this.right, true) + ')'
 			} else {
 				right = transform(this.right)
 			}
@@ -382,13 +391,13 @@ exports.Generator = function(g_envs, g_config){
 	libfuncoper('...', C_TEMP('InclusiveRange'));
 
 	defineSchemata(nt.NEGATIVE, function () {
-		return '(-(' + reduceBracketsTransform(ungroup(this.operand), true) + '))';
+		return '(-(' + reduceBracketsTransform(this.operand, true) + '))';
 	});
 	defineSchemata(nt.NOT, function () {
-		return '(!(' + reduceBracketsTransform(ungroup(this.operand), true) + '))';
+		return '(!(' + reduceBracketsTransform(this.operand, true) + '))';
 	});
 	defineSchemata(nt.CTOR, function(){
-		return 'new (' + reduceBracketsTransform(ungroup(this.expression), true) + ')'
+		return 'new (' + reduceBracketsTransform(this.expression, true) + ')'
 	});
 
 
@@ -421,136 +430,21 @@ exports.Generator = function(g_envs, g_config){
 			s = '(' + s + ')';
 		};
 		return s;
+	};
+	var transformArgs = function(node){
+		var _ = [];
+		for(var j = 0; j < node.args.length; j++) {
+			_[j] = transform(node.args[j]);
+		}
+		return _;
 	}
-
-	defineSchemata(nt.EXPRSTMT, function(){
-		return reduceBracketsTransform(ungroup(this.expression));
-	});
-
-	var flowPush = function(flow, env, expr){
-		var t = makeT(env);
-		flow.push(C_TEMP(t) + '=' + expr);
-		return C_TEMP(t);
-	};
-	var irregularOrderArgs = function(flow, env, pipelineQ){
-		var args = [], olits = [], hasNameQ = false;
-
-		if(pipelineQ){
-			var t = makeT(env);
-			flow.unshift(C_TEMP(t) + '=' + transform(ungroup(this.args[0])));
-			args.push(C_TEMP(t));
-		}
-		
-		for (var i = (pipelineQ ? 1 : 0); i < this.args.length; i++) {
-			if (this.names[i]) {
-				var tn = flowPush(flow, env, transform(ungroup(this.args[i])));
-				olits.push(C_STRING(this.names[i]));
-				olits.push(tn);
-				hasNameQ = true;
-			} else {
-				var tn = flowPush(flow, env, transform(ungroup(this.args[i])));
-				args.push(tn);
-			}
-		};
-
-		if(hasNameQ){
-			if(!g_nargsOptOff && olits.length <= 8){
-				args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
-			} else {
-				args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
-			}
-		};
-
-		return args;
-	};
-	var regularOrderArgs = function(){
-		var args = [], olits = [], hasNameQ = false;
-		
-		for (var i = 0; i < this.args.length; i++) {
-			if (this.names[i]) {
-				olits.push(C_STRING(this.names[i]));
-				olits.push(transform(ungroup(this.args[i])));
-				hasNameQ = true;
-			} else {
-				args.push(transform(ungroup(this.args[i])));
-			}
-		};
-
-		if(hasNameQ){
-			if(!g_nargsOptOff && olits.length <= 8){
-				args.push(C_TEMP('NARGS' + (olits.length >>> 1)) + '(' + olits.join(', ') + ')');
-			} else {
-				args.push(C_TEMP('NARGS') + '([' + olits.join(', ') + '])');
-			}
-		};
-
-		return args;
-	};
-
-	var flowFuncParts = function(flow){
-		var pivot, right, b;
-		switch (this.type) {
-			case nt.MEMBER:
-				pivot = transform(this.left)
-				right = '[' + transform(this.right) + ']'
-				break;
-			case nt.CTOR:
-				pivot = null
-				right = transform(this.expression)
-				    b = 'new'
-				break;
-			default:
-				pivot = null
-				right = transform(this)
-				break;
-		};
-		if(pivot){
-			var tP = flowPush(flow, env, pivot);
-			var tF = flowPush(flow, env, tP + right);
-		} else {
-			var tF = flowPush(flow, env, right);
-		};
-		if(b) tF = b + '(' + tF + ')';
-		return {
-			p: tP, f: tF
-		}
-	};
-
 	defineSchemata(nt.CALL, function (node, env) {
-		// this requires special pipeline processing:
-		var pipelineQ = node.pipeline && node.func // pipe line invocation...
-			&& (nodeSideEffectiveQ(node.func) || nodeSideEffectiveQ(node.args[0])) // and side-effective.
-		this.names = this.names || []
-		var hasNameQ = false;
-		var irregularOrderQ = pipelineQ;
-		for(var i = 0; i < this.names.length; i++) {
-			if(this.names[i])
-				hasNameQ = true;
-			// Irregular evaluation order found.
-			if(hasNameQ && !this.names[i])
-				irregularOrderQ = true;
-		};
-
-		if(irregularOrderQ){
-			var flow = [];
-			var func = flowFuncParts.call(this.func, flow, env);
-			var args = irregularOrderArgs.call(this, flow, env, pipelineQ);
-			if(func.p){
-				args.unshift(func.p);
-				flow.push(func.f + '.call(' + args.join(', ') + ')')
-			} else {
-				flow.push(func.f + '(' + args.join(', ') + ')')
-			}
-			return '(' + flow.join(',') + ')';
-		} else {
-			// Otherwise: use normal transformation.
-			return $('%1(%2)', transform(this.func), regularOrderArgs.call(this).join(', '))
-		}
+		return $('%1(%2)', transform(this.func), transformArgs(this).join(', '))
 	});
 	defineSchemata(nt['then'], function(){
 		var a = []
 		for(var i = 0; i < this.args.length; i++) {
-			var e = ungroup(this.args[i]);
+			var e = this.args[i];
 			var s = transform(e);
 			if(e.type === nt['then'])
 				a.push(s.slice(1, -1))
@@ -564,27 +458,20 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	defineSchemata(nt.RETURN, function () {
-		return 'return ' + transform(ungroup(this.expression));
+		return 'return ' + transform(this.expression);
 	});
 	defineSchemata(nt.IF, function () {
 		return $('if (%1) {%2} %3', 
-			reduceBracketsTransform(ungroup(this.condition), true),
+			reduceBracketsTransform(this.condition, true),
 			transform(this.thenPart),
 			this.elsePart ? "else {" + transform(this.elsePart) + "}" : '');
 	});
 
 	defineSchemata(nt.REPEAT, function () {
-		return $('do {%2} while(%1)', reduceBracketsTransform(ungroup(this.condition), true), transform(this.body));
+		return $('do {%2} while(%1)', reduceBracketsTransform(this.condition, true), transform(this.body));
 	});
 	defineSchemata(nt.WHILE, function () {
-		return $('while (%1) {%2}', reduceBracketsTransform(ungroup(this.condition), true), transform(this.body));
-	});
-	defineSchemata(nt.OLD_FOR, function(){
-		return $('for (%1; %2; %3) {%4}',
-			this.start ? reduceBracketsTransform(ungroup(this.start)) : '',
-			reduceBracketsTransform(ungroup(this.condition)),
-			this.step ? reduceBracketsTransform(ungroup(this.step)) : '',
-			transform(this.body));
+		return $('while (%1) {%2}', reduceBracketsTransform(this.condition, true), transform(this.body));
 	});
 
 	defineSchemata(nt.BREAK, function () {
@@ -595,11 +482,9 @@ exports.Generator = function(g_envs, g_config){
 	});
 
 	defineSchemata(nt.TRY, function(){
-		var t = makeT();
-		return $('try {%1} catch (%2) {%3;%4}',
+		return $('try {%1} catch (%2) {%3}',
 			transform(this.attemption),
-			C_TEMP(t),
-			(this.eid ? C_NAME(this.eid.name) + '=' + C_TEMP(t) : ''),
+			transform(this.eid),
 			transform(this.catcher))
 	});
 	
@@ -607,7 +492,7 @@ exports.Generator = function(g_envs, g_config){
 		var a = [];
 		for (var i = 0; i < n.content.length; i++) {
 			if (n.content[i]){
-				a.push(reduceBracketsTransform(ungroup(n.content[i])));
+				a.push(reduceBracketsTransform(n.content[i]));
 			}
 		}
 		return JOIN_STMTS(a)
