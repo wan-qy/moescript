@@ -1,15 +1,16 @@
 var moe = require('../runtime');
 var moecrt = require('./compiler.rt');
+var smapinfo = require('./smapinfo');
+
+var UNIQ = moe.UNIQ;
+
 var nt = moecrt.NodeType;
 var ScopedScript = moecrt.ScopedScript;
 var walkRex = moecrt.walkRex;
 var nodeSideEffectiveQ = moecrt.nodeSideEffectiveQ;
-var UNIQ = moe.UNIQ;
 
-var smapinfo = require('./smapinfo');
-var addSmapInfo = smapinfo.addSmapInfo;
-var rBracketRemoval = smapinfo.rBracketRemoval;
 var smapRecord = smapinfo.smapRecord;
+var rBracketRemoval = smapinfo.rBracketRemoval;
 
 "Code Emission Util Functions";
 var ENCODE_IDENTIFIER = function(){
@@ -138,11 +139,11 @@ var GListTmpType = function(type){
 	// Generates a function lists specific type of temp vars
 	// used in a scope.
 
-	// See compiler.rt/ScopedScript.useTemp
+	// See compiler.rt/ScopedScript.markTempUsed
 	type = type + 1;
 	return function(scope){
 		var l = [];
-		debugger;
+
 		scope.usedTemps.forEach(function(tid, tempType){
 			if(tempType === type)
 				l.push(tid);

@@ -9,6 +9,7 @@ Nai.prototype = {
 	propertyIsEnumerable: undefined
 };
 
+// << Hash >>
 var Hash = function() {};
 (function() {
 	var MANGLE = '.';
@@ -280,7 +281,6 @@ exports.runtime = {
 
 // util functions used for the compiler or the prelude
 exports.derive = derive;
-exports.Nai = Nai;
 exports.Hash = Hash;
 exports.MONAD_SCHEMATA_M = MONAD_SCHEMATA_M;
 exports.OWNS = OWNS;

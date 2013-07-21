@@ -1,5 +1,5 @@
 var walkRex = require('./compiler.rt').walkRex;
-var Nai = require('../runtime').Nai;
+var Hash = require('../runtime').Hash;
 
 // Part I. SMAP Information extraction from codegen
 
@@ -118,7 +118,7 @@ var generateSmapJson = function(generated, sources, points){
 	var currentFileRev = PositionToLineCol(sources[0]);
 	var generatedRev = PositionToLineCol(generated);
 	var _mappings = [];
-	var _nameHash = new Nai;
+	var _nameHash = new Hash;
 	var _names = []
 	// NOTE: smap points from calculateSmapPoints is in the order of their occurance in the generated code
 	// therefore, no extra sorting is needed.
@@ -133,11 +133,11 @@ var generateSmapJson = function(generated, sources, points){
 			if(point.type === 'LM' && points[j + 1] && points[j + 1].type === 'ID' && point.p === points[j + 1].p) {
 				// An identifier
 				j++;
-				if(_nameHash[points[j].q] >= 0) {
-					mappingNameId = _nameHash[points[j].q]
+				if(_nameHash.get(points[j].q) >= 0) {
+					mappingNameId = _nameHash.get(points[j].q)
 				} else {
 					_names.push(points[j].q);
-					mappingNameId = _nameHash[points[j].q] = _names.length - 1;
+					mappingNameId = _nameHash.put(points[j].q, _names.length - 1);
 				}
 			};
 

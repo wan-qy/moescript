@@ -36,7 +36,7 @@ moePrelude: $(MOD)/prelude.js
 
 dist/moe-web-min.js: tools/makeStandaloneRuntime.js $(MOD)/runtime.js $(MOD)/prelude.js
 	node $^ $@
-	uglifyjs $@ -o $@ -m
+	esmangle $@ | uglifyjs -o $@
 
 webmin: dist/moe-web-min.js
 

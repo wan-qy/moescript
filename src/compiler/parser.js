@@ -667,7 +667,7 @@ exports.parse = function (tokens, source, config) {
 							if (tokenIs(CLOSE, RDEND)) { m.args = []; advance(); continue; };
 							argList(m, true);
 							advance(CLOSE, RDEND);
-						} catch (e) {
+						} catch (e1) {
 							loadState(stateSingleBracket);
 							m = ms;
 							try {
@@ -676,8 +676,13 @@ exports.parse = function (tokens, source, config) {
 									args: [groupLike()],
 									names: [null]
 								});
-							} catch (e) {
+							} catch (e2) {
 								loadState(stateSingleBracket);
+								// 2013-7-13: Once this function is not called by varDefinition, there MUST be an error
+								// in the arguments. throw it.
+								if(!inDeclarationQ && (e1 || e2)) {
+									throw (e1 ? e1 : e2)
+								}
 								return ms;
 							}
 						};
@@ -1335,7 +1340,10 @@ exports.parse = function (tokens, source, config) {
 		switch(pattern.type) {
 			case(nt.GROUP): return formPatternTestNode(pattern.operand, x);
 			case(nt.CALL):
-				if(pattern.func.operatorType === nt['=='] || pattern.func.operatorType === nt['==='] || pattern.func.operatorType === nt['is']){
+				if(pattern.func &&
+					(pattern.func.operatorType === nt['=='] 
+						|| pattern.func.operatorType === nt['==='] 
+						|| pattern.func.operatorType === nt['is'])){
 					return new Node(pattern.func.operatorType, {left: x, right: pattern.args[0]})
 				}
 			case(nt.OBJECT):

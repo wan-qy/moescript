@@ -3,7 +3,6 @@
 //	:info:			The essential environment for Moe Compiler
 
 var moe = require('../runtime');
-var Nai = moe.Nai;
 var Hash = moe.Hash;
 
 var derive = moe.derive;
@@ -119,7 +118,7 @@ var ScopedScript = exports.ScopedScript = function (id, env) {
 	this.finNo = 0;
 	this.coroid = false;
 	this.initHooks = {};
-	this.pendNewVars = [];
+	this.prepareVariableDeclaredMarks = [];
 	if(env){
 		env.hasNested = true;
 		env.nest.push(this.id);
@@ -127,15 +126,15 @@ var ScopedScript = exports.ScopedScript = function (id, env) {
 		this.variables = derive(env.variables);
 	}
 };
-ScopedScript.prototype.pendNewVar = function (name, parQ, constQ, pos) {
-	this.pendNewVars.push({
+ScopedScript.prototype.prepareVariableDeclaredMark = function (name, parQ, constQ, pos) {
+	this.prepareVariableDeclaredMarks.push({
 		name: name,
 		parQ: parQ,
 		constQ: constQ,
 		pos: pos
 	})
 }
-ScopedScript.prototype.newVar = function (name, parQ, constQ, explicitQ) {
+ScopedScript.prototype.markVariableDeclared = function (name, parQ, constQ, explicitQ) {
 	if(!this.variables.get(name)){
 		// New variable
 		this.variables.put(name, {
@@ -167,13 +166,13 @@ ScopedScript.prototype.newVar = function (name, parQ, constQ, explicitQ) {
 		return rv;
 	};
 };
-ScopedScript.prototype.useVar = function (name, position) {
+ScopedScript.prototype.markVariableUsed = function (name, position) {
 	this.usedVariables.put(name, true);
 	if(this.usedVariablesOcc.get(name) === undefined) {
 		this.usedVariablesOcc.put(name, position);
 	}
 };
-ScopedScript.prototype.useTemp = function(name, processing){
+ScopedScript.prototype.markTempUsed = function(name, processing){
 	// Processing:
 	// 0: As variable
 	// 1: As Parameter
@@ -229,7 +228,7 @@ exports.TMaker = function(){
 		if(!ns[namespace]) ns[namespace] = 0
 		var id = namespace + '_' + ns[namespace].toString(36);
 		ns[namespace] += 1
-		if(e) e.useTemp(id);
+		if(e) e.markTempUsed(id);
 		return id;
 	};
 };

@@ -8,7 +8,7 @@ var ScopedScript = moecrt.ScopedScript;
 var reducePasses = require('./passes/ast-reduce-1').passes;
 var cpsTransform = require('./passes/cps-transform').transform;
 
-var quenchRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
+var endofRebinds = function(s){var t = s; while(t && t.blockQ) t = t.parent; return t}
 
 var positionOf = function(node){
 	if(node.begins || node.begins === 0) return node.begins
@@ -46,9 +46,9 @@ exports.resolve = function(ast, ts, config){
 						ensure(s.variables[paramName] !== s.id, 
 							'Parameters list duplication detected.', 
 							s.parameters.names[i].begins);
-						s.pendNewVar(paramName, true, true, positionOf(node));
+						s.prepareVariableDeclaredMark(paramName, true, true, positionOf(node));
 					} else {
-						s.useTemp(paramName, ScopedScript.PARAMETERTEMP)
+						s.markTempUsed(paramName, ScopedScript.PARAMETERTEMP)
 					}
 				};
 				moecrt.walkNode(s.code, fWalk);
@@ -76,8 +76,8 @@ exports.resolve = function(ast, ts, config){
 		var enterScope = scopes[0];
 
 		ts.fInits(function(v, n, constantQ){
-			enterScope.pendNewVar(n, true, !constantQ);
-			enterScope.useVar(n, 0);
+			enterScope.prepareVariableDeclaredMark(n, true, !constantQ);
+			enterScope.markVariableUsed(n, 0);
 		});
 
 		return scopes;
@@ -98,7 +98,7 @@ exports.resolve = function(ast, ts, config){
 		};
 		moecrt.walkNode(scope.code, fWalk);
 		if(mPrimQ) {
-			scope.useTemp('SCHEMATA', ScopedScript.SPECIALTEMP);
+			scope.markTempUsed('SCHEMATA', ScopedScript.SPECIALTEMP);
 			scope.code.bindPoint = true;
 			scope.code = cpsTransform(scope.code, scope, config, {});
 			scope.mPrim = true;
@@ -122,9 +122,9 @@ exports.resolve = function(ast, ts, config){
 			} else {
 				if(node.declareVariable){
 					if(node.insideWhereClauseQ) {
-						declareMessage = s.pendNewVar(node.declareVariable, false, node.constantQ, positionOf(node));
+						declareMessage = s.prepareVariableDeclaredMark(node.declareVariable, false, node.constantQ, positionOf(node));
 					} else {
-						declareMessage = quenchRebinds(s).pendNewVar(node.declareVariable, false, node.constantQ, positionOf(node));
+						declareMessage = endofRebinds(s).prepareVariableDeclaredMark(node.declareVariable, false, node.constantQ, positionOf(node));
 					}
 				};
 
@@ -133,15 +133,15 @@ exports.resolve = function(ast, ts, config){
 				};
 
 				if(node.type === nt.VARIABLE) {
-					s.useVar(node.name, positionOf(node));
+					s.markVariableUsed(node.name, positionOf(node));
 				} else if(node.type === nt.THIS || node.type === nt.ARGUMENTS || node.type === nt.ARGN || node.type === nt.ARG0){
-					quenchRebinds(s)[
+					endofRebinds(s)[
 					  node.type === nt.THIS ?      'thisOccurs' : 
 					  node.type === nt.ARGUMENTS ? 'argsOccurs' : 
 					  node.type === nt.ARG0 ?      'arg0Occurs' : 
 					                               'argnOccurs' ] = true;
 				} else if(node.type === nt.TEMPVAR && !node.builtin){
-					s.useTemp(node.name, node.processing)
+					s.markTempUsed(node.name, node.processing)
 				};
 				moecrt.walkNode(node, fWalk);
 			}
@@ -174,10 +174,10 @@ exports.resolve = function(ast, ts, config){
 	// Variables resolve
 	var resolveVariables = function(scope, trees, explicitQ) {
 		// Step I: declare variables
-		for(var j = 0; j < scope.pendNewVars.length; j++){
-			var warnMessage, term = scope.pendNewVars[j];
+		for(var j = 0; j < scope.prepareVariableDeclaredMarks.length; j++){
+			var warnMessage, term = scope.prepareVariableDeclaredMarks[j];
 			try {
-				warnMessage = scope.newVar(term.name, term.parQ, term.constQ, explicitQ)
+				warnMessage = scope.markVariableDeclared(term.name, term.parQ, term.constQ, explicitQ)
 			} catch(e) {
 				throw PE(e + '', term.pos)
 			}
@@ -186,17 +186,17 @@ exports.resolve = function(ast, ts, config){
 			}
 		};
 
-		debugger;
-
 		// Step II: check used variables
 		scope.usedVariables.forEach(function(each){
 			if(!scope.variables.get(each)){
+				// A variable is used, but not declared
 				if(!explicitQ) {
-					if(!/^[a-z][\d_$]?$/.test(each))
+					if(!/^[a-z][\d_$]?$/.test(each)) {
 						config.warn(PW('Undeclared variable "' + each + '".',
 							(scope.usedVariablesOcc && scope.usedVariablesOcc.get(each)) || 0));
-					quenchRebinds(scope).newVar(each, false, false, explicitQ);
-					quenchRebinds(scope).locals.push(each);
+					}
+					endofRebinds(scope).markVariableDeclared(each, false, false, explicitQ);
+					endofRebinds(scope).locals.push(each);
 				} else {
 					throw PE(
 						'Undeclared variable "' + each + '" when using `-!option explicit`.',
@@ -211,7 +211,10 @@ exports.resolve = function(ast, ts, config){
 					var s = scope;
 					do {
 						if(s.usedVariablesAssignOcc.get(each) >= 0) {
-							throw PE('Attempt to redefine or assign to constant "' + each + '".', s.usedVariablesAssignOcc.get(each))
+							throw PE(
+								'Attempt to redefine or assign to constant "' + each + '".', 
+								s.usedVariablesAssignOcc.get(each)
+							)
 						}
 						if(s === livingScope) break;
 						s = s.parent;

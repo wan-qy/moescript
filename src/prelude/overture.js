@@ -3,9 +3,7 @@
 // Copyright(c) 2012 Belleve Invis
 
 var moert = require('./runtime');
-
 var derive = moert.derive;
-var Nai = moert.Nai;
 
 var reg = function(name, value){
 	exports[name] = value
