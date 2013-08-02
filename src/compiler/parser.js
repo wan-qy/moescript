@@ -470,7 +470,7 @@ exports.parse = function (tokens, source, config) {
 			node.names = [];
 			node.nameused = true;
 		} else {
-			argList(node, true);
+			argList(node);
 		}
 		advance(CLOSE, SQEND);
 		return node;
@@ -646,7 +646,7 @@ exports.parse = function (tokens, source, config) {
 	};
 
 	var completeCallExpression = function(m, inDeclarationQ){
-		while (tokenIs(OPEN, RDSTART) || tokenIs(OPEN, SQSTART) && token && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
+		out: while (tokenIs(OPEN, RDSTART) || tokenIs(OPEN, SQSTART) && token && !token.spaced || tokenIs(DOT) || tokenIs(EXCLAM) || tokenIs(PROTOMEMBER)) 
 		switch (token.type) {
 			case EXCLAM:
 				var m = new Node(nt.BINDPOINT, { expression: m });
@@ -657,6 +657,7 @@ exports.parse = function (tokens, source, config) {
 					var state = saveState();
 					var m_ = m;
 					while(tokenIs(OPEN, RDSTART)) {
+						var tR = token;
 						var stateSingleBracket = saveState();
 						var ms = m
 						try {
@@ -670,6 +671,7 @@ exports.parse = function (tokens, source, config) {
 						} catch (e1) {
 							loadState(stateSingleBracket);
 							m = ms;
+							if(tR.spaced) {	break out }
 							try {
 								m = new Node(nt.CALL, {
 									func: m,
@@ -684,7 +686,7 @@ exports.parse = function (tokens, source, config) {
 									throw (e1 ? e1 : e2)
 								}
 								return ms;
-							}
+							};
 						};
 					};
 					if(tokenIs(ASSIGN, '=') || (tokenIs(OPEN, CRSTART) && inDeclarationQ)) { // a declaration
@@ -734,11 +736,14 @@ exports.parse = function (tokens, source, config) {
 		};
 		return nc;
 	}
-	var argList = function (nc) {
+	var argList = function (nc, bOnlyOneArg) {
 		nc.args = nc.args || []
 		nc.names = nc.names || []
 		if(pusharg(nc, true)) {
 			completeArgList(nc)
+		};
+		if(nc.args.length === 1 && bOnlyOneArg) {
+			throw '~~~'
 		};
 		return nc;
 	};
@@ -1049,44 +1054,44 @@ exports.parse = function (tokens, source, config) {
 	var statement_r = function (hangingStatementQ) {
 		if (token)
 			switch (token.type) {
-			case RETURN:
-				return returnstmt(hangingStatementQ)
-			case IF:
-				return ifstmt(hangingStatementQ);
-			case WHILE:
-				return whilestmt(hangingStatementQ);
-			case REPEAT:
-				return repeatstmt(hangingStatementQ);
-			case PIECEWISE:
-				return piecewise(false, hangingStatementQ);
-			case CASE:
-				return caseStmt(hangingStatementQ);
-			case FOR:
-				return forstmt(hangingStatementQ);
-			case LABEL:
-				return labelstmt(hangingStatementQ);
-			case BREAK:
-				return brkstmt(hangingStatementQ);
-			case TRY:
-				return trystmt(hangingStatementQ);
-			case END:
-			case ELSE:
-			case OTHERWISE:
-			case CLOSE:
-			case CATCH:
-			case WHEN:
-				throw PE('Unexpected statement symbol.');
-			case VAR:
-				advance();
-				return varstmt(hangingStatementQ);
-			case DEF:
-				advance();
-				return defstmt(hangingStatementQ);
-			case PASS:
-				advance(PASS);
-				return;
-			default:
-				return assignmentExpression();
+				case RETURN:
+					return returnstmt(hangingStatementQ)
+				case IF:
+					return ifstmt(hangingStatementQ);
+				case WHILE:
+					return whilestmt(hangingStatementQ);
+				case REPEAT:
+					return repeatstmt(hangingStatementQ);
+				case PIECEWISE:
+					return piecewise(false, hangingStatementQ);
+				case CASE:
+					return caseStmt(hangingStatementQ);
+				case FOR:
+					return forstmt(hangingStatementQ);
+				case LABEL:
+					return labelstmt(hangingStatementQ);
+				case BREAK:
+					return brkstmt(hangingStatementQ);
+				case TRY:
+					return trystmt(hangingStatementQ);
+				case END:
+				case ELSE:
+				case OTHERWISE:
+				case CLOSE:
+				case CATCH:
+				case WHEN:
+					throw PE('Unexpected statement symbol.');
+				case VAR:
+					advance();
+					return varstmt(hangingStatementQ);
+				case DEF:
+					advance();
+					return defstmt(hangingStatementQ);
+				case PASS:
+					advance(PASS);
+					return;
+				default:
+					return assignmentExpression();
 		};
 	};
 	var blocky = function(node){
@@ -1345,7 +1350,8 @@ exports.parse = function (tokens, source, config) {
 						|| pattern.func.operatorType === nt['==='] 
 						|| pattern.func.operatorType === nt['is'])){
 					return new Node(pattern.func.operatorType, {left: x, right: pattern.args[0]})
-				}
+				};
+				"fall through";
 			case(nt.OBJECT):
 				pattern.names = pattern.names || [];
 				var subPatternPlacements = [];
@@ -1392,7 +1398,8 @@ exports.parse = function (tokens, source, config) {
 						args: pattern.args.map(formPatternLeftPart),
 						names: pattern.names
 					});
-				}
+				};
+				"fall through";
 			case(nt.OBJECT):
 				return new Node(nt.OBJECT, {
 					args: pattern.args.map(formPatternLeftPart),

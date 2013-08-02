@@ -290,8 +290,11 @@ var LexerBackend = function(input, config){
 	};
 	var stringliteral = function(match, n, $4){
 		switch(match.charAt(0)) {
-			case("`"): return regexLiteral(match, n);
-			case("'"): case('"'): return make(STRING, lfUnescape(match.slice(1, -1)), n);
+			case("`"): 
+				return regexLiteral(match, n);
+			case("'"): 
+			case('"'): 
+				return make(STRING, lfUnescape(match.slice(1, -1)), n);
 			default: // Lua style strings
 				return make(STRING, match.slice($4.length + 2, -($4.length + 2)))
 		}
